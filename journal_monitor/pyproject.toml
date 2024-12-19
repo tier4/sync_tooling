@@ -1,0 +1,5 @@
+[tool.poetry]
+name = "journal_monitor"
+version = "0.1.0"
+description = "A package for retrieving logs from the systemd journal."
+authors = ["Max SCHMELLER <max.schmeller@tier4.jp>"]
