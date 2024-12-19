@@ -1,0 +1,4 @@
+sending: GET PORT_DATA_SET_NP
+	000000.fffe.000000-1 seq 0 RESPONSE MANAGEMENT PORT_DATA_SET_NP 
+		neighborPropDelayThresh 20000000
+		asCapable               1

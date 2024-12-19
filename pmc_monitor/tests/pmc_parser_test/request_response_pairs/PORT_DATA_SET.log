@@ -1,0 +1,12 @@
+sending: GET PORT_DATA_SET
+	000000.fffe.000000-1 seq 0 RESPONSE MANAGEMENT PORT_DATA_SET 
+		portIdentity            000000.fffe.000000-1
+		portState               MASTER
+		logMinDelayReqInterval  0
+		peerMeanPathDelay       0
+		logAnnounceInterval     1
+		announceReceiptTimeout  3
+		logSyncInterval         0
+		delayMechanism          1
+		logMinPdelayReqInterval 0
+		versionNumber           2

@@ -1,0 +1,11 @@
+sending: GET CLOCK_DESCRIPTION
+	000000.fffe.000000-1 seq 0 RESPONSE MANAGEMENT CLOCK_DESCRIPTION 
+		clockType             0x8000
+		physicalLayerProtocol IEEE 802.3
+		physicalAddress       00:00:00:00:00:00
+		protocolAddress       1 127.0.0.1
+		manufacturerId        00:00:00
+		productDescription    ;;
+		revisionData          ;;
+		userDescription       
+		profileId             00:1b:19:00:01:00

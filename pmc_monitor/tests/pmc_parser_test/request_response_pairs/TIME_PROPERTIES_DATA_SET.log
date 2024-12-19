@@ -1,0 +1,10 @@
+sending: GET TIME_PROPERTIES_DATA_SET
+	000000.fffe.000000-0 seq 0 RESPONSE MANAGEMENT TIME_PROPERTIES_DATA_SET 
+		currentUtcOffset      37
+		leap61                0
+		leap59                0
+		currentUtcOffsetValid 0
+		ptpTimescale          0
+		timeTraceable         0
+		frequencyTraceable    0
+		timeSource            0xa0
