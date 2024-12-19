@@ -1,0 +1,12 @@
+sending: GET PARENT_DATA_SET
+	000000.fffe.000000-0 seq 0 RESPONSE MANAGEMENT PARENT_DATA_SET 
+		parentPortIdentity                    000000.fffe.000000-0
+		parentStats                           0
+		observedParentOffsetScaledLogVariance 0xffff
+		observedParentClockPhaseChangeRate    0x7fffffff
+		grandmasterPriority1                  128
+		gm.ClockClass                         248
+		gm.ClockAccuracy                      0xfe
+		gm.OffsetScaledLogVariance            0xffff
+		grandmasterPriority2                  128
+		grandmasterIdentity                   000000.fffe.000000
