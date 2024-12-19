@@ -5,7 +5,7 @@ import re
 import types
 from typing import Any, List, Type
 import typing
-from pmc_protocol import Message
+from pmc_monitor.pmc_protocol import Message
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("TLV parser")

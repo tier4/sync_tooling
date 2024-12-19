@@ -2,7 +2,15 @@
 name = "sync_tooling"
 description = "Tool suite to monitor and diagnose sensor and ECU synchronization"
 version = "0.1.0"
+authors = [{ name = "Max Schmeller", email = "max.schmeller@tier4.jp" }]
+requires-python = ">=3.10"
+dependencies = ["ptp4l_monitor", "phc2sys_monitor", "pmc_monitor"]
 
-authors = [
-    { name = "Max Schmeller", email = "max.schmeller@tier4.jp" }
-]
+[tool.uv.sources]
+journal_monitor = { workspace = true }
+phc2sys_monitor = { workspace = true }
+ptp4l_monitor = { workspace = true }
+pmc_monitor = { workspace = true }
+
+[tool.uv.workspace]
+members = ["journal_monitor", "phc2sys_monitor", "ptp4l_monitor", "pmc_monitor"]

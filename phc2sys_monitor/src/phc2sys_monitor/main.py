@@ -1,6 +1,6 @@
 import time
 from journal_monitor.logfile_journal_monitor import LogfileJournalMonitor
-from phc2sys_parser import Phc2SysParser
+from phc2sys_monitor.phc2sys_parser import Phc2SysParser
 
 
 def main():
