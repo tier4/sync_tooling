@@ -1,0 +1,8 @@
+{
+  "python.analysis.extraPaths": [
+    "./journal_monitor/src",
+    "./phc2sys_monitor/src",
+    "./ptp4l_monitor/src",
+    "./pmc_monitor/src"
+  ]
+}
