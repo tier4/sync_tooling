@@ -1,16 +1,16 @@
 import time
 from journal_monitor.logfile_journal_monitor import LogfileJournalMonitor
-from ptp4l_parser import Ptp4lParser
+from phc2sys_monitor.phc2sys_parser import Phc2SysParser
 
 
 def main():
     monitor = (
-        LogfileJournalMonitor("sub_ptp_log/sub_ptp4l@enp5s0f0.log")
+        LogfileJournalMonitor("sub_ptp_log/sub_phc2sys_enp5s0f0_to_enp3s0.log")
         .only_current_boot()
-        .only_systemd_unit("ptp4l")
+        .only_systemd_unit("phc2sys")
     )
 
-    parser = Ptp4lParser()
+    parser = Phc2SysParser()
 
     while True:
         new_entries = monitor.poll()
