@@ -12,7 +12,7 @@ def multiline_regex_from_keys(keys: List[str]) -> str:
         for k in keys
     ]
 
-    return separator_re.join([""] + lines) + "\s*\n"
+    return separator_re.join([""] + lines) + r"\s*\n"
 
 
 def add_fields_to_regex(cls):
@@ -387,7 +387,7 @@ class Empty:
 
 
 @dataclass
-class Null:
+class NullManagement:
     regex = r"\s*"
 
 
@@ -430,8 +430,8 @@ class ManagementTlv:
         | VersionNumber
         | DelayMechanism
         | LogMinPdelayReqInterval
+        | NullManagement
         | Empty
-        | Null
     )
 
 

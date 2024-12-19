@@ -1,6 +1,6 @@
 import time
 from journal_monitor.logfile_journal_monitor import LogfileJournalMonitor
-from ptp4l_parser import Ptp4lParser
+from ptp4l_monitor.ptp4l_parser import Ptp4lParser
 
 
 def main():
