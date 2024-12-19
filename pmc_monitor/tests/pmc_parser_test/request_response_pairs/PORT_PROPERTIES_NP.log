@@ -1,0 +1,6 @@
+sending: GET PORT_PROPERTIES_NP
+	000000.fffe.000000-1 seq 0 RESPONSE MANAGEMENT PORT_PROPERTIES_NP 
+		portIdentity            000000.fffe.000000-1
+		portState               MASTER
+		timestamping            SOFTWARE
+		interface               lo

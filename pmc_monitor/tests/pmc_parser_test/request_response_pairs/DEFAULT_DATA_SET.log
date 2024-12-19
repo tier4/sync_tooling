@@ -1,0 +1,12 @@
+sending: GET DEFAULT_DATA_SET
+	000000.fffe.000000-0 seq 0 RESPONSE MANAGEMENT DEFAULT_DATA_SET 
+		twoStepFlag             1
+		slaveOnly               0
+		numberPorts             1
+		priority1               128
+		clockClass              248
+		clockAccuracy           0xfe
+		offsetScaledLogVariance 0xffff
+		priority2               128
+		clockIdentity           000000.fffe.000000
+		domainNumber            0

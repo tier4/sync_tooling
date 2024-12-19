@@ -1,0 +1,4 @@
+sending: GET TRACEABILITY_PROPERTIES
+	000000.fffe.000000-0 seq 0 RESPONSE MANAGEMENT TRACEABILITY_PROPERTIES 
+		timeTraceable      0
+		frequencyTraceable 0

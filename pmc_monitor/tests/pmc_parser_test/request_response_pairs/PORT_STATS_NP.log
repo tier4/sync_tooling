@@ -1,0 +1,23 @@
+sending: GET PORT_STATS_NP
+	000000.fffe.000000-1 seq 0 RESPONSE MANAGEMENT PORT_STATS_NP 
+		portIdentity              000000.fffe.000000-1
+		rx_Sync                   7681
+		rx_Delay_Req              0
+		rx_Pdelay_Req             0
+		rx_Pdelay_Resp            0
+		rx_Follow_Up              7681
+		rx_Delay_Resp             0
+		rx_Pdelay_Resp_Follow_Up  0
+		rx_Announce               3841
+		rx_Signaling              0
+		rx_Management             352
+		tx_Sync                   7681
+		tx_Delay_Req              0
+		tx_Pdelay_Req             0
+		tx_Pdelay_Resp            0
+		tx_Follow_Up              7681
+		tx_Delay_Resp             0
+		tx_Pdelay_Resp_Follow_Up  0
+		tx_Announce               3841
+		tx_Signaling              0
+		tx_Management             325
