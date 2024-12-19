@@ -1,0 +1,8 @@
+[project]
+name = "sync_tooling"
+description = "Tool suite to monitor and diagnose sensor and ECU synchronization"
+version = "0.1.0"
+
+authors = [
+    { name = "Max Schmeller", email = "max.schmeller@tier4.jp" }
+]
