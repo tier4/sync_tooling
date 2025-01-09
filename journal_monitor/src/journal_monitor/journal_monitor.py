@@ -7,8 +7,8 @@ from typing import List
 @dataclass
 class JournalEntry:
     system_timestamp: datetime
-    monotonic_timestamp_us: int
-    cursor: str
+    monotonic_timestamp_us: int | None
+    cursor: str | None
     unit: str
     message: str | None
 

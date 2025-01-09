@@ -1,0 +1,34 @@
+import shutil
+import subprocess
+
+
+def get_command_line(pid: int) -> list[str]:
+    with open(f"/proc/{pid}/cmdline") as f:
+        cmdline = f.read()
+
+    cmdline = cmdline.removesuffix("\0")
+    args = cmdline.split("\0")
+    return args
+
+
+def get_unit_pid(unit_name: str) -> int:
+    pid = get_unit_property(unit_name, "MainPID")
+    pid = int(pid)
+    if pid == 0:
+        raise RuntimeError(f"Unit '{unit_name}' is not running")
+    return pid
+
+
+def get_unit_property(unit_name: str, property_name: str) -> str:
+    systemctl = shutil.which("systemctl")
+    if systemctl is None:
+        raise RuntimeError("Could not find systemctl executable")
+
+    result = subprocess.run(
+        [systemctl, "show", "-P", property_name, unit_name],
+        text=True,
+        capture_output=True,
+    )
+    result.check_returncode()
+
+    return result.stdout

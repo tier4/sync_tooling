@@ -1,5 +1,11 @@
 from dataclasses import dataclass
-from typing import List
+import dataclasses
+import re
+from types import UnionType
+from typing import List, TypeVar
+import typing
+
+from diag_tree import Diagnosable, Error, Ok
 
 
 def multiline_regex_from_keys(keys: List[str]) -> str:
@@ -12,21 +18,53 @@ def multiline_regex_from_keys(keys: List[str]) -> str:
         for k in keys
     ]
 
-    return separator_re.join([""] + lines) + r"\s*\n"
+    return separator_re.join([""] + lines) + r"\s*(\n|$)"
 
 
-def add_fields_to_regex(cls):
-    if not hasattr(cls, "regex"):
-        raise KeyError("Class has no `regex` attribute")
+T = TypeVar("T")
 
-    cls.regex += multiline_regex_from_keys(cls.__dataclass_fields__.keys())
+
+def regex_from_tlv(cls: T) -> T:
+    if not dataclasses.is_dataclass(cls):
+        raise TypeError(f"{cls.__name__} is not a dataclass")  # type: ignore
+
+    if not hasattr(cls, "tlv_type"):
+        raise KeyError(f"{cls.__name__} has no `tlv_type` attribute")  # type: ignore
+
+    tlv_type: str = getattr(cls, "tlv_type")
+
+    fields = dataclasses.fields(cls)
+    field_names = [f.name for f in fields]
+
+    setattr(cls, "regex", tlv_type + multiline_regex_from_keys(field_names))
     return cls
 
 
-@add_fields_to_regex
+def regex_from_tlv_union(union: UnionType) -> str:
+    regexes = []
+
+    types = typing.get_args(union)
+    for typ in types:
+        if not hasattr(typ, "regex"):
+            raise KeyError(f"Type {typ} does not have a regex attribute")
+        regexes.append(typ.regex)
+
+    combined_regex = "|".join(map(lambda regex: f"(?:{regex})", regexes))
+    combined_regex = re.sub(r"\?P<.*?>", "?:", combined_regex)
+    return combined_regex
+
+
+@dataclass
+class PortIdentity:
+    regex = r"(?P<clock_id>[\da-f\.]+)-(?P<port_number>\d+)"
+    clock_id: str
+    port_number: int
+
+
+@regex_from_tlv
 @dataclass
 class ClockDescription:
-    regex = r"CLOCK_DESCRIPTION"
+    tlv_type = "CLOCK_DESCRIPTION"
     clockType: int
     physicalLayerProtocol: str
     physicalAddress: str
@@ -38,17 +76,17 @@ class ClockDescription:
     profileId: str
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class UserDescription:
-    regex = r"USER_DESCRIPTION"
+    tlv_type = "USER_DESCRIPTION"
     userDescription: str
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class DefaultDataSet:
-    regex = r"DEFAULT_DATA_SET"
+    tlv_type = "DEFAULT_DATA_SET"
     twoStepFlag: int
     slaveOnly: int
     numberPorts: int
@@ -61,20 +99,20 @@ class DefaultDataSet:
     domainNumber: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class CurrentDataSet:
-    regex = r"CURRENT_DATA_SET"
+    tlv_type = "CURRENT_DATA_SET"
     stepsRemoved: int
     offsetFromMaster: float
     meanPathDelay: float
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class ParentDataSet:
-    regex = r"PARENT_DATA_SET"
-    parentPortIdentity: str
+    tlv_type = "PARENT_DATA_SET"
+    parentPortIdentity: PortIdentity
     parentStats: int
     observedParentOffsetScaledLogVariance: int
     observedParentClockPhaseChangeRate: int
@@ -86,10 +124,10 @@ class ParentDataSet:
     grandmasterIdentity: str
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class TimePropertiesDataSet:
-    regex = r"TIME_PROPERTIES_DATA_SET"
+    tlv_type = "TIME_PROPERTIES_DATA_SET"
     currentUtcOffset: int
     leap61: int
     leap59: int
@@ -100,93 +138,93 @@ class TimePropertiesDataSet:
     timeSource: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class Priority1:
-    regex = r"PRIORITY1"
+    tlv_type = "PRIORITY1"
     priority1: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class Priority2:
-    regex = r"PRIORITY2"
+    tlv_type = "PRIORITY2"
     priority2: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class Domain:
-    regex = r"DOMAIN"
+    tlv_type = "DOMAIN"
     domainNumber: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class SlaveOnly:
-    regex = r"SLAVE_ONLY"
+    tlv_type = "SLAVE_ONLY"
     slaveOnly: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class ClockAccuracy:
-    regex = r"CLOCK_ACCURACY"
+    tlv_type = "CLOCK_ACCURACY"
     clockAccuracy: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class TraceabilityProperties:
-    regex = r"TRACEABILITY_PROPERTIES"
+    tlv_type = "TRACEABILITY_PROPERTIES"
     timeTraceable: int
     frequencyTraceable: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class TimescaleProperties:
-    regex = r"TIMESCALE_PROPERTIES"
+    tlv_type = "TIMESCALE_PROPERTIES"
     ptpTimescale: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class AlternateTimeOffsetEnable:
-    regex = r"ALTERNATE_TIME_OFFSET_ENABLE"
+    tlv_type = "ALTERNATE_TIME_OFFSET_ENABLE"
     keyField: int
     enable: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class AlternateTimeOffsetName:
-    regex = r"ALTERNATE_TIME_OFFSET_NAME"
+    tlv_type = "ALTERNATE_TIME_OFFSET_NAME"
     keyField: int
     displayName: str
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class AlternateTimeOffsetProperties:
-    regex = r"ALTERNATE_TIME_OFFSET_PROPERTIES"
+    tlv_type = "ALTERNATE_TIME_OFFSET_PROPERTIES"
     keyField: int
     currentOffset: int
     jumpSeconds: int
     timeOfNextJump: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class MasterOnly:
-    regex = r"MASTER_ONLY"
+    tlv_type = "MASTER_ONLY"
     masterOnly: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class TimeStatusNp:
-    regex = r"TIME_STATUS_NP"
+    tlv_type = "TIME_STATUS_NP"
     master_offset: int
     ingress_time: int
     cumulativeScaledRateOffset: float
@@ -197,10 +235,10 @@ class TimeStatusNp:
     gmIdentity: str
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class GrandmasterSettingsNp:
-    regex = r"GRANDMASTER_SETTINGS_NP"
+    tlv_type = "GRANDMASTER_SETTINGS_NP"
     clockClass: int
     clockAccuracy: int
     offsetScaledLogVariance: int
@@ -214,10 +252,10 @@ class GrandmasterSettingsNp:
     timeSource: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class SubscribeEventsNp:
-    regex = r"SUBSCRIBE_EVENTS_NP"
+    tlv_type = "SUBSCRIBE_EVENTS_NP"
     duration: int
     NOTIFY_PORT_STATE: str
     NOTIFY_TIME_SYNC: str
@@ -225,18 +263,18 @@ class SubscribeEventsNp:
     NOTIFY_CMLDS: str
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class SynchronizationUncertainNp:
-    regex = r"SYNCHRONIZATION_UNCERTAIN_NP"
+    tlv_type = "SYNCHRONIZATION_UNCERTAIN_NP"
     uncertain: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class PortDataSet:
-    regex = r"PORT_DATA_SET"
-    portIdentity: str
+    tlv_type = "PORT_DATA_SET"
+    portIdentity: PortIdentity
     portState: str
     logMinDelayReqInterval: int
     peerMeanPathDelay: int
@@ -248,29 +286,32 @@ class PortDataSet:
     versionNumber: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class PortDataSetNp:
-    regex = r"PORT_DATA_SET_NP"
+    tlv_type = "PORT_DATA_SET_NP"
     neighborPropDelayThresh: int
     asCapable: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
-class PortPropertiesNp:
-    regex = r"PORT_PROPERTIES_NP"
-    portIdentity: str
+class PortPropertiesNp(Diagnosable):
+    tlv_type = "PORT_PROPERTIES_NP"
+    portIdentity: PortIdentity
     portState: str
     timestamping: str
     interface: str
 
+    def diagnose(self):
+        raise NotImplementedError()
 
-@add_fields_to_regex
+
+@regex_from_tlv
 @dataclass
-class PortStatsNp:
-    regex = r"PORT_STATS_NP"
-    portIdentity: str
+class PortStatsNp(Diagnosable):
+    tlv_type = "PORT_STATS_NP"
+    portIdentity: PortIdentity
     rx_Sync: int
     rx_Delay_Req: int
     rx_Pdelay_Req: int
@@ -292,12 +333,52 @@ class PortStatsNp:
     tx_Signaling: int
     tx_Management: int
 
+    def diagnose(self):
+        has_p2p_traffic = (
+            self.rx_Pdelay_Req
+            or self.rx_Pdelay_Resp
+            or self.tx_Pdelay_Req
+            or self.tx_Pdelay_Resp
+        )
 
-@add_fields_to_regex
+        has_e2e_traffic = (
+            self.rx_Delay_Req
+            or self.rx_Delay_Resp
+            or self.tx_Delay_Req
+            or self.tx_Delay_Resp
+        )
+
+        if not (has_e2e_traffic or has_p2p_traffic):
+            return Error("There is no PTP communication")
+
+        if has_e2e_traffic and has_p2p_traffic:
+            return Error("Found both P2P and E2E traffic on the same port")
+
+        # It is now ensured that there is only either P2P or E2E traffic, not both
+
+        sent_as_master = self.tx_Sync or self.tx_Delay_Resp or self.tx_Pdelay_Resp
+        sent_as_slave = self.tx_Delay_Req or self.tx_Pdelay_Req
+
+        received_from_master = self.rx_Sync or self.rx_Delay_Resp or self.rx_Pdelay_Resp
+        received_from_slave = self.rx_Delay_Req or self.rx_Pdelay_Req
+
+        if not (received_from_master or received_from_slave):
+            return Error("Not receiving any PTP traffic")
+
+        if sent_as_master and received_from_master:
+            return Error("Multiple PTP instances assumed master role")
+
+        if sent_as_slave and received_from_slave:
+            return Error("Slave instance received traffic from another slave")
+
+        return Ok()
+
+
+@regex_from_tlv
 @dataclass
 class PortServiceStatsNp:
-    regex = r"PORT_SERVICE_STATS_NP"
-    portIdentity: str
+    tlv_type = "PORT_SERVICE_STATS_NP"
+    portIdentity: PortIdentity
     announce_timeout: int
     sync_timeout: int
     delay_timeout: int
@@ -310,19 +391,19 @@ class PortServiceStatsNp:
     followup_mismatch: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class PortHwclockNp:
-    regex = r"PORT_HWCLOCK_NP"
-    portIdentity: str
+    tlv_type = "PORT_HWCLOCK_NP"
+    portIdentity: PortIdentity
     phcIndex: int
     flags: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class PowerProfileSettingsNp:
-    regex = r"POWER_PROFILE_SETTINGS_NP"
+    tlv_type = "POWER_PROFILE_SETTINGS_NP"
     version: int
     grandmasterID: int
     grandmasterTimeInaccuracy: int
@@ -330,129 +411,143 @@ class PowerProfileSettingsNp:
     totalTimeInaccuracy: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class CmldsInfoNp:
-    regex = r"CMLDS_INFO_NP"
+    tlv_type = "CMLDS_INFO_NP"
     meanLinkDelay: int
     scaledNeighborRateRatio: int
     as_capable: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class LogAnnounceInterval:
-    regex = r"LOG_ANNOUNCE_INTERVAL"
+    tlv_type = "LOG_ANNOUNCE_INTERVAL"
     logAnnounceInterval: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class AnnounceReceiptTimeout:
-    regex = r"ANNOUNCE_RECEIPT_TIMEOUT"
+    tlv_type = "ANNOUNCE_RECEIPT_TIMEOUT"
     announceReceiptTimeout: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class LogSyncInterval:
-    regex = r"LOG_SYNC_INTERVAL"
+    tlv_type = "LOG_SYNC_INTERVAL"
     logSyncInterval: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class VersionNumber:
-    regex = r"VERSION_NUMBER"
+    tlv_type = "VERSION_NUMBER"
     versionNumber: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class DelayMechanism:
-    regex = r"DELAY_MECHANISM"
+    tlv_type = "DELAY_MECHANISM"
     delayMechanism: int
 
 
-@add_fields_to_regex
+@regex_from_tlv
 @dataclass
 class LogMinPdelayReqInterval:
-    regex = r"LOG_MIN_PDELAY_REQ_INTERVAL"
+    tlv_type = "LOG_MIN_PDELAY_REQ_INTERVAL"
     logMinPdelayReqInterval: int
 
 
 @dataclass
 class Empty:
-    regex = r"empty-tlv\s*"
+    tlv_type = "EMPTY"
+    regex = r"empty-tlv\s*?(\n|$)"
 
 
 @dataclass
 class NullManagement:
-    regex = r"\s*"
+    tlv_type = "NULL_MANAGEMENT"
+    regex = r"\s*?(\n|$)"
+
+
+ManagementTlvPayload = (
+    ClockDescription
+    | UserDescription
+    | DefaultDataSet
+    | CurrentDataSet
+    | ParentDataSet
+    | TimePropertiesDataSet
+    | Priority1
+    | Priority2
+    | Domain
+    | SlaveOnly
+    | ClockAccuracy
+    | TraceabilityProperties
+    | TimescaleProperties
+    | AlternateTimeOffsetEnable
+    | AlternateTimeOffsetName
+    | AlternateTimeOffsetProperties
+    | MasterOnly
+    | TimeStatusNp
+    | GrandmasterSettingsNp
+    | SubscribeEventsNp
+    | SynchronizationUncertainNp
+    | PortDataSet
+    | PortDataSetNp
+    | PortPropertiesNp
+    | PortStatsNp
+    | PortServiceStatsNp
+    | PortHwclockNp
+    | PowerProfileSettingsNp
+    | CmldsInfoNp
+    | LogAnnounceInterval
+    | AnnounceReceiptTimeout
+    | LogSyncInterval
+    | VersionNumber
+    | DelayMechanism
+    | LogMinPdelayReqInterval
+    | NullManagement
+    | Empty
+)
 
 
 @dataclass
 class ManagementTlv:
-    regex = r"MANAGEMENT\s+(?P<payload>(?:.|\n)*)"
-    payload: (
-        ClockDescription
-        | UserDescription
-        | DefaultDataSet
-        | CurrentDataSet
-        | ParentDataSet
-        | TimePropertiesDataSet
-        | Priority1
-        | Priority2
-        | Domain
-        | SlaveOnly
-        | ClockAccuracy
-        | TraceabilityProperties
-        | TimescaleProperties
-        | AlternateTimeOffsetEnable
-        | AlternateTimeOffsetName
-        | AlternateTimeOffsetProperties
-        | MasterOnly
-        | TimeStatusNp
-        | GrandmasterSettingsNp
-        | SubscribeEventsNp
-        | SynchronizationUncertainNp
-        | PortDataSet
-        | PortDataSetNp
-        | PortPropertiesNp
-        | PortStatsNp
-        | PortServiceStatsNp
-        | PortHwclockNp
-        | PowerProfileSettingsNp
-        | CmldsInfoNp
-        | LogAnnounceInterval
-        | AnnounceReceiptTimeout
-        | LogSyncInterval
-        | VersionNumber
-        | DelayMechanism
-        | LogMinPdelayReqInterval
-        | NullManagement
-        | Empty
+    regex = (
+        r"MANAGEMENT\s+(?P<payload>" + regex_from_tlv_union(ManagementTlvPayload) + ")"
     )
+    payload: ManagementTlvPayload
 
 
 @dataclass
 class ManagementErrorStatusTlv:
-    regex = r"MANAGEMENT_ERROR_STATUS\s*"
+    regex = r"MANAGEMENT_ERROR_STATUS\s*?(\n|$)"
 
 
 @dataclass
 class UnknownTlv:
-    regex = r"unknown-tlv\s*"
+    regex = r"unknown-tlv\s*?(\n|$)"
+
+
+ResponseTlvPayload = ManagementTlv | ManagementErrorStatusTlv | UnknownTlv
 
 
 @dataclass
 class Response:
-    regex = r"\s+(?P<source_port>[\da-fA-F.-]+)\s+seq\s+(?P<seq>\d+)\s+(?P<action>\w+)\s+(?P<tlv>(?:.|\n)*)"
+    regex = (
+        r"\s+(?P<source_port>[\da-f\.-]+)\s+seq\s+(?P<seq>\d+)\s+(?P<action>\w+)\s*?(?P<tlv>"
+        + regex_from_tlv_union(ResponseTlvPayload)
+        + r")"
+    )
 
-    source_port: str
+    source_port: PortIdentity
     seq: int
     action: str
-    tlv: ManagementTlv | ManagementErrorStatusTlv | UnknownTlv
+    tlv: ResponseTlvPayload
 
 
 @dataclass

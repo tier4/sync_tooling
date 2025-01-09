@@ -1,0 +1,36 @@
+links:
+  phc2sys:
+    - main.CLOCK_REALTIME:
+        - main.enp5s0f0
+        - main.enp3s0
+    - sub.enp5s0f0:
+        - sub.CLOCK_REALTIME
+        - sub.enp3s0
+  ptp:
+    - main.enp5s0f0:
+        - sub.enp5s0f0
+    - main.CLOCK_REALTIME:
+        - perception1.CLOCK_REALTIME
+        - perception2.CLOCK_REALTIME
+        - addon.CLOCK_REALTIME
+        - logging.CLOCK_REALTIME
+        - ms1.CLOCK_REALTIME
+        - ms2.CLOCK_REALTIME
+    - main.enp3s0:
+        - TE-2000
+        - lidar/rear_upper
+        - lidar/rear_lower
+        - lidar/left_upper
+        - lidar/left_lower
+    - sub.enp3s0:
+        - lidar/front_upper
+        - lidar/front_lower
+        - lidar/rear_upper
+        - lidar/rear_lower
+    - TE-2000:
+        - radar/front_left
+        - radar/front_center
+        - radar/front_right
+        - radar/rear_left
+        - radar/rear_center
+        - radar/rear_right

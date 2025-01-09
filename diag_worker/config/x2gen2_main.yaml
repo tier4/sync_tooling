@@ -1,0 +1,8 @@
+watch:
+  ptp4l:
+    - systemd-unit: ptp4l@enp3s0
+    - systemd-unit: ptp4l@enp5s0f0
+    - systemd-unit: ptp4l@vlan.500
+  phc2sys:
+    - systemd-unit: phc2sys_sys_to_enp3s0
+    - systemd-unit: phc2sys_sys_to_enp5s0f0

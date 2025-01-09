@@ -1,0 +1,21 @@
+[project]
+name = "diag-worker"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [{ name = "Max SCHMELLER", email = "max.schmeller@tier4.jp" }]
+requires-python = ">=3.10"
+dependencies = [
+    "aiostream>=0.6.4",
+    "diag_tree",
+    "sync_graph",
+    "linuxptp_monitor",
+    "pmc_monitor"
+]
+
+[project.scripts]
+diag-worker = "diag_worker:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,8 +1,10 @@
 {
   "python.analysis.extraPaths": [
     "./journal_monitor/src",
-    "./phc2sys_monitor/src",
-    "./ptp4l_monitor/src",
-    "./pmc_monitor/src"
-  ]
+    "./linuxptp_monitor/src",
+    "./pmc_monitor/src",
+    "./diag_tree/src",
+    "./diag_worker/src"
+  ],
+  "python.analysis.typeCheckingMode": "standard"
 }
