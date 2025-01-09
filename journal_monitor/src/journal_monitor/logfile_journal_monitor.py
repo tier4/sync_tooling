@@ -1,3 +1,4 @@
+from datetime import datetime
 from math import floor
 from os import PathLike
 import re
@@ -17,8 +18,9 @@ def line_to_journal_entry(line: str):
 
     system_datetime = dateutil.parser.parse(m["datetime"])
     system_timestamp_us = floor(system_datetime.timestamp() * 1e6)
+    system_timestamp = datetime.fromtimestamp(system_timestamp_us * 1e-6)
 
-    return JournalEntry(system_timestamp_us, None, None, m["unit"], m["message"])
+    return JournalEntry(system_timestamp, None, None, m["unit"], m["message"])
 
 
 class LogfileJournalMonitor(JournalMonitor):
@@ -31,6 +33,7 @@ class LogfileJournalMonitor(JournalMonitor):
             self._lines = f.readlines()
 
     def only_current_boot(self) -> JournalMonitor:
+        i = 0
         for i, line in enumerate(reversed(self._lines)):
             if re.match(LogfileJournalMonitor.boot_re, line):
                 break
