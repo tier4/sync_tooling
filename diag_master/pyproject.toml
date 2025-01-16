@@ -7,7 +7,10 @@ authors = [
     { name = "Max SCHMELLER", email = "max.schmeller@tier4.jp" }
 ]
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "ros2-transport",
+    "sync-graph",
+]
 
 [project.scripts]
 diag-master = "diag_master:main"
@@ -15,3 +18,7 @@ diag-master = "diag_master:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+ros2-transport = { workspace = true }
+sync-graph = { workspace = true }
