@@ -7,7 +7,6 @@ from linuxptp_monitor.ptp4l_instance import (
 )
 from linuxptp_monitor.state_machine import SystemdUnitStateMachine
 from pmc_monitor.pmc_monitor import PmcMonitor
-from aiostream.stream import merge
 
 
 class Ptp4lMonitorTask(MonitorTask):
@@ -18,41 +17,32 @@ class Ptp4lMonitorTask(MonitorTask):
             .only_systemd_unit(unit_name)
         )
 
-        self.pmc_monitor_local: PmcMonitor | None = None
-        self.pmc_monitors_remote: list[PmcMonitor] = []
+        self.pmc_monitor: PmcMonitor | None = None
 
         def ptp4l_state_factory():
             pid = get_unit_pid(unit_name)
             cmdline = get_command_line(pid)
             config = Ptp4lConfig(cmdline)
-            self._create_pmc_monitors(config)
+            self._create_pmc_monitor(config)
             return Ptp4lRunningState(config)
 
         def on_stopped(_):
-            self._reset_pmc_monitors()
+            self._reset_pmc_monitor()
 
         self.state_machine = SystemdUnitStateMachine(
             ptp4l_state_factory, on_stopped, unit_name
         )
 
-    def _create_pmc_monitors(self, config: Ptp4lConfig):
-        self._reset_pmc_monitors()
+    def _create_pmc_monitor(self, config: Ptp4lConfig):
+        self._reset_pmc_monitor()
 
-        local_target_socket = config.uds_address
-        self.pmc_monitor_local = PmcMonitor(["-u", "-s", local_target_socket])
+        self.pmc_monitor = PmcMonitor(["-u", "-s", config.uds_address])
 
-        for port in config.ports:
-            self.pmc_monitors_remote.append(
-                PmcMonitor([config.network_transport.to_flag(), "-i", port])
-            )
+    def _reset_pmc_monitor(self):
+        if self.pmc_monitor is not None:
+            self.pmc_monitor.stop()
 
-    def _reset_pmc_monitors(self):
-        if self.pmc_monitor_local is not None:
-            self.pmc_monitor_local.stop()
-        for monitor in self.pmc_monitors_remote:
-            monitor.stop()
-
-        self.pmc_monitor_local = None
+        self.pmc_monitor = None
         self.pmc_monitors_remote = []
 
     async def poll(self):
@@ -60,15 +50,10 @@ class Ptp4lMonitorTask(MonitorTask):
         for entry in journal_entries:
             yield self.state_machine.consume(entry)
 
-        pmc_event_streams = [pmc.poll() for pmc in self.pmc_monitors_remote]
-        if self.pmc_monitor_local is not None:
-            pmc_event_streams.append(self.pmc_monitor_local.poll())
-
-        combined = merge(*pmc_event_streams)
-        async with combined.stream() as events:
-            async for event in events:
+        if self.pmc_monitor is not None:
+            async for event in self.pmc_monitor.poll():
                 yield event
 
     def stop(self):
         super().stop()
-        self._reset_pmc_monitors()
+        self._reset_pmc_monitor()
