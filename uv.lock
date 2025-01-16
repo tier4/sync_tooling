@@ -49,6 +49,16 @@ wheels = [
 name = "diag-master"
 version = "0.1.0"
 source = { editable = "diag_master" }
+dependencies = [
+    { name = "ros2-transport" },
+    { name = "sync-graph" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ros2-transport", editable = "ros2_transport" },
+    { name = "sync-graph", editable = "sync_graph" },
+]
 
 [[package]]
 name = "diag-tree"
