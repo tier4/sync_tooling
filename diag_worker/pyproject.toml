@@ -10,7 +10,8 @@ dependencies = [
     "diag_tree",
     "sync_graph",
     "linuxptp_monitor",
-    "pmc_monitor"
+    "pmc_monitor",
+    "ros2-transport",
 ]
 
 [project.scripts]
@@ -19,3 +20,6 @@ diag-worker = "diag_worker:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+ros2-transport = { workspace = true }
