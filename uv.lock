@@ -64,6 +64,7 @@ dependencies = [
     { name = "diag-tree" },
     { name = "linuxptp-monitor" },
     { name = "pmc-monitor" },
+    { name = "ros2-transport" },
     { name = "sync-graph" },
 ]
 
@@ -73,6 +74,7 @@ requires-dist = [
     { name = "diag-tree", editable = "diag_tree" },
     { name = "linuxptp-monitor", editable = "linuxptp_monitor" },
     { name = "pmc-monitor", editable = "pmc_monitor" },
+    { name = "ros2-transport", editable = "ros2_transport" },
     { name = "sync-graph", editable = "sync_graph" },
 ]
 
