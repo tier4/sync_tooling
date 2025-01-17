@@ -48,16 +48,16 @@ class LinuxClockDeviceId:
         return f"{self.hostname}.ptp{self.clock_device_number}"
 
 
+ClockId = FrameId | PtpClockId | InterfaceId | SystemClockId | LinuxClockDeviceId
+
+
 @dataclass(frozen=True)
-class PtpPortId:
-    clock_id: PtpClockId
+class PortId:
+    clock_id: ClockId
     port_number: int
 
     def id(self):
         return f"{self.clock_id.id()}-{self.port_number}"
-
-
-ClockId = FrameId | PtpClockId | InterfaceId | SystemClockId | LinuxClockDeviceId
 
 
 def get_most_human_readable_alias(aliases: set[ClockId]) -> ClockId:
@@ -78,8 +78,8 @@ class Clock:
 
 @dataclass
 class PtpSyncLink:
-    src_port: PtpPortId
-    dst_port: PtpPortId
+    src_port: PortId
+    dst_port: PortId
 
 
 @dataclass
@@ -103,13 +103,13 @@ class ClockUpdate:
 
 @dataclass
 class PtpPortLinkUpdate:
-    src: PtpPortId
-    dst: PtpPortId
+    src: PortId
+    dst: PortId
 
 
 @dataclass
 class PtpPortStateUpdate:
-    port_id: PtpPortId
+    port_id: PortId
     new_state: DiagTree
 
 
@@ -135,7 +135,7 @@ class SyncGraph(Diagnosable):
 
     _graph: nx.DiGraph = field(default_factory=nx.DiGraph)
     _known_aliases: dict[ClockId, set[ClockId]] = field(default_factory=dict)
-    _port_diagnostics: defaultdict[PtpPortId, DiagTree] = field(
+    _port_diagnostics: defaultdict[PortId, DiagTree] = field(
         default_factory=lambda: defaultdict(default_factory=Unknown)
     )  # type: ignore
 
@@ -185,7 +185,7 @@ class SyncGraph(Diagnosable):
         relabelings = {alias: canonical_id for alias in all_aliases}
         self._graph = nx.relabel_nodes(self._graph, relabelings)
 
-    def create_ptp_link(self, src: PtpPortId, dst: PtpPortId):
+    def create_ptp_link(self, src: PortId, dst: PortId):
         src_clock = self.get_or_create_clock(src.clock_id)
         dst_clock = self.get_or_create_clock(dst.clock_id)
 
@@ -218,7 +218,7 @@ class SyncGraph(Diagnosable):
         ptp_link = PtpSyncLink(src, dst)
         self._graph.add_edge(src_clock, dst_clock, **{SyncGraph._DATA_KEY: ptp_link})
 
-    def update_ptp_port_state(self, port_id: PtpPortId, state: DiagTree):
+    def update_ptp_port_state(self, port_id: PortId, state: DiagTree):
         self._port_diagnostics[port_id] = state
 
     def update_link(self, src: ClockId, dst: ClockId, link: SyncLink):
