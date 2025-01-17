@@ -1,32 +1,40 @@
+from sync_graph import ClockAliasUpdate, ClockId, PtpClockId
 from diag_worker.monitor_task import MonitorTask
 from diag_worker.systemd_util import get_command_line, get_unit_pid
+from diag_worker.util import linuxptp_to_graph_clock_id
 from journal_monitor.console_polling_journal_monitor import ConsolePollingJournalMonitor
 from linuxptp_monitor.ptp4l_instance import (
     Ptp4lConfig,
     Ptp4lRunningState,
 )
 from linuxptp_monitor.state_machine import SystemdUnitStateMachine
-from pmc_monitor.pmc_monitor import PmcMonitor
+from pmc_monitor.pmc_monitor import PmcMonitor, PmcStateChange, PtpInstance
 
 
 class Ptp4lMonitorTask(MonitorTask):
-    def __init__(self, unit_name: str):
+    def __init__(self, unit_name: str, hostname: str):
         self.journal_monitor = (
             ConsolePollingJournalMonitor()
             .only_current_boot()
             .only_systemd_unit(unit_name)
         )
 
+        self.hostname_ = hostname
         self.pmc_monitor: PmcMonitor | None = None
+        self.ptp4l_clock_id: ClockId | None = None
 
         def ptp4l_state_factory():
             pid = get_unit_pid(unit_name)
             cmdline = get_command_line(pid)
             config = Ptp4lConfig(cmdline)
+            self.ptp4l_clock_id = linuxptp_to_graph_clock_id(
+                config.clock, self.hostname_
+            )
             self._create_pmc_monitor(config)
             return Ptp4lRunningState(config)
 
         def on_stopped(_):
+            self.ptp4l_clock_id = None
             self._reset_pmc_monitor()
 
         self.state_machine = SystemdUnitStateMachine(
@@ -35,20 +43,27 @@ class Ptp4lMonitorTask(MonitorTask):
 
     def _create_pmc_monitor(self, config: Ptp4lConfig):
         self._reset_pmc_monitor()
-
         self.pmc_monitor = PmcMonitor(["-u", "-s", config.uds_address])
 
     def _reset_pmc_monitor(self):
         if self.pmc_monitor is not None:
             self.pmc_monitor.stop()
-
         self.pmc_monitor = None
-        self.pmc_monitors_remote = []
+
+    def pmc_to_graph_updates(self, state_change: PmcStateChange):
+        match (state_change.old_state, state_change.new_state):
+            case (None, PtpInstance() as inst):
+                if inst.is_local_instance:
+                    assert self.ptp4l_clock_id is not None
+                    yield ClockAliasUpdate({PtpClockId(inst.id()), self.ptp4l_clock_id})
 
     async def poll(self):
         journal_entries = self.journal_monitor.poll()
         for entry in journal_entries:
-            yield self.state_machine.consume(entry)
+            state_change = self.state_machine.consume(entry)
+            if state_change is not None:
+                # TODO(mojomex): decide what info is needed from PTP4L
+                pass
 
         if self.pmc_monitor is not None:
             async for event in self.pmc_monitor.poll():

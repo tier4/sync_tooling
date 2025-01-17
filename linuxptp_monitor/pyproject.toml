@@ -3,7 +3,7 @@ name = "linuxptp_monitor"
 version = "0.1.0"
 description = "A package for interpreting LinuxPTP (PTP4L and PHC2SYS) journal output."
 authors = [{ name = "Max Schmeller", email = "max.schmeller@tier4.jp" }]
-dependencies = ["journal_monitor", "diag_tree", "sync_graph"]
+dependencies = ["journal_monitor", "diag_tree"]
 
 [build-system]
 requires = ["hatchling"]

@@ -29,6 +29,7 @@ class PtpPort:
 
 @dataclass
 class PtpInstance:
+    is_local_instance: bool
     default_ds: DefaultDataSet
     current_ds: CurrentDataSet | Unsupported | None = None
     parent_ds: ParentDataSet | Unsupported | None = None

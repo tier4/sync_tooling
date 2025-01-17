@@ -1,5 +1,6 @@
 import asyncio
 from collections import defaultdict
+from copy import deepcopy
 from logging import Logger
 import logging
 import os
@@ -7,6 +8,7 @@ import shutil
 from signal import SIGINT
 import subprocess
 from typing import IO, List
+from dataclasses import dataclass
 
 import pandas as pd
 
@@ -28,6 +30,12 @@ from pmc_monitor.pmc_protocol import (
     UnknownTlv,
 )
 from pmc_monitor.ptp_instance import PtpInstance, PtpPort
+
+
+@dataclass
+class PmcStateChange:
+    old_state: PtpInstance | None
+    new_state: PtpInstance | None
 
 
 def _safe_read(pipe: IO[bytes] | None) -> str | None:
@@ -112,18 +120,20 @@ class PmcMonitor:
         self, mgmt_tlv: ManagementTlv, source_port: PortIdentity
     ):
         ptp_instance = self._ptp_instances.get(source_port.clock_id)
+        instance_old = deepcopy(ptp_instance)
         match ptp_instance:
             case None:
                 match mgmt_tlv.payload:
                     case DefaultDataSet() as default_ds:
-                        self._ptp_instances[source_port.clock_id] = PtpInstance(
-                            default_ds
-                        )
+                        # Port 0 is UDS, not network, so the instance has to be local
+                        is_local_instance = source_port.port_number == 0
+                        ptp_instance = PtpInstance(is_local_instance, default_ds)
+                        self._ptp_instances[source_port.clock_id] = ptp_instance
                     case payload:
                         self._logger.warning(
                             f"Received {payload.__class__.__name__} from port {source_port} before receiving DefaultDS, ignoring"
                         )
-                        return False
+                        return None
             case PtpInstance():
                 match mgmt_tlv.payload:
                     case DefaultDataSet() as default_ds:
@@ -149,7 +159,7 @@ class PmcMonitor:
                                         self._logger.warning(
                                             f"Received {other.__class__.__name__} from port {source_port} before receiving PortDS, ignoring"
                                         )
-                                        return False
+                                        return None
                             case PtpPort():
                                 match port_tlv:
                                     case PortDataSet() as port_ds:
@@ -162,16 +172,15 @@ class PmcMonitor:
                         self._logger.warning(
                             f"Ignoring received {other_payload.__class__.__name__}"
                         )
-                        return False
+                        return None
             case _:
                 assert False
-        return True
+        return PmcStateChange(instance_old, ptp_instance)
 
     async def poll(self):
-        if (return_code := self._pmc.poll()) is not None:
-            if return_code != 0:
-                error_text = _safe_read(self._pmc.stderr)
-                raise RuntimeError(f"PMC exited with code {return_code}:\n{error_text}")  # type: ignore
+        if (return_code := self._pmc.poll()) is not None and return_code != 0:
+            error_text = _safe_read(self._pmc.stderr)
+            raise RuntimeError(f"PMC exited with code {return_code}:\n{error_text}")  # type: ignore
 
         tx_attempt_stats: defaultdict[str, int] = defaultdict(lambda: 0)
         tx_stats: defaultdict[str, int] = defaultdict(lambda: 0)
@@ -220,11 +229,11 @@ class PmcMonitor:
                                     f"Got response for {resp.action} query for {payload.tlv_type} from {resp.source_port}"
                                 )
                                 rx_stats[payload.tlv_type] += 1
-                                state_changed = self._handle_management_tlv(
+                                state_change = self._handle_management_tlv(
                                     mgmt_tlv, resp.source_port
                                 )
-                                if state_changed:
-                                    yield self._ptp_instances
+                                if state_change is not None:
+                                    yield state_change
                             case ManagementErrorStatusTlv():
                                 self._logger.warning(
                                     f"Got an error status for a {resp.action} query from {resp.source_port}"
