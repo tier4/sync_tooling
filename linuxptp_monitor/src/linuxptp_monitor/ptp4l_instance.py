@@ -2,12 +2,11 @@ from argparse import ArgumentParser, Namespace
 from configparser import ConfigParser
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 import re
 from typing import Dict, Literal
 
 from journal_monitor.journal_monitor import JournalEntry
-from linuxptp_monitor.ethtool_harness import get_canonicalized_clock
+from linuxptp_monitor.ethtool_harness import CanonicalizedClock, get_canonicalized_clock
 from linuxptp_monitor.linuxptp_config import LinuxPtpConfig
 from linuxptp_monitor.state_machine import State
 
@@ -74,7 +73,7 @@ class NetworkTransport(Enum):
 
 @dataclass(init=False)
 class Ptp4lConfig(LinuxPtpConfig):
-    clock: Path | str
+    clock: CanonicalizedClock
     uds_address: str
     network_transport: NetworkTransport
     ports: list[str]
@@ -131,7 +130,7 @@ class Ptp4lConfig(LinuxPtpConfig):
                 f"PTP4L instance has to be using just one clock, is using multiple ({', '.join(map(str, clocks))})"
             )
 
-        self.clock = next(iter(clocks))
+        self.clock = next(iter(clocks))  # type: ignore
         self.uds_address = config["global"]["uds_address"]
         self.network_transport = NetworkTransport.from_label(
             config["global"]["network_transport"]
