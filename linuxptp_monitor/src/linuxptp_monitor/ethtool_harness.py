@@ -1,4 +1,3 @@
-from pathlib import Path
 import re
 import shutil
 import subprocess
@@ -14,7 +13,10 @@ def _find_ethtool():
     return ethtool
 
 
-def get_canonicalized_clock(identifier: str) -> Path | Literal["CLOCK_REALTIME"]:
+CanonicalizedClock = int | Literal["CLOCK_REALTIME"]
+
+
+def get_canonicalized_clock(identifier: str) -> CanonicalizedClock:
     """Get the canonical identifier of the clock specified by `identifier`
 
     Args:
@@ -27,9 +29,9 @@ def get_canonicalized_clock(identifier: str) -> Path | Literal["CLOCK_REALTIME"]
     if identifier == "CLOCK_REALTIME":
         return "CLOCK_REALTIME"
 
-    clock_path_re = r"/dev/ptp\d+"
-    if re.fullmatch(clock_path_re, identifier):
-        return Path(identifier)
+    clock_path_re = r"/dev/ptp(\d+)"
+    if m := re.fullmatch(clock_path_re, identifier):
+        return int(m.group(1))
 
     ethtool = _find_ethtool()
     result = subprocess.run(
@@ -38,9 +40,8 @@ def get_canonicalized_clock(identifier: str) -> Path | Literal["CLOCK_REALTIME"]
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        check=True,
     )
-
-    result.check_returncode()
 
     stdout = result.stdout
 
@@ -50,4 +51,4 @@ def get_canonicalized_clock(identifier: str) -> Path | Literal["CLOCK_REALTIME"]
         return "CLOCK_REALTIME"
 
     clock_id = int(m["clock_id"])
-    return Path(f"/dev/ptp{clock_id}")
+    return clock_id
