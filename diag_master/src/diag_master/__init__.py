@@ -1,12 +1,13 @@
 import socket
 
-from sync_graph import SyncGraph
+from sync_graph import ClockAliasUpdate, ClockUpdate, PtpClockId, PtpPortId, PtpPortLinkUpdate, PtpPortStateUpdate, SyncGraph
 
 import diag_tree
 
 import rclpy
 import rclpy.qos
 from ros2_transport import JsonSubscription
+from sync_graph import GraphUpdate
 
 
 class DiagMaster:
@@ -22,7 +23,7 @@ class DiagMaster:
             10,
             self.json_callback,
             self.error_callback,
-            [diag_tree.Unknown, diag_tree.Ok, diag_tree.Warning, diag_tree.Error],
+            {GraphUpdate},
         )
 
         self.sync_graph_ = SyncGraph()
@@ -34,7 +35,7 @@ class DiagMaster:
         self.node.get_logger().error(f"Could not parse received graph update: {err}")
 
     def json_callback(self, j):
-        pass
+        self.sync_graph_.update(j)
 
 
 def main():
