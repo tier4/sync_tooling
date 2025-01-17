@@ -1,11 +1,29 @@
 import dataclasses
 import json
-from typing import Any, Callable, Type
+from types import UnionType
+from typing import Any, Callable, Dict, Iterable, Type
+import typing
 import rclpy
 import rclpy.qos
 import rclpy.signals
 import std_msgs
 import std_msgs.msg
+
+
+def get_dataclasses_transitive(typ: Type | UnionType | str) -> set[Type | UnionType]:
+    if isinstance(typ, str):
+        raise ValueError("Cannot deal with string type annotations yet")
+
+    types = set()
+    for arg in typing.get_args(typ):
+        types |= get_dataclasses_transitive(arg)
+
+    if dataclasses.is_dataclass(typ):
+        types |= {typ}
+        for f in dataclasses.fields(typ):
+            types |= get_dataclasses_transitive(f.type)
+    
+    return types # type: ignore
 
 
 class DataclassJsonEncoder(json.JSONEncoder):
@@ -51,11 +69,15 @@ class JsonSubscription:
         qos: rclpy.qos.QoSProfile | int,
         json_callback: Callable[[Any], None],
         error_callback: Callable[[Any], None],
-        known_dataclasses: list[Type],
+        known_types: Iterable[Type | UnionType],
     ) -> None:
         self.subscription_ = node.create_subscription(
             std_msgs.msg.String, topic, self.callback_, qos
         )
+
+        known_dataclasses = set()
+        for typ in known_types:
+            known_dataclasses |= get_dataclasses_transitive(typ)
 
         self.json_callback_ = json_callback
         self.error_callback_ = error_callback
