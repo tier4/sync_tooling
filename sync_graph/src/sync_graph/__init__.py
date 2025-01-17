@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 
 import networkx as nx
 
-from diag_tree import DiagTree, Ok, Error, Diagnosable, Unknown, DiagStatus, diagnose
+from diag_tree import DiagTree, Ok, Error, Diagnosable, Unknown, DiagStatus
 
 
 @dataclass(frozen=True)
