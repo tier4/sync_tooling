@@ -1,8 +1,7 @@
 import socket
 
-from sync_graph import ClockAliasUpdate, ClockUpdate, PtpClockId, PtpPortId, PtpPortLinkUpdate, PtpPortStateUpdate, SyncGraph
+from sync_graph import SyncGraph
 
-import diag_tree
 
 import rclpy
 import rclpy.qos
