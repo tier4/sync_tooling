@@ -114,12 +114,19 @@ class PtpPortStateUpdate:
 
 
 @dataclass
-class Phc2SysLinkUpdate:
+class Phc2SysUpdate:
     src: ClockId
     dst: ClockId
+    new_state: DiagTree
 
 
-GraphUpdate = ClockAliasUpdate | ClockUpdate | PtpPortLinkUpdate | PtpPortStateUpdate
+GraphUpdate = (
+    ClockAliasUpdate
+    | ClockUpdate
+    | PtpPortLinkUpdate
+    | PtpPortStateUpdate
+    | Phc2SysUpdate
+)
 
 
 @dataclass
@@ -132,10 +139,10 @@ class SyncGraph(Diagnosable):
         default_factory=lambda: defaultdict(default_factory=Unknown)
     )  # type: ignore
 
-    def get_canonical_id(self, id: ClockId):
-        if id not in self._known_aliases:
-            return id
-        return get_most_human_readable_alias(self._known_aliases[id])
+    def get_canonical_id(self, clock_id: ClockId):
+        if clock_id not in self._known_aliases:
+            return clock_id
+        return get_most_human_readable_alias(self._known_aliases[clock_id])
 
     def update(self, update: GraphUpdate):
         match update:
@@ -147,6 +154,9 @@ class SyncGraph(Diagnosable):
                 self.create_ptp_link(src, dst)
             case PtpPortStateUpdate(port_id, state):
                 self.update_ptp_port_state(port_id, state)
+            case Phc2SysUpdate(src, dst, state):
+                link = Phc2SysSyncLink(state)
+                self.update_link(src, dst, link)
 
     def get_or_create_clock(self, clock_id: ClockId) -> ClockId:
         clock_id = self.get_canonical_id(clock_id)
@@ -154,10 +164,10 @@ class SyncGraph(Diagnosable):
             self._graph.add_node(clock_id)
         return clock_id
 
-    def update_clock(self, id: ClockId, clock: Clock):
-        id = self.get_canonical_id(id)
+    def update_clock(self, clock_id: ClockId, clock: Clock):
+        clock_id = self.get_canonical_id(clock_id)
 
-        self._graph[id][SyncGraph._DATA_KEY] = clock  # type: ignore
+        self._graph[clock_id][SyncGraph._DATA_KEY] = clock  # type: ignore
 
     def update_clock_aliases(self, aliases: set[ClockId]):
         if not aliases:
@@ -209,9 +219,7 @@ class SyncGraph(Diagnosable):
         self._graph.add_edge(src_clock, dst_clock, **{SyncGraph._DATA_KEY: ptp_link})
 
     def update_ptp_port_state(self, port_id: PtpPortId, state: DiagTree):
-        if port_id in self._port_diagnostics:
-            self._port_diagnostics[port_id] = state
-            return
+        self._port_diagnostics[port_id] = state
 
     def update_link(self, src: ClockId, dst: ClockId, link: SyncLink):
         src = self.get_or_create_clock(src)
@@ -249,8 +257,8 @@ class SyncGraph(Diagnosable):
                         "src": self._port_diagnostics[src],
                         "dst": self._port_diagnostics[dst],
                     }
-                case _:
-                    return diagnose(link)
+                case Phc2SysSyncLink(diag):
+                    return diag
 
         return {
             f"{src.id()} =({link.__class__.__name__})=> {dst.id()}": diagnose_link(link)
