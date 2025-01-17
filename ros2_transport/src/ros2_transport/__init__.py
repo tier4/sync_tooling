@@ -1,7 +1,7 @@
 import dataclasses
 import json
 from types import UnionType
-from typing import Any, Callable, Dict, Iterable, Type
+from typing import Any, Callable, Iterable, Type
 import typing
 import rclpy
 import rclpy.qos
@@ -22,8 +22,8 @@ def get_dataclasses_transitive(typ: Type | UnionType | str) -> set[Type | UnionT
         types |= {typ}
         for f in dataclasses.fields(typ):
             types |= get_dataclasses_transitive(f.type)
-    
-    return types # type: ignore
+
+    return types  # type: ignore
 
 
 class DataclassJsonEncoder(json.JSONEncoder):
