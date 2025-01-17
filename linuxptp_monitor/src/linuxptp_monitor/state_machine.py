@@ -1,4 +1,5 @@
 from abc import ABC
+from copy import deepcopy
 from dataclasses import dataclass, field
 import re
 from typing import Callable
@@ -10,6 +11,12 @@ from journal_monitor.journal_monitor import JournalEntry
 class State(ABC):
     def parse(self, entry: JournalEntry) -> "State":
         raise NotImplementedError()
+
+
+@dataclass
+class SystemdUnitStateChange:
+    old_state: State
+    new_state: State
 
 
 class SystemdUnitStateMachine:
@@ -44,9 +51,12 @@ class SystemdUnitStateMachine:
             self._on_unit_stopped(self.state)
         self.state = SystemdUnitStateMachine.Uninitialized(self._factory)
 
-    def consume(self, entry: JournalEntry):
+    def consume(self, entry: JournalEntry) -> SystemdUnitStateChange | None:
+        old_state = deepcopy(self.state)
         self.state = self._parse(entry)
-        return self.state
+
+        if old_state != self.state:
+            return SystemdUnitStateChange(old_state, self.state)
 
     def _parse(self, entry: JournalEntry) -> State:
         if entry.message is None:

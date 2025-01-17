@@ -119,14 +119,12 @@ source = { editable = "linuxptp_monitor" }
 dependencies = [
     { name = "diag-tree" },
     { name = "journal-monitor" },
-    { name = "sync-graph" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "diag-tree", editable = "diag_tree" },
     { name = "journal-monitor", editable = "journal_monitor" },
-    { name = "sync-graph", editable = "sync_graph" },
 ]
 
 [[package]]

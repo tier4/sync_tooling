@@ -1,18 +1,24 @@
+from abc import ABCMeta
 from argparse import ArgumentParser, Namespace
 from configparser import ConfigParser
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, EnumMeta
 import re
 from typing import Dict, Literal
 
+from diag_tree import DiagTree, Diagnosable, Ok, Warning, Error
 from journal_monitor.journal_monitor import JournalEntry
 from linuxptp_monitor.ethtool_harness import CanonicalizedClock, get_canonicalized_clock
 from linuxptp_monitor.linuxptp_config import LinuxPtpConfig
 from linuxptp_monitor.state_machine import State
 
 
+class DiagnosableEnumMeta(EnumMeta, ABCMeta):
+    pass
+
+
 # Adapted from fsm.h of LinuxPTP
-class PortState(Enum):
+class PortState(Enum, Diagnosable, metaclass=DiagnosableEnumMeta):
     INITIALIZING = 1
     FAULTY = 2
     DISABLED = 3
@@ -24,12 +30,35 @@ class PortState(Enum):
     SLAVE = 9
     GRAND_MASTER = 10
 
+    def diagnose(self) -> DiagTree:
+        match self:
+            case PortState.MASTER | PortState.SLAVE | PortState.GRAND_MASTER:
+                return Ok(f"Port is operating nominally ({self.name})")
+            case (
+                PortState.LISTENING
+                | PortState.INITIALIZING
+                | PortState.PRE_MASTER
+                | PortState.UNCALIBRATED
+            ):
+                return Warning(f"Port is in a transient state ({self.name})")
+            case PortState.DISABLED | PortState.DISABLED:
+                return Warning(f"Port is not being used ({self.name})")
+            case _:
+                return Error(f"Port is not working correctly ({self.name})")
 
-class SyncState(Enum):
+
+class SyncState(Enum, Diagnosable, metaclass=DiagnosableEnumMeta):
     SERVO_UNLOCKED = 0
     SERVO_JUMP = 1
     SERVO_LOCKED = 2
     SERVO_LOCKED_STABLE = 3
+
+    def diagnose(self) -> DiagTree:
+        match self:
+            case SyncState.SERVO_LOCKED | SyncState.SERVO_LOCKED_STABLE:
+                return Ok(f"Locked ({self.name})")
+            case _:
+                return Error(f"Not locked ({self.name})")
 
 
 class NetworkTransport(Enum):
