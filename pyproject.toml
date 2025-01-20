@@ -4,7 +4,12 @@ description = "Tool suite to monitor and diagnose sensor and ECU synchronization
 version = "0.1.0"
 authors = [{ name = "Max Schmeller", email = "max.schmeller@tier4.jp" }]
 requires-python = ">=3.10"
-dependencies = ["diag_worker"]
+dependencies = [
+    "bottleneck>=1.3.6",
+    "diag_worker",
+    "numexpr>=2.8.4",
+    "numpy<2",
+]
 
 [tool.uv.sources]
 journal_monitor = { workspace = true }
