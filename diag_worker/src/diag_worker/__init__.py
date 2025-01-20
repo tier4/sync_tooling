@@ -9,16 +9,9 @@ from aiostream.stream import merge
 from linuxptp_monitor.phc2sys_instance import Phc2SysRunningState
 from pmc_monitor.pmc_monitor import PmcStateChange
 import rclpy
+import rclpy.parameter
 import rclpy.qos
 from ros2_transport import JsonPublisher
-
-
-def parse_list_parameter(ros2_parameter: rclpy.Parameter) -> list | None:
-    match ros2_parameter.value:
-        case [*items]:
-            return items
-        case _:
-            return None
 
 
 class DiagWorker:
@@ -30,11 +23,15 @@ class DiagWorker:
         self.node_ = rclpy.create_node(hostname, namespace="/sync_diag/worker")  # type: ignore
         self.publisher_ = JsonPublisher(self.node_, "/sync_diag/graph_updates", 10)
 
-        ptp4l_units = self.node_.declare_parameter("ptp4l_units")
-        phc2sys_units = self.node_.declare_parameter("phc2sys_units")
+        ptp4l_units = self.node_.declare_parameter(
+            "ptp4l_units", rclpy.parameter.Parameter.Type.STRING_ARRAY
+        )
+        phc2sys_units = self.node_.declare_parameter(
+            "phc2sys_units", rclpy.parameter.Parameter.Type.STRING_ARRAY
+        )
 
-        ptp4l_units = parse_list_parameter(ptp4l_units)
-        phc2sys_units = parse_list_parameter(phc2sys_units)
+        ptp4l_units = list(ptp4l_units.get_parameter_value().string_array_value)
+        phc2sys_units = list(phc2sys_units.get_parameter_value().string_array_value)
 
         if not ptp4l_units and not phc2sys_units:
             raise ValueError(
