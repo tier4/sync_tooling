@@ -400,7 +400,6 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "bottleneck" },
-    { name = "diag-worker" },
     { name = "numexpr" },
     { name = "numpy" },
 ]
@@ -408,7 +407,6 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "bottleneck", specifier = ">=1.3.6" },
-    { name = "diag-worker", editable = "diag_worker" },
     { name = "numexpr", specifier = ">=2.8.4" },
     { name = "numpy", specifier = "<2" },
 ]
