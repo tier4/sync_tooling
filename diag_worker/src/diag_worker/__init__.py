@@ -27,7 +27,7 @@ class DiagWorker:
         if not hostname:
             raise RuntimeError("Could not determine hostname")
 
-        self.node_ = rclpy.create_node(f"/sync_diag/worker/{hostname}")  # type: ignore
+        self.node_ = rclpy.create_node(hostname, namespace="/sync_diag/worker")  # type: ignore
         self.publisher_ = JsonPublisher(self.node_, "/sync_diag/graph_updates", 10)
 
         ptp4l_units = self.node_.declare_parameter("ptp4l_units")
