@@ -1,5 +1,6 @@
 import socket
 
+
 from sync_graph import SyncGraph
 
 
@@ -34,7 +35,9 @@ class DiagMaster:
         self.node.get_logger().error(f"Could not parse received graph update: {err}")
 
     def json_callback(self, j):
+        print(f"got JSON: {j}")
         self.sync_graph_.update(j)
+        print(self.sync_graph_)
 
 
 def main():
