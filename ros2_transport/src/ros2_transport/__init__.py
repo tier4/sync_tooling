@@ -29,9 +29,11 @@ def get_dataclasses_transitive(typ: Type | UnionType | str) -> set[Type | UnionT
 
 class DataclassJsonEncoder(json.JSONEncoder):
     def default(self, o):
+        if isinstance(o, set):
+            return self.default(list(o))
         if dataclasses.is_dataclass(o):
             return self.encode_dataclass_(o)
-        return super().default(o)
+        return super().encode(o)
 
     def encode_dataclass_(self, o):
         if not dataclasses.is_dataclass(o):
@@ -103,4 +105,6 @@ class JsonSubscription:
         class_qualname = o["__dataclass__"]
         cls = self.known_dataclasses_[class_qualname]
         del o["__dataclass__"]
-        return cls(**o)
+        return cls(
+            **{k: json.loads(v, object_hook=self.object_hook_) for k, v in o.items()}
+        )
