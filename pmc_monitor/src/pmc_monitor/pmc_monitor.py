@@ -86,7 +86,7 @@ class PmcMonitor:
             self._logger = logger
         else:
             self._logger = logging.getLogger(self.__class__.__name__)
-        self._logger.setLevel(logging.DEBUG)
+        self._logger.setLevel(logging.INFO)
 
     def stop(self):
         self._pmc.send_signal(SIGINT)
@@ -244,4 +244,4 @@ class PmcMonitor:
                                 )
 
         stats = self._get_stats_table(tx_attempt_stats, tx_stats, rx_stats)
-        self._logger.info("\n" + stats.to_markdown())
+        self._logger.debug("\n" + stats.to_markdown())

@@ -165,7 +165,9 @@ class Ptp4lConfig(LinuxPtpConfig):
             config["global"]["network_transport"]
         )
         self.ports = ports
-        self.transport_specific = int(config["global"].get("transportSpecific", 0))
+        self.transport_specific = int(
+            config["global"].get("transportSpecific", "0"), base=0
+        )
 
 
 @dataclass
@@ -191,27 +193,14 @@ class Ptp4lRunningState(State):
         if not m:
             return True
 
-        from_state = m["from_state"]
         to_state = m["to_state"]
-        event = m["event"]
-
-        print(f"Port {port_id} changed from {from_state} to {to_state} on {event}")
         self.port_states[port_id] = PortState[to_state]
-
         return True
 
     def _parse_master_offset(self, message: str):
         m = re.match(Ptp4lRunningState.master_offset_re, message)
         if not m:
             return False
-
-        offset_ns = int(m["offset_ns"])
-        sync_state = SyncState(int(m["sync_state"]))
-        path_delay_ns = int(m["path_delay_ns"])
-
-        print(
-            f"Clock is {sync_state.name} with an offset of {offset_ns / 1e9:.3f} s and a path delay of {path_delay_ns / 1e6:.3f} ms"
-        )
         return True
 
     def parse(self, entry: JournalEntry):
@@ -227,5 +216,4 @@ class Ptp4lRunningState(State):
             return self
         if self._parse_port_state_change(message):
             return self
-
         return self

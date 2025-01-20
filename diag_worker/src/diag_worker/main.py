@@ -3,11 +3,9 @@ import socket
 
 from diag_worker.monitor_task import MonitorTask
 from diag_worker.phc2sys_monitor_task import Phc2SysMonitorTask
-from diag_worker.ptp4l_monitor_task import Ptp4lMonitorTask, Ptp4lRunningState
+from diag_worker.ptp4l_monitor_task import Ptp4lMonitorTask
 from aiostream.stream import merge
 
-from linuxptp_monitor.phc2sys_instance import Phc2SysRunningState
-from pmc_monitor.pmc_monitor import PmcStateChange
 import rclpy
 import rclpy.parameter
 import rclpy.qos
@@ -48,34 +46,12 @@ class DiagWorker:
             for unit_name in phc2sys_units:
                 self.monitors_.append(Phc2SysMonitorTask(unit_name, hostname))
 
-    def handle_pmc_state_change(self, s: PmcStateChange):
-        pass
-
-    def handle_phc2sys_state_change(self, s: Phc2SysRunningState):
-        pass
-
-    def handle_ptp4l_state_change(self, s: Ptp4lRunningState):
-        pass
-
-    def handle_unknown(self, other):
-        pass
-
-    def handle_event(self, event):
-        match event:
-            case PmcStateChange():
-                self.handle_pmc_state_change(event)
-            case Phc2SysRunningState():
-                self.handle_phc2sys_state_change(event)
-            case Ptp4lRunningState():
-                self.handle_ptp4l_state_change(event)
-            case other:
-                self.handle_unknown(other)
-
     async def run(self):
         combined = merge(*[m.run_loop(1) for m in self.monitors_])
         async with combined.stream() as events:
             async for event in events:
-                self.handle_event(event)
+                print(f"got graph update: {event}")
+                self.publisher_.publish(event)
 
 
 def main():
