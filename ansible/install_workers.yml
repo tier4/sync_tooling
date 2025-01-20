@@ -89,3 +89,4 @@
     - name: Install the wheel file
       ansible.builtin.pip:
         name: "file:///tmp/{{ hostvars['localhost'].wheel_path | basename }}"
+        extra_args: "--force-reinstall"
