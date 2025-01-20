@@ -165,6 +165,7 @@ class Ptp4lConfig(LinuxPtpConfig):
             config["global"]["network_transport"]
         )
         self.ports = ports
+        self.transport_specific = int(config["global"].get("transportSpecific", 0))
 
 
 @dataclass
