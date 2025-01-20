@@ -10,5 +10,6 @@
     "/opt/ros/humble/lib/python3.10/site-packages",
     "/opt/ros/humble/local/lib/python3.10/dist-packages"
   ],
-  "python.analysis.typeCheckingMode": "standard"
+  "python.analysis.typeCheckingMode": "standard",
+  "ansible.python.interpreterPath": "/home/maximilianschmeller/sync_tooling/.venv/bin/python"
 }

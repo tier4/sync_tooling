@@ -1,0 +1,91 @@
+- name: Package Python Project
+  hosts: localhost
+  tasks:
+    - name: Update project dependencies
+      ansible.builtin.command:
+        cmd: uv sync --all-packages
+      args:
+        chdir: "{{ lookup('env', 'PWD') }}"
+      register: sync_output
+      changed_when: true
+
+    - name: Generate `requirements.txt`
+      ansible.builtin.command:
+        cmd: uv export --no-hashes --all-packages --no-emit-workspace -o /tmp/requirements.txt
+      args:
+        chdir: "{{ lookup('env', 'PWD') }}"
+      register: export_output
+      changed_when: true
+
+    - name: Package the current directory with `uv build`
+      ansible.builtin.command:
+        cmd: uv build
+      args:
+        chdir: "{{ lookup('env', 'PWD') }}"
+      register: build_output
+      changed_when: true
+
+    - name: Find the built wheel file
+      ansible.builtin.find:
+        paths: "{{ lookup('env', 'PWD') }}/dist"
+        patterns: "*.whl"
+        use_regex: false
+      register: wheel_file
+
+    - name: Ensure a wheel file was built
+      ansible.builtin.fail:
+        msg: "No wheel file found in the dist directory."
+      when: wheel_file.files | length == 0
+
+    - name: Save the wheel file path
+      ansible.builtin.set_fact:
+        wheel_path: "{{ wheel_file.files[0].path }}"
+
+- name: Deploy and Test Application
+  hosts: all
+  vars:
+    apt_requirements_file: apt-requirements.txt
+
+    host_part: "{{ ansible_host | ansible.utils.ipcut(-8) }}"
+    proxy_port: "{{ 7000 + (host_part | int)  }}"
+    # Set the control node (node running the playbook) to be the proxy for nodes not connected to internet
+    proxy: "socks5://{{ ansible_env.SSH_CONNECTION.split(' ')[0] }}:6969"
+  environment:
+    http_proxy: "{{ proxy }}"
+    https_proxy: "{{ proxy }}"
+  tasks:
+    - name: Debug proxy
+      ansible.builtin.debug:
+        var: to_debug
+      vars:
+        to_debug:
+          proxy: "{{proxy}}"
+          connection: "{{ ansible_env.SSH_CONNECTION }}"
+
+    - name: Copy the wheel file to target nodes
+      ansible.builtin.copy:
+        src: "{{ hostvars['localhost'].wheel_path }}"
+        dest: "/tmp/"
+        mode: '644'
+
+    - name: Copy the wheel file to target nodes
+      ansible.builtin.copy:
+        src: "/tmp/requirements.txt"
+        dest: "/tmp/"
+        mode: '644'
+
+    - name: Install extra apt dependencies
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ lookup('file', lookup('env', 'PWD') + '/' + apt_requirements_file).splitlines() }}"
+      when: apt_requirements_file is file
+      become: true
+
+    - name: Install wheel's requirements
+      ansible.builtin.pip:
+        requirements: /tmp/requirements.txt
+
+    - name: Install the wheel file
+      ansible.builtin.pip:
+        name: "file:///tmp/{{ hostvars['localhost'].wheel_path | basename }}"
