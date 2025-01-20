@@ -1,0 +1,29 @@
+all:
+  vars:
+    remote_user: autoware
+  hosts:
+    laptop:
+      ansible_host: 192.168.3.42
+      remote_user: maximilianschmeller
+    # main:
+    #   ansible_host: 192.168.20.11
+    # sub:
+    #   ansible_host: 192.168.20.21
+    # perception1:
+    #   ansible_host: 192.168.20.31
+    # perception2:
+    #   ansible_host: 192.168.20.32
+    # addon:
+    #   ansible_host: 192.168.20.33
+    # logging:
+    #   ansible_host: 192.168.20.71
+    # ms1:
+    #   ansible_host: 192.168.20.61
+    # ms2:
+    #   ansible_host: 192.168.20.62
+    # signage:
+    #   ansible_host: 192.168.20.41
+    # out_vehicle:
+    #   ansible_host: 192.168.20.51
+    # its:
+    #   ansible_host: 192.168.20.101
