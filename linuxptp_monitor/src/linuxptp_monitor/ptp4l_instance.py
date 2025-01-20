@@ -18,7 +18,7 @@ class DiagnosableEnumMeta(EnumMeta, ABCMeta):
 
 
 # Adapted from fsm.h of LinuxPTP
-class PortState(Enum, Diagnosable, metaclass=DiagnosableEnumMeta):
+class PortState(Diagnosable, Enum, metaclass=DiagnosableEnumMeta):
     INITIALIZING = 1
     FAULTY = 2
     DISABLED = 3
@@ -47,7 +47,7 @@ class PortState(Enum, Diagnosable, metaclass=DiagnosableEnumMeta):
                 return Error(f"Port is not working correctly ({self.name})")
 
 
-class SyncState(Enum, Diagnosable, metaclass=DiagnosableEnumMeta):
+class SyncState(Diagnosable, Enum, metaclass=DiagnosableEnumMeta):
     SERVO_UNLOCKED = 0
     SERVO_JUMP = 1
     SERVO_LOCKED = 2
