@@ -15,7 +15,7 @@ class DiagMaster:
         if not hostname:
             raise RuntimeError("Could not determine hostname")
 
-        self.node = rclpy.create_node(f"/sync_diag/master/{hostname}")  # type: ignore
+        self.node = rclpy.create_node(hostname, namespace="/sync_diag/master")  # type: ignore
         self.subscription_ = JsonSubscription(
             self.node,
             "/sync_diag/graph_updates",
