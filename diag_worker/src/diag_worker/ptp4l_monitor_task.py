@@ -43,7 +43,9 @@ class Ptp4lMonitorTask(MonitorTask):
 
     def _create_pmc_monitor(self, config: Ptp4lConfig):
         self._reset_pmc_monitor()
-        self.pmc_monitor = PmcMonitor(["-u", "-s", config.uds_address])
+        self.pmc_monitor = PmcMonitor(
+            ["-u", "-s", config.uds_address, "-t", hex(config.transport_specific)]
+        )
 
     def _reset_pmc_monitor(self):
         if self.pmc_monitor is not None:
