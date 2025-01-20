@@ -24,10 +24,10 @@ class DiagWorker:
         self.publisher_ = JsonPublisher(self.node_, "/sync_diag/graph_updates", 10)
 
         ptp4l_units = self.node_.declare_parameter(
-            "ptp4l_units", rclpy.parameter.Parameter.Type.STRING_ARRAY
+            "watch.ptp4l.systemd_units", rclpy.parameter.Parameter.Type.STRING_ARRAY
         )
         phc2sys_units = self.node_.declare_parameter(
-            "phc2sys_units", rclpy.parameter.Parameter.Type.STRING_ARRAY
+            "watch.phc2sys.systemd_units", rclpy.parameter.Parameter.Type.STRING_ARRAY
         )
 
         ptp4l_units = list(ptp4l_units.get_parameter_value().string_array_value)
