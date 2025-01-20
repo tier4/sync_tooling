@@ -22,7 +22,7 @@ class DiagMaster:
             10,
             self.json_callback,
             self.error_callback,
-            {GraphUpdate},
+            {GraphUpdate},  # type: ignore
         )
 
         self.sync_graph_ = SyncGraph()
