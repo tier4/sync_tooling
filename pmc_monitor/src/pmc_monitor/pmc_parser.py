@@ -8,10 +8,6 @@ from typing import Any, List
 import typing
 from pmc_monitor.pmc_protocol import Message
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("TLV parser")
-logger.setLevel(logging.DEBUG)
-
 
 def indent(msg: str, level: int):
     return f"{'  ' * level}{msg}"
@@ -66,7 +62,7 @@ def parse_int(string: str):
     return ParseError(["parse_int"], string)
 
 
-def parse_class_from_regex(typ, string: str, level):
+def parse_class_from_regex(typ, string: str, logger: logging.Logger, level: int):
     m = re.match(typ.regex, string)
     if m is None:
         logger.debug(
@@ -99,7 +95,7 @@ def parse_class_from_regex(typ, string: str, level):
                 level,
             )
         )
-        match consume(type_to_parse, value_to_parse, level + 1):
+        match consume(type_to_parse, value_to_parse, logger, level + 1):
             case Some(x), _:
                 instance_dict[field.name] = x
             case ParseError() as e:
@@ -115,7 +111,9 @@ def parse_class_from_regex(typ, string: str, level):
     return Some(typ(**instance_dict)), rest
 
 
-def consume(typ, text: str, level=0) -> tuple[Some, str] | ParseError:
+def consume(
+    typ, text: str, logger: logging.Logger, level=0
+) -> tuple[Some, str] | ParseError:
     logger.debug(indent(f"consuming type {typ}, text='{abbreviate(text)}'", level))
     level += 1
     match typ:
@@ -137,7 +135,7 @@ def consume(typ, text: str, level=0) -> tuple[Some, str] | ParseError:
                 logger.debug(
                     indent(f"trying {argument_type}, text='{abbreviate(text)}'", level)
                 )
-                match consume(argument_type, text, level + 1):
+                match consume(argument_type, text, logger, level + 1):
                     case Some(x), rest:
                         return Some(x), rest
                     case ParseError():
@@ -147,18 +145,22 @@ def consume(typ, text: str, level=0) -> tuple[Some, str] | ParseError:
         case _:
             if dataclasses.is_dataclass(typ):
                 logger.debug(indent("parsing class through regex", level))
-                return parse_class_from_regex(typ, text, level + 1)
+                return parse_class_from_regex(typ, text, logger, level + 1)
 
     logger.debug(indent("type not matching any pattern", -1))
     return ParseError([f"consume({typ})->match"], text)
 
 
-def parse(text: str):
+def parse(text: str, logger: logging.Logger | None = None):
+    if logger is None:
+        logger = logging.getLogger("TLV parser")
+        logger.setLevel(logging.DEBUG)
+
     outputs: List[Message | ParseError] = []
     rest = text
     while rest:
         logger.debug(f"start parsing with text='{abbreviate(rest)}'")
-        result = consume(Message, rest, 1)
+        result = consume(Message, rest, logger, 1)
         match result:
             case Some(x), remainder:
                 outputs.append(x)
