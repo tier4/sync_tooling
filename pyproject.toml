@@ -4,17 +4,14 @@ description = "Tool suite to monitor and diagnose sensor and ECU synchronization
 version = "0.1.0"
 authors = [{ name = "Max Schmeller", email = "max.schmeller@tier4.jp" }]
 requires-python = ">=3.10"
-dependencies = [
-    "bottleneck>=1.3.6",
-    "numexpr>=2.8.4",
-    "numpy<2"
-]
+dependencies = ["bottleneck>=1.3.6", "numexpr>=2.8.4", "numpy<2"]
 
 [dependency-groups]
-dev = [
-    "ansible-dev-tools>=24.12.0",
-    "ansible-lint>=6.8.7",
-]
+dev = ["ansible-dev-tools>=24.12.0", "ansible-lint>=6.8.7"]
+
+[project.scripts]
+diag-master = "diag_master.main:main"
+diag-worker = "diag_worker.main:main"
 
 [tool.uv.sources]
 journal_monitor = { workspace = true }
@@ -26,11 +23,29 @@ diag_master = { workspace = true }
 sync_graph = { workspace = true }
 
 [tool.uv.workspace]
-members = ["journal_monitor", "linuxptp_monitor", "pmc_monitor", "diag_tree", "diag_worker", "diag_master", "sync_graph", "ros2_transport"]
+members = [
+    "journal_monitor",
+    "linuxptp_monitor",
+    "pmc_monitor",
+    "diag_tree",
+    "diag_worker",
+    "diag_master",
+    "sync_graph",
+    "ros2_transport",
+]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["journal_monitor", "linuxptp_monitor", "pmc_monitor", "diag_tree", "diag_worker", "diag_master", "sync_graph", "ros2_transport"]
+packages = [
+    "journal_monitor/src/journal_monitor",
+    "linuxptp_monitor/src/linuxptp_monitor",
+    "pmc_monitor/src/pmc_monitor",
+    "diag_tree/src/diag_tree",
+    "diag_worker/src/diag_worker",
+    "diag_master/src/diag_master",
+    "sync_graph/src/sync_graph",
+    "ros2_transport/src/ros2_transport",
+]
