@@ -6,9 +6,14 @@ authors = [{ name = "Max Schmeller", email = "max.schmeller@tier4.jp" }]
 requires-python = ">=3.10"
 dependencies = [
     "bottleneck>=1.3.6",
-    "diag_worker",
     "numexpr>=2.8.4",
-    "numpy<2",
+    "numpy<2"
+]
+
+[dependency-groups]
+dev = [
+    "ansible-dev-tools>=24.12.0",
+    "ansible-lint>=6.8.7",
 ]
 
 [tool.uv.sources]
@@ -17,6 +22,7 @@ linuxptp_monitor = { workspace = true }
 pmc_monitor = { workspace = true }
 diag_tree = { workspace = true }
 diag_worker = { workspace = true }
+diag_master = { workspace = true }
 sync_graph = { workspace = true }
 
 [tool.uv.workspace]
