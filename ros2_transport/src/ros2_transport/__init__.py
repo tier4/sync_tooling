@@ -5,6 +5,7 @@ from typing import Any, Callable, Iterable, Type
 import typing
 import rclpy
 import rclpy.qos
+import rclpy.node
 import rclpy.signals
 import std_msgs
 import std_msgs.msg
@@ -47,7 +48,7 @@ class DataclassJsonEncoder(json.JSONEncoder):
 
 class JsonPublisher:
     def __init__(
-        self, node: rclpy.Node, topic: str, qos: rclpy.qos.QoSProfile | int
+        self, node: rclpy.node.Node, topic: str, qos: rclpy.qos.QoSProfile | int
     ) -> None:
         self.publisher_ = node.create_publisher(std_msgs.msg.String, topic, qos)
 
@@ -64,7 +65,7 @@ class JsonPublisher:
 class JsonSubscription:
     def __init__(
         self,
-        node: rclpy.Node,
+        node: rclpy.node.Node,
         topic: str,
         qos: rclpy.qos.QoSProfile | int,
         json_callback: Callable[[Any], None],
