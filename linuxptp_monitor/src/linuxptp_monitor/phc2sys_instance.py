@@ -31,7 +31,6 @@ class Phc2SysConfig(LinuxPtpConfig):
     clock_aliases: dict[str, CanonicalizedClock]
 
     def add_args_app_specific(self, parser: ArgumentParser) -> None:
-        parser.add_argument("-f", metavar="config", dest="config")
         parser.add_argument("-a", action="store_true", dest="do_auto_conf")
         parser.add_argument("-d", dest="pps_source")
         parser.add_argument("--uds_address", "-z")
