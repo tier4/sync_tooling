@@ -27,7 +27,7 @@ class ClockState:
 @dataclass(init=False)
 class Phc2SysConfig(LinuxPtpConfig):
     source_clock: CanonicalizedClock
-    dst_clocks: list[CanonicalizedClock]
+    dst_clocks: set[CanonicalizedClock]
     clock_aliases: dict[str, CanonicalizedClock]
 
     def add_args_app_specific(self, parser: ArgumentParser) -> None:
@@ -35,7 +35,7 @@ class Phc2SysConfig(LinuxPtpConfig):
         parser.add_argument("-d", dest="pps_source")
         parser.add_argument("--uds_address", "-z")
         parser.add_argument("-s", dest="source_clock")
-        parser.add_argument("-c", action="append", dest="destination_clocks")
+        parser.add_argument("-c", action="append", dest="dst_clocks")
 
     def validate_args_app_specific(self, args: Namespace) -> None:
         if args.do_auto_conf:
@@ -51,19 +51,19 @@ class Phc2SysConfig(LinuxPtpConfig):
         self.source_clock = get_canonicalized_clock(args.source_clock)
         self.clock_aliases[args.source_clock] = self.source_clock
 
-        if args.destination_clocks is None:
+        if args.dst_clocks is None:
             dst_clocks = ["CLOCK_REALTIME"]
         else:
-            dst_clocks = args.destination_clocks
+            dst_clocks = args.dst_clocks
 
-        self.destination_clocks = set()
+        self.dst_clocks = set()
         for clock in dst_clocks:
             canonicalized = get_canonicalized_clock(clock)
             self.clock_aliases[clock] = canonicalized
-            self.destination_clocks.add(canonicalized)
+            self.dst_clocks.add(canonicalized)
 
     def override_app_specific(self, args: Namespace, config: ConfigParser) -> list[str]:
-        return ["do_auto_conf", "source_clock", "destination_clocks", "pps_source"]
+        return ["do_auto_conf", "source_clock", "dst_clocks", "pps_source"]
 
 
 @dataclass
