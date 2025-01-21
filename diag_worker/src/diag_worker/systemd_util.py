@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import re
 
 
 def get_command_line(pid: int) -> list[str]:
@@ -28,13 +29,16 @@ def get_systemctl_():
 
 def get_unit_property(unit_name: str, property_name: str) -> str:
     result = subprocess.run(
-        [get_systemctl_(), "show", "-P", property_name, unit_name],
+        [get_systemctl_(), "show", unit_name],
         text=True,
         capture_output=True,
         check=True,
     )
 
-    return result.stdout
+    if m := re.search(f"^{property_name}=(.*)$", result.stdout):
+        return m.group(1)
+
+    raise KeyError(f"Property '{property_name}' was not found for unit '{unit_name}'")
 
 
 def does_unit_exist(unit_name: str) -> bool:
