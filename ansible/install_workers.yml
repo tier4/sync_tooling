@@ -11,7 +11,7 @@
 
     - name: Generate `requirements.txt`
       ansible.builtin.command:
-        cmd: uv export --no-hashes --all-packages --no-emit-workspace -o /tmp/requirements.txt
+        cmd: uv export --no-hashes --all-packages --no-emit-workspace --no-dev -o /tmp/requirements.txt
       args:
         chdir: "{{ lookup('env', 'PWD') }}"
       register: export_output
@@ -49,8 +49,10 @@
     host_part: "{{ ansible_host | ansible.utils.ipcut(-8) }}"
     proxy_port: "{{ 7000 + (host_part | int)  }}"
     # Set the control node (node running the playbook) to be the proxy for nodes not connected to internet
-    proxy: "socks5://{{ ansible_env.SSH_CONNECTION.split(' ')[0] }}:6969"
+    proxy: "http://{{ ansible_env.SSH_CONNECTION.split(' ')[0] }}:6969"
+    venv_path: "{{ ansible_env.HOME }}/.sync_tooling_venv"
   environment:
+    all_proxy: "{{ proxy }}"
     http_proxy: "{{ proxy }}"
     https_proxy: "{{ proxy }}"
   tasks:
@@ -74,6 +76,50 @@
         dest: "/tmp/"
         mode: '644'
 
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+      become: true
+    
+    - name: Check if Python 3.10 is present
+      ansible.builtin.command:
+        cmd: python3.10 -m pip --version
+      register: python_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install Python 3.10
+      when: python_check.rc != 0
+      block:
+        - name: Add PPA dependencies
+          ansible.builtin.apt:
+            name: 
+              - software-properties-common
+            state: present
+          become: true
+
+        - name: Add deadsnakes PPA key
+          ansible.builtin.shell:
+            cmd:  curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" | sudo apt-key add
+          become: true
+
+        - name: Add deadsnakes PPA
+          ansible.builtin.apt_repository:
+            repo: ppa:deadsnakes/ppa
+            state: present
+          become: true
+
+        - name: Install Python 3.10
+          ansible.builtin.apt:
+            name: 
+              - python3.10 
+              - python3.10-venv 
+              - python3.10-dev 
+              - python3-apt
+            state: present
+            update_cache: yes
+          become: true
+
     - name: Install extra apt dependencies
       ansible.builtin.apt:
         name: "{{ item }}"
@@ -81,12 +127,31 @@
       loop: "{{ lookup('file', lookup('env', 'PWD') + '/' + apt_requirements_file).splitlines() }}"
       when: apt_requirements_file is file
       become: true
+    
+    - name: Install virtualenv
+      ansible.builtin.apt:
+        name: python3-virtualenv
+      become: true
 
+
+    - name: Configure venv
+      block:
+        - name: Reset venv
+          ansible.builtin.command:
+            cmd: rm -rf "{{ venv_path }}"
+
+        - name: Create venv
+          ansible.builtin.command:
+            cmd: virtualenv --python python3.10 "{{ venv_path }}"
+        
+        - name: Install pip
+          ansible.builtin.shell:
+            cmd: . {{ venv_path }}/bin/activate && (curl -sS https://bootstrap.pypa.io/get-pip.py | python)
+    
     - name: Install wheel's requirements
-      ansible.builtin.pip:
-        requirements: /tmp/requirements.txt
+      ansible.builtin.shell:
+        cmd: . {{ venv_path }}/bin/activate && pip install -r /tmp/requirements.txt
 
     - name: Install the wheel file
-      ansible.builtin.pip:
-        name: "file:///tmp/{{ hostvars['localhost'].wheel_path | basename }}"
-        extra_args: "--force-reinstall"
+      ansible.builtin.shell:
+        cmd: . {{ venv_path }}/bin/activate && pip install --force-reinstall /tmp/{{ hostvars['localhost'].wheel_path | basename }}
