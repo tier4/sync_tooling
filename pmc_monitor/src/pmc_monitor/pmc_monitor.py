@@ -196,9 +196,7 @@ class PmcMonitor:
 
         error_text = _safe_read(self._pmc.stderr)
         if error_text is not None:
-            self._pmc.terminate()
-            self._pmc.wait()
-            raise RuntimeError(f"Encountered the following PMC error(s):\n{error_text}")
+            self._logger.error(f"PMC error: {error_text.strip()}")
 
         response_text = _safe_read(self._pmc.stdout)
         if response_text is not None:
