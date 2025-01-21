@@ -166,6 +166,7 @@ class SyncGraph(Diagnosable):
 
     def update_clock(self, clock_id: ClockId, clock: Clock):
         clock_id = self.get_or_create_clock(clock_id)
+        nx.set_node_attributes(self._graph, {clock_id: clock}, SyncGraph._DATA_KEY)
 
     def update_clock_aliases(self, aliases: set[ClockId]):
         if not aliases:
@@ -225,7 +226,7 @@ class SyncGraph(Diagnosable):
         key = (src, dst)
         if key not in self._graph.edges:
             self._graph.add_edge(*key)
-        self._graph.edges[key][SyncGraph._DATA_KEY] = link
+        nx.set_edge_attributes(self._graph, {key: link}, SyncGraph._DATA_KEY)
 
     def get_link(self, src: ClockId, dst: ClockId) -> SyncLink:
         src = self.get_or_create_clock(src)
