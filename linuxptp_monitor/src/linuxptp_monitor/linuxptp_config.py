@@ -36,10 +36,10 @@ class LinuxPtpConfig(ABC):
         parser.add_argument("--logging_level", "-l")
         self.add_args_app_specific(parser)
 
-        args, ignored = parser.parse_known_args(argv[1:])
+        args, _ = parser.parse_known_args(argv[1:])
         self.validate_args_app_specific(args)
 
-        config_files = ["/usr/share/doc/linuxptp/configs/default.cfg"]
+        config_files = ["/etc/linuxptp/ptp4l.conf"]
         if args.config:
             config_files.append(args.config)
 
