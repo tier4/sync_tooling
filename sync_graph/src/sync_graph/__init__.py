@@ -165,9 +165,7 @@ class SyncGraph(Diagnosable):
         return clock_id
 
     def update_clock(self, clock_id: ClockId, clock: Clock):
-        clock_id = self.get_canonical_id(clock_id)
-
-        self._graph[clock_id][SyncGraph._DATA_KEY] = clock  # type: ignore
+        clock_id = self.get_or_create_clock(clock_id)
 
     def update_clock_aliases(self, aliases: set[ClockId]):
         if not aliases:
@@ -230,8 +228,8 @@ class SyncGraph(Diagnosable):
         self._graph.edges[key][SyncGraph._DATA_KEY] = link
 
     def get_link(self, src: ClockId, dst: ClockId) -> SyncLink:
-        src = self.get_canonical_id(src)
-        dst = self.get_canonical_id(dst)
+        src = self.get_or_create_clock(src)
+        dst = self.get_or_create_clock(dst)
         return self._graph.edges[(src, dst)][SyncGraph._DATA_KEY]
 
     @classmethod
