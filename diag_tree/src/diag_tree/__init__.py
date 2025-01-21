@@ -1,6 +1,7 @@
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 from dataclasses import dataclass
 import dataclasses
+from enum import EnumMeta
 from typing import Any, Dict, List
 
 
@@ -36,6 +37,8 @@ DiagStatus = Unknown | Ok | Warning | Error
 
 DiagTree = Dict[str, "DiagTree"] | List["DiagTree"] | DiagStatus
 
+class DiagnosableEnumMeta(EnumMeta, ABCMeta):
+    pass
 
 class Diagnosable(ABC):
     @abstractmethod
@@ -59,4 +62,4 @@ def diagnose(obj: Any) -> DiagTree:
         case _:
             if dataclasses.is_dataclass(obj):
                 return {obj.__class__.__name__: diagnose(dataclasses.asdict(obj))}  # type: ignore
-            raise NotImplementedError()
+            raise NotImplementedError(f"diagnose({type(obj).__qualname__}) is not implemented")
