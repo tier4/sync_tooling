@@ -1,20 +1,15 @@
-from abc import ABCMeta
 from argparse import ArgumentParser, Namespace
 from configparser import ConfigParser
 from dataclasses import dataclass, field
-from enum import Enum, EnumMeta
+from enum import Enum
 import re
 from typing import Dict, Literal
 
-from diag_tree import DiagTree, Diagnosable, Ok, Warning, Error
+from diag_tree import DiagTree, Diagnosable, DiagnosableEnumMeta, Ok, Warning, Error
 from journal_monitor.journal_monitor import JournalEntry
 from linuxptp_monitor.ethtool_harness import CanonicalizedClock, get_canonicalized_clock
 from linuxptp_monitor.linuxptp_config import LinuxPtpConfig
 from linuxptp_monitor.state_machine import State
-
-
-class DiagnosableEnumMeta(EnumMeta, ABCMeta):
-    pass
 
 
 # Adapted from fsm.h of LinuxPTP
@@ -45,20 +40,6 @@ class PortState(Diagnosable, Enum, metaclass=DiagnosableEnumMeta):
                 return Warning(f"Port is not being used ({self.name})")
             case _:
                 return Error(f"Port is not working correctly ({self.name})")
-
-
-class SyncState(Diagnosable, Enum, metaclass=DiagnosableEnumMeta):
-    SERVO_UNLOCKED = 0
-    SERVO_JUMP = 1
-    SERVO_LOCKED = 2
-    SERVO_LOCKED_STABLE = 3
-
-    def diagnose(self) -> DiagTree:
-        match self:
-            case SyncState.SERVO_LOCKED | SyncState.SERVO_LOCKED_STABLE:
-                return Ok(f"Locked ({self.name})")
-            case _:
-                return Error(f"Not locked ({self.name})")
 
 
 class NetworkTransport(Enum):

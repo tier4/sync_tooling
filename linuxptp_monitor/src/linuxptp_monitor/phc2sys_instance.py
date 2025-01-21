@@ -1,27 +1,24 @@
 from argparse import ArgumentParser, Namespace
 from configparser import ConfigParser
 from dataclasses import dataclass, field
-from enum import Enum
 import re
 
+from diag_tree import Diagnosable, DiagTree
 from journal_monitor.journal_monitor import JournalEntry
+from linuxptp_monitor.common_types import SyncState
 from linuxptp_monitor.ethtool_harness import CanonicalizedClock, get_canonicalized_clock
 from linuxptp_monitor.linuxptp_config import LinuxPtpConfig
 from linuxptp_monitor.state_machine import State
 
 
-class SyncState(Enum):
-    SERVO_UNLOCKED = 0
-    SERVO_JUMP = 1
-    SERVO_LOCKED = 2
-    SERVO_LOCKED_STABLE = 3
-
-
 @dataclass
-class ClockState:
+class ClockState(Diagnosable):
     offset_ns: int
     sync_state: SyncState
     delay_ns: int
+
+    def diagnose(self) -> DiagTree:
+        return self.sync_state.diagnose()
 
 
 @dataclass(init=False)
