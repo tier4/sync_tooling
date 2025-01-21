@@ -55,7 +55,7 @@ class LinuxPtpConfig(ABC):
         for k, v in vars(args).items():
             if k in overridden or v is None:
                 continue
-            config["global"][k] = v
+            config["global"][k] = str(v)
 
         log_level = int(config["global"]["logging_level"])
         if log_level < 6:
