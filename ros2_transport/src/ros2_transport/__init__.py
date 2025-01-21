@@ -3,12 +3,10 @@ import json
 from types import UnionType
 from typing import Any, Callable, Iterable, Type
 import typing
-import rclpy
-import rclpy.qos
-import rclpy.node
-import rclpy.signals
 import std_msgs
 import std_msgs.msg
+import socket
+import asyncio
 
 
 def get_dataclasses_transitive(typ: Type | UnionType | str) -> set[Type | UnionType]:
@@ -50,51 +48,55 @@ class DataclassJsonEncoder(json.JSONEncoder):
 
 class JsonPublisher:
     def __init__(
-        self, node: rclpy.node.Node, topic: str, qos: rclpy.qos.QoSProfile | int
+        self, peer_name: str, master_ip: str, master_port: int
     ) -> None:
-        self.publisher_ = node.create_publisher(std_msgs.msg.String, topic, qos)
+        self.sock_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  
+        self.sock_.connect((master_ip, master_port))  
 
     def publish(self, obj):
         serialized = json.dumps(
             obj,
             cls=DataclassJsonEncoder,
         )
-        msg = std_msgs.msg.String()
-        msg.data = serialized
-        self.publisher_.publish(msg)
-
+        self.sock_.send(serialized.encode())
 
 class JsonSubscription:
     def __init__(
         self,
-        node: rclpy.node.Node,
-        topic: str,
-        qos: rclpy.qos.QoSProfile | int,
+        bind_ip: str,
+        bind_port: int,
         json_callback: Callable[[Any], None],
-        error_callback: Callable[[Any], None],
         known_types: Iterable[Type | UnionType],
     ) -> None:
-        self.subscription_ = node.create_subscription(
-            std_msgs.msg.String, topic, self.callback_, qos
-        )
-
         known_dataclasses = set()
         for typ in known_types:
             known_dataclasses |= get_dataclasses_transitive(typ)
 
         self.json_callback_ = json_callback
-        self.error_callback_ = error_callback
         self.known_dataclasses_ = {t.__qualname__: t for t in known_dataclasses}
+        
+        self.bind_ip_ = bind_ip
+        self.bind_port_ = bind_port
 
-    def callback_(self, msg: std_msgs.msg.String):
-        try:
-            j = json.loads(msg.data, object_hook=self.object_hook_)
-        except InterruptedError as e:
-            raise e
-        except Exception as e:
-            self.error_callback_(e)
-        else:
-            self.json_callback_(j)
+        self.json_decoder_ = json.JSONDecoder(object_hook=self.object_hook_)
+
+
+    async def handle_client_(self, reader: asyncio.StreamReader, _):
+        request = ""
+        while True:
+            request += (await reader.read(1024)).decode('utf8')
+            try:
+                j, end = self.json_decoder_.raw_decode(request)
+            except json.JSONDecodeError:
+                continue
+            else:
+                self.json_callback_(j)
+                request = request[end:]
+
+    async def listen(self):
+        server = await asyncio.start_server(self.handle_client_, self.bind_ip_, self.bind_port_)
+        async with server:
+            await server.serve_forever()
 
     def object_hook_(self, o: dict[str, Any]):
         if "__dataclass__" in o:
