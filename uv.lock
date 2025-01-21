@@ -14,7 +14,7 @@ members = [
     "journal-monitor",
     "linuxptp-monitor",
     "pmc-monitor",
-    "ros2-transport",
+    "tcp-transport",
     "sync-graph",
     "sync-tooling",
 ]
@@ -451,13 +451,13 @@ name = "diag-master"
 version = "0.1.0"
 source = { editable = "diag_master" }
 dependencies = [
-    { name = "ros2-transport" },
+    { name = "tcp-transport" },
     { name = "sync-graph" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "ros2-transport", editable = "ros2_transport" },
+    { name = "tcp-transport", editable = "tcp_transport" },
     { name = "sync-graph", editable = "sync_graph" },
 ]
 
@@ -475,7 +475,7 @@ dependencies = [
     { name = "diag-tree" },
     { name = "linuxptp-monitor" },
     { name = "pmc-monitor" },
-    { name = "ros2-transport" },
+    { name = "tcp-transport" },
     { name = "sync-graph" },
 ]
 
@@ -485,7 +485,7 @@ requires-dist = [
     { name = "diag-tree", editable = "diag_tree" },
     { name = "linuxptp-monitor", editable = "linuxptp_monitor" },
     { name = "pmc-monitor", editable = "pmc_monitor" },
-    { name = "ros2-transport", editable = "ros2_transport" },
+    { name = "tcp-transport", editable = "tcp_transport" },
     { name = "sync-graph", editable = "sync_graph" },
 ]
 
@@ -1179,9 +1179,9 @@ wheels = [
 ]
 
 [[package]]
-name = "ros2-transport"
+name = "tcp-transport"
 version = "0.1.0"
-source = { editable = "ros2_transport" }
+source = { editable = "tcp_transport" }
 
 [[package]]
 name = "rpds-py"

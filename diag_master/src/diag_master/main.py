@@ -4,7 +4,7 @@ import socket
 from sync_graph import SyncGraph
 
 
-from ros2_transport import JsonSubscription
+from tcp_transport import JsonSubscription
 from sync_graph import GraphUpdate
 import asyncio
 
