@@ -11,7 +11,7 @@ dependencies = [
     "sync_graph",
     "linuxptp_monitor",
     "pmc_monitor",
-    "ros2-transport",
+    "tcp-transport",
 ]
 
 [project.scripts]
@@ -25,4 +25,4 @@ build-backend = "hatchling.build"
 packages = ["src/diag_worker"]
 
 [tool.uv.sources]
-ros2-transport = { workspace = true }
+tcp-transport = { workspace = true }

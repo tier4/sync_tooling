@@ -31,7 +31,7 @@ members = [
     "diag_worker",
     "diag_master",
     "sync_graph",
-    "ros2_transport",
+    "tcp_transport",
 ]
 
 [build-system]
@@ -47,5 +47,5 @@ packages = [
     "diag_worker/src/diag_worker",
     "diag_master/src/diag_master",
     "sync_graph/src/sync_graph",
-    "ros2_transport/src/ros2_transport",
+    "tcp_transport/src/tcp_transport",
 ]

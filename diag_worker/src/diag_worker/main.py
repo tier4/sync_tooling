@@ -6,7 +6,7 @@ from diag_worker.phc2sys_monitor_task import Phc2SysMonitorTask
 from diag_worker.ptp4l_monitor_task import Ptp4lMonitorTask
 from aiostream.stream import merge
 
-from ros2_transport import JsonPublisher
+from tcp_transport import JsonPublisher
 from argparse import ArgumentParser
 
 
