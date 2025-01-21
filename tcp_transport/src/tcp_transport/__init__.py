@@ -105,6 +105,4 @@ class JsonSubscription:
         class_qualname = o["__dataclass__"]
         cls = self.known_dataclasses_[class_qualname]
         del o["__dataclass__"]
-        return cls(
-            **{k: json.loads(v, object_hook=self.object_hook_) for k, v in o.items()}
-        )
+        return cls(**o)
