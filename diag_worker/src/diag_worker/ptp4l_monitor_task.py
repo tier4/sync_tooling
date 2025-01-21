@@ -1,4 +1,15 @@
-from sync_graph import ClockAliasUpdate, ClockId, PtpClockId
+from diag_tree import diagnose
+from pmc_monitor.pmc_protocol import ParentDataSet
+from sync_graph import (
+    Clock,
+    ClockAliasUpdate,
+    ClockId,
+    PortId,
+    PtpClockId,
+    ClockUpdate,
+    PtpPortLinkUpdate,
+    PtpPortStateUpdate,
+)
 from diag_worker.monitor_task import MonitorTask
 from diag_worker.systemd_util import does_unit_exist, get_command_line, get_unit_pid
 from diag_worker.util import linuxptp_to_graph_clock_id
@@ -8,7 +19,7 @@ from linuxptp_monitor.ptp4l_instance import (
     Ptp4lRunningState,
 )
 from linuxptp_monitor.state_machine import SystemdUnitStateMachine
-from pmc_monitor.pmc_monitor import PmcMonitor, PmcStateChange, PtpInstance
+from pmc_monitor.pmc_monitor import PmcMonitor, PmcStateChange
 
 
 class Ptp4lMonitorTask(MonitorTask):
@@ -60,11 +71,31 @@ class Ptp4lMonitorTask(MonitorTask):
         self.pmc_monitor = None
 
     def pmc_to_graph_updates(self, state_change: PmcStateChange):
-        match (state_change.old_state, state_change.new_state):
-            case (None, PtpInstance() as inst):
-                if inst.is_local_instance:
-                    assert self.ptp4l_clock_id is not None
-                    yield ClockAliasUpdate({PtpClockId(inst.id()), self.ptp4l_clock_id})
+        if state_change.new_state is None:
+            return
+
+        inst = state_change.new_state
+        clock_id: PtpClockId = PtpClockId(inst.id())
+
+        if inst.is_local_instance:
+            assert self.ptp4l_clock_id is not None
+            yield ClockAliasUpdate({clock_id, self.ptp4l_clock_id})
+
+        parent_port_id: PortId | None = None
+
+        if isinstance(inst.parent_ds, ParentDataSet):
+            pds = inst.parent_ds
+            yield ClockUpdate(clock_id, Clock(PtpClockId(pds.grandmasterIdentity)))
+
+            parent_clock_id = pds.parentPortIdentity.clock_id
+            parent_port_num = pds.parentPortIdentity.port_number
+            parent_port_id = PortId(PtpClockId(parent_clock_id), parent_port_num)
+
+        for port in inst.ports.values():
+            port_id = PortId(clock_id, port.port_ds.portIdentity.port_number)
+            if port.port_ds.portState == "SLAVE" and parent_port_id:
+                yield PtpPortLinkUpdate(parent_port_id, port_id)
+            yield PtpPortStateUpdate(port_id, diagnose(port.port_stats))
 
     async def poll(self):
         journal_entries = self.journal_monitor.poll()
