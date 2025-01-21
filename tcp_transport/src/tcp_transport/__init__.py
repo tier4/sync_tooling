@@ -3,8 +3,6 @@ import json
 from types import UnionType
 from typing import Any, Callable, Iterable, Type
 import typing
-import std_msgs
-import std_msgs.msg
 import socket
 import asyncio
 

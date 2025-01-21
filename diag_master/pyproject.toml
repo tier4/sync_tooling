@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "ros2-transport",
+    "tcp-transport",
     "sync-graph",
 ]
 
@@ -23,5 +23,5 @@ build-backend = "hatchling.build"
 packages = ["src/diag_master"]
 
 [tool.uv.sources]
-ros2-transport = { workspace = true }
+tcp-transport = { workspace = true }
 sync-graph = { workspace = true }
