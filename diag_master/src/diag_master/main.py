@@ -4,35 +4,30 @@ import socket
 from sync_graph import SyncGraph
 
 
-import rclpy
-import rclpy.qos
 from ros2_transport import JsonSubscription
 from sync_graph import GraphUpdate
+import asyncio
+
+from  argparse import ArgumentParser
 
 
 class DiagMaster:
-    def __init__(self) -> None:
+    def __init__(self, bind_ip: str, bind_port: int) -> None:
         hostname = socket.gethostname()
         if not hostname:
             raise RuntimeError("Could not determine hostname")
 
-        self.node = rclpy.create_node(hostname, namespace="/sync_diag/master")  # type: ignore
         self.subscription_ = JsonSubscription(
-            self.node,
-            "/sync_diag/graph_updates",
-            10,
+            bind_ip,
+            bind_port,
             self.json_callback,
-            self.error_callback,
             {GraphUpdate},  # type: ignore
         )
 
         self.sync_graph_ = SyncGraph()
 
     def run(self):
-        rclpy.spin(self.node)
-
-    def error_callback(self, err):
-        self.node.get_logger().error(f"Could not parse received graph update: {err}")
+        asyncio.run(self.subscription_.listen())
 
     def json_callback(self, j):
         print(f"got JSON: {j}")
@@ -41,7 +36,9 @@ class DiagMaster:
 
 
 def main():
-    rclpy.init()
-
-    diag_master = DiagMaster()
+    parser = ArgumentParser()
+    parser.add_argument("bind_ip")
+    parser.add_argument("--bind_port", "-p", type=int, default=16161)
+    args = parser.parse_args()
+    diag_master = DiagMaster(args.bind_ip, args.bind_port)
     diag_master.run()
