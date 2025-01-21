@@ -35,7 +35,7 @@ def get_unit_property(unit_name: str, property_name: str) -> str:
         check=True,
     )
 
-    if m := re.search(f"^{property_name}=(.*)$", result.stdout):
+    if m := re.search(f"^{property_name}=(.*?)$", result.stdout, re.MULTILINE):
         return m.group(1)
 
     raise KeyError(f"Property '{property_name}' was not found for unit '{unit_name}'")
