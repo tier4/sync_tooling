@@ -31,7 +31,12 @@ class DiagMaster:
 
     def json_callback(self, j):
         print(f"got JSON: {j}")
-        self.sync_graph_.update(j)
+        try:
+            self.sync_graph_.update(j)
+        except InterruptedError as e:
+            raise e
+        except Exception as e:
+            print(f"error: {e}")
         print(self.sync_graph_)
 
 
