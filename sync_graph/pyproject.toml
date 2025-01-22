@@ -17,3 +17,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sync_graph"]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+]

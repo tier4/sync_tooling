@@ -13,6 +13,9 @@ class FrameId:
     def id(self):
         return self.frame
 
+    def __str__(self) -> str:
+        return self.id()
+
 
 @dataclass(frozen=True)
 class PtpClockId:
@@ -20,6 +23,9 @@ class PtpClockId:
 
     def id(self):
         return self.clock_identifier
+
+    def __str__(self) -> str:
+        return self.id()
 
 
 @dataclass(frozen=True)
@@ -30,6 +36,9 @@ class InterfaceId:
     def id(self):
         return f"{self.hostname}.{self.interface_name}"
 
+    def __str__(self) -> str:
+        return self.id()
+
 
 @dataclass(frozen=True)
 class SystemClockId:
@@ -37,6 +46,9 @@ class SystemClockId:
 
     def id(self):
         return f"{self.hostname}.CLOCK_REALTIME"
+
+    def __str__(self) -> str:
+        return f"{self.hostname}.SYS"
 
 
 @dataclass(frozen=True)
@@ -46,6 +58,9 @@ class LinuxClockDeviceId:
 
     def id(self):
         return f"{self.hostname}.ptp{self.clock_device_number}"
+
+    def __str__(self) -> str:
+        return self.id()
 
 
 ClockId = FrameId | PtpClockId | InterfaceId | SystemClockId | LinuxClockDeviceId
@@ -80,6 +95,9 @@ class Clock:
 class PtpSyncLink:
     src_port: PortId
     dst_port: PortId
+
+    def __str__(self) -> str:
+        return f"{self.src_port.port_number} =(PTP)=> {self.dst_port.port_number}"
 
 
 @dataclass
@@ -161,7 +179,7 @@ class SyncGraph(Diagnosable):
     def get_or_create_clock(self, clock_id: ClockId) -> ClockId:
         clock_id = self.get_canonical_id(clock_id)
         if clock_id not in self._graph:
-            self._graph.add_node(clock_id)
+            self._graph.add_node(clock_id, **{SyncGraph._DATA_KEY: Clock()})
         return clock_id
 
     def update_clock(self, clock_id: ClockId, clock: Clock):
@@ -229,8 +247,8 @@ class SyncGraph(Diagnosable):
         nx.set_edge_attributes(self._graph, {key: link}, SyncGraph._DATA_KEY)
 
     def get_link(self, src: ClockId, dst: ClockId) -> SyncLink:
-        src = self.get_or_create_clock(src)
-        dst = self.get_or_create_clock(dst)
+        src = self.get_canonical_id(src)
+        dst = self.get_canonical_id(dst)
         return self._graph.edges[(src, dst)][SyncGraph._DATA_KEY]
 
     @classmethod
@@ -248,19 +266,21 @@ class SyncGraph(Diagnosable):
             )
             yield tup
 
-    def _diagnose_links(self) -> DiagTree:
-        def diagnose_link(link: SyncLink):
-            match link:
-                case PtpSyncLink(src, dst):
-                    return {
-                        "src": self._port_diagnostics[src],
-                        "dst": self._port_diagnostics[dst],
-                    }
-                case Phc2SysSyncLink(diag):
-                    return diag
+    def diagnose_link(self, link: SyncLink):
+        match link:
+            case PtpSyncLink(src, dst):
+                return {
+                    "src": self._port_diagnostics.get(src, Unknown()),
+                    "dst": self._port_diagnostics.get(dst, Unknown()),
+                }
+            case Phc2SysSyncLink(diag):
+                return diag
 
+    def _diagnose_links(self) -> DiagTree:
         return {
-            f"{src.id()} =({link.__class__.__name__})=> {dst.id()}": diagnose_link(link)
+            f"{src.id()} =({link.__class__.__name__})=> {dst.id()}": self.diagnose_link(
+                link
+            )
             for (src, dst), link in SyncGraph.iter_links(self._graph)
         }
 
