@@ -11,7 +11,9 @@ from argparse import ArgumentParser
 
 
 class DiagWorker:
-    def __init__(self, master_ip: str, ptp4l_units: list[str], phc2sys_units: list[str]) -> None:
+    def __init__(
+        self, master_ip: str, ptp4l_units: list[str], phc2sys_units: list[str]
+    ) -> None:
         hostname = socket.gethostname()
         if not hostname:
             raise RuntimeError("Could not determine hostname")
@@ -36,9 +38,11 @@ class DiagWorker:
     async def run(self):
         combined = merge(*[m.run_loop(1) for m in self.monitors_])
         async with combined.stream() as events:
+            count = 0
             async for event in events:
-                print(f"got graph update: {event}")
+                count += 1
                 self.publisher_.publish(event)
+            print(f"published {count} graph updates")
 
 
 def main():
