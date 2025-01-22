@@ -6,17 +6,23 @@ from diag_worker.phc2sys_monitor_task import Phc2SysMonitorTask
 from diag_worker.ptp4l_monitor_task import Ptp4lMonitorTask
 from aiostream.stream import merge
 
-from tcp_transport import JsonPublisher
+from http_transport import HttpClient
 from argparse import ArgumentParser
 
 
 class DiagWorker:
-    def __init__(self, master_ip: str, ptp4l_units: list[str], phc2sys_units: list[str]) -> None:
+    def __init__(
+        self,
+        master_ip: str,
+        master_port: int,
+        ptp4l_units: list[str],
+        phc2sys_units: list[str],
+    ) -> None:
         hostname = socket.gethostname()
         if not hostname:
             raise RuntimeError("Could not determine hostname")
 
-        self.publisher_ = JsonPublisher(hostname, master_ip, 16161)
+        self.client_ = HttpClient(f"http://{master_ip}:{master_port}/update_graph")
 
         if not ptp4l_units and not phc2sys_units:
             raise ValueError(
@@ -36,9 +42,11 @@ class DiagWorker:
     async def run(self):
         combined = merge(*[m.run_loop(1) for m in self.monitors_])
         async with combined.stream() as events:
+            count = 0
             async for event in events:
-                print(f"got graph update: {event}")
-                self.publisher_.publish(event)
+                count += 1
+                self.client_.send(event)
+            print(f"published {count} graph updates")
 
 
 def main():
@@ -49,5 +57,7 @@ def main():
     parser.add_argument("--phc2sys-units", "-2", nargs="+")
     args = parser.parse_args()
 
-    diag_worker = DiagWorker(args.master_ip, args.ptp4l_units, args.phc2sys_units)
+    diag_worker = DiagWorker(
+        args.master_ip, args.master_port, args.ptp4l_units, args.phc2sys_units
+    )
     asyncio.run(diag_worker.run())
