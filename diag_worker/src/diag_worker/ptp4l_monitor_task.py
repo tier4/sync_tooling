@@ -61,12 +61,24 @@ class Ptp4lMonitorTask(MonitorTask):
 
     def _create_pmc_monitor(self, config: Ptp4lConfig):
         self._reset_pmc_monitor()
+        print(
+            f"Starting PMC monitor with server={config.uds_address}, transport={hex(config.transport_specific)}, domain={config.config['global']['domainNumber']}"
+        )
         self.pmc_monitor = PmcMonitor(
-            ["-u", "-s", config.uds_address, "-t", hex(config.transport_specific)]
+            [
+                "-u",
+                "-s",
+                config.uds_address,
+                "-t",
+                hex(config.transport_specific),
+                "-d",
+                config.config["global"]["domainNumber"],
+            ]
         )
 
     def _reset_pmc_monitor(self):
         if self.pmc_monitor is not None:
+            print("Stopping PMC monitor")
             self.pmc_monitor.stop()
         self.pmc_monitor = None
 
