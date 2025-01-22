@@ -1,5 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import Iterable
 
 import networkx as nx
 
@@ -186,11 +187,11 @@ class SyncGraph(Diagnosable):
         clock_id = self.get_or_create_clock(clock_id)
         nx.set_node_attributes(self._graph, {clock_id: clock}, SyncGraph._DATA_KEY)
 
-    def update_clock_aliases(self, aliases: set[ClockId]):
+    def update_clock_aliases(self, aliases: Iterable[ClockId]):
         if not aliases:
             return
 
-        all_aliases = aliases.copy()
+        all_aliases = set(aliases).copy()
         for alias in aliases:
             if alias in self._known_aliases:
                 all_aliases |= self._known_aliases[alias]
