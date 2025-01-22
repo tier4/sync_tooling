@@ -1,4 +1,5 @@
 import socket
+from threading import Thread
 
 from quart import Quart, jsonify, render_template_string, Response
 
@@ -70,7 +71,7 @@ def sync_graph_to_echart(sg: SyncGraph) -> tuple[list, list]:
                 "x": 0,
                 "y": 0,
                 "tooltip": {
-                    "formatter": f"Master: {clock.master_id.id() if clock.master_id else None}"
+                    "formatter": f"Master: {clock.master_id if clock.master_id else None}"
                 },
             }
         )
@@ -154,8 +155,8 @@ class DiagMaster:
 
         self.sync_graph_ = SyncGraph()
 
-    async def run(self):
-        return self.subscription_.listen()
+    def run(self):
+        asyncio.run(self.subscription_.listen())
 
     def json_callback(self, j):
         try:
@@ -163,7 +164,15 @@ class DiagMaster:
         except InterruptedError as e:
             raise e
         except Exception as e:
-            print(f"error: {e}")
+            raise e
+
+
+def tcp_run():
+    global master
+
+    if master is None:
+        raise RuntimeError("No diag master instance found")
+    master.run()
 
 
 def main():
@@ -173,9 +182,8 @@ def main():
     parser.add_argument("bind_ip")
     parser.add_argument("--bind_port", "-p", type=int, default=16161)
     args = parser.parse_args()
-    master = DiagMaster(args.bind_ip, args.bind_port)
-    tasks = [master.run(), app.run_task()]
 
-    loop = asyncio.get_event_loop()
-    group = asyncio.gather(*tasks)
-    loop.run_until_complete(group)
+    master = DiagMaster(args.bind_ip, args.bind_port)
+    tcp_thread = Thread(target=tcp_run)
+    tcp_thread.start()
+    app.run()
