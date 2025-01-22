@@ -147,14 +147,14 @@ class PmcMonitor:
                     case TimePropertiesDataSet() as time_properties_ds:
                         ptp_instance.time_properties_ds = time_properties_ds
                     case PortDataSet() | PortStatsNp() as port_tlv:
-                        port = ptp_instance.ports.get(source_port.port_number)
+                        port = ptp_instance.ports.get(port_tlv.portIdentity.port_number)
                         match port:
                             case None:
                                 match port_tlv:
                                     case PortDataSet() as port_ds:
-                                        ptp_instance.ports[source_port.port_number] = (
-                                            PtpPort(port_ds)
-                                        )
+                                        ptp_instance.ports[
+                                            port_tlv.portIdentity.port_number
+                                        ] = PtpPort(port_ds)
                                     case other:
                                         self._logger.warning(
                                             f"Received {other.__class__.__name__} from port {source_port} before receiving PortDS, ignoring"
