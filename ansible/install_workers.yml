@@ -45,11 +45,8 @@
   hosts: all
   vars:
     apt_requirements_file: apt-requirements.txt
-
-    host_part: "{{ ansible_host | ansible.utils.ipcut(-8) }}"
-    proxy_port: "{{ 7000 + (host_part | int)  }}"
     # Set the control node (node running the playbook) to be the proxy for nodes not connected to internet
-    proxy: "http://{{ ansible_env.SSH_CONNECTION.split(' ')[0] }}:6969"
+    proxy: "http://{{ ansible_env.SSH_CONNECTION.split(' ')[0] }}:7171"
     venv_path: "{{ ansible_env.HOME }}/.sync_tooling_venv"
   environment:
     all_proxy: "{{ proxy }}"
