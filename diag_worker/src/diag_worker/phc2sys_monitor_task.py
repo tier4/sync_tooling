@@ -75,6 +75,5 @@ class Phc2SysMonitorTask(MonitorTask):
         for entry in journal_entries:
             state_change = self.state_machine.consume(entry)
             if state_change is not None:
-                print(f"got state change: {state_change.__class__.__name__}")
                 for update in self.to_graph_updates(state_change):
                     yield update
