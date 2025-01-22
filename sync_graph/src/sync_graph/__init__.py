@@ -45,10 +45,10 @@ class SystemClockId:
     hostname: str
 
     def id(self):
-        return f"{self.hostname}.CLOCK_REALTIME"
+        return f"{self.hostname}.sys"
 
     def __str__(self) -> str:
-        return f"{self.hostname}.SYS"
+        return self.id()
 
 
 @dataclass(frozen=True)
