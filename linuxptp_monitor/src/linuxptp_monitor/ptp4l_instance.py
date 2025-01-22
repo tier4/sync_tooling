@@ -110,6 +110,7 @@ class Ptp4lConfig(LinuxPtpConfig):
             "-L", action="store_const", const="legacy", dest="time_stamping"
         )
         parser.add_argument("--uds_address")
+        parser.add_argument("--domainNumber", type=int)
 
     def validate_args_app_specific(self, args: Namespace) -> None:
         if args.phc_device is not None:
