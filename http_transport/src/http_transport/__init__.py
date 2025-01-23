@@ -1,10 +1,10 @@
 import dataclasses
 import json
 from types import UnionType
-from typing import Any, Callable, Iterable, Type
+from typing import Any, Iterable, Type
 import typing
-import socket
-import asyncio
+
+import requests
 
 
 def get_dataclasses_transitive(typ: Type | UnionType | str) -> set[Type | UnionType]:
@@ -70,49 +70,20 @@ class DataclassJsonDecoder(json.JSONDecoder):
         )
 
 
-class JsonPublisher:
-    def __init__(self, peer_name: str, master_ip: str, master_port: int) -> None:
-        self.sock_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock_.connect((master_ip, master_port))
+class HttpClient:
+    def __init__(self, endpoint_url: str) -> None:
+        self.session_ = requests.Session()
+        self.endpoint_ = endpoint_url
 
-    def publish(self, obj):
+    def send(self, obj):
         serialized = json.dumps(
             obj,
             cls=DataclassJsonEncoder,
         )
-        self.sock_.send(serialized.encode())
 
-
-class JsonSubscription:
-    def __init__(
-        self,
-        bind_ip: str,
-        bind_port: int,
-        json_callback: Callable[[Any], None],
-        known_types: Iterable[Type | UnionType],
-    ) -> None:
-        self.json_callback_ = json_callback
-
-        self.bind_ip_ = bind_ip
-        self.bind_port_ = bind_port
-
-        self.json_decoder_ = DataclassJsonDecoder(known_types)
-
-    async def handle_client_(self, reader: asyncio.StreamReader, _):
-        request = ""
-        while True:
-            request += (await reader.read(1024)).decode("utf8")
-            try:
-                j, end = self.json_decoder_.raw_decode(request)
-            except json.JSONDecodeError:
-                continue
-            else:
-                self.json_callback_(j)
-                request = request[end:]
-
-    async def listen(self):
-        server = await asyncio.start_server(
-            self.handle_client_, self.bind_ip_, self.bind_port_
+        response = self.session_.post(
+            self.endpoint_, serialized, headers={"Content-Type": "application/json"}
         )
-        async with server:
-            await server.serve_forever()
+
+        if response.status_code != 200:
+            raise requests.HTTPError(response=response)

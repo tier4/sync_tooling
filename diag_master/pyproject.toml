@@ -8,9 +8,10 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "tcp-transport",
+    "flask-api>=3.1",
+    "flask>=3.1.0",
+    "http-transport",
     "sync-graph",
-    "quart>=0.20.0",
 ]
 
 [project.scripts]
@@ -24,5 +25,5 @@ build-backend = "hatchling.build"
 packages = ["src/diag_master"]
 
 [tool.uv.sources]
-tcp-transport = { workspace = true }
+http-transport = { workspace = true }
 sync-graph = { workspace = true }
