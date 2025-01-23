@@ -1,7 +1,7 @@
 import json
 from diag_tree import Ok
 from sync_graph import LinuxClockDeviceId, Phc2SysUpdate, SystemClockId
-from tcp_transport import DataclassJsonDecoder, DataclassJsonEncoder
+from http_transport import DataclassJsonDecoder, DataclassJsonEncoder
 
 
 def assert_serde_eq(obj):
