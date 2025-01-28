@@ -25,6 +25,7 @@ diag_tree = { workspace = true }
 diag_worker = { workspace = true }
 diag_master = { workspace = true }
 sync_graph = { workspace = true }
+sync_tooling_msgs = { workspace = true }
 
 [tool.uv.workspace]
 members = [
@@ -36,6 +37,7 @@ members = [
     "diag_master",
     "sync_graph",
     "http_transport",
+    "sync_tooling_msgs"
 ]
 
 [build-system]

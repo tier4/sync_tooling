@@ -6,7 +6,9 @@ authors = [
     { name = "Max Schmeller", email = "max.schmeller@tier4.jp" }
 ]
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "sync_tooling_msgs"
+]
 
 [build-system]
 requires = ["hatchling"]
