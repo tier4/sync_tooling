@@ -2,7 +2,7 @@ from diag_tree import Ok
 from sync_graph import (
     Clock,
     ClockAliasUpdate,
-    ClockUpdate,
+    ClockMasterUpdate,
     FrameId,
     GraphUpdate,
     InterfaceId,
@@ -10,7 +10,7 @@ from sync_graph import (
     Phc2SysUpdate,
     PortId,
     PtpClockId,
-    PtpPortLinkUpdate,
+    PtpParentUpdate,
     SyncGraph,
     SystemClockId,
 )
@@ -36,7 +36,7 @@ def graph_after_updates(*updates: GraphUpdate):
 
 
 def test_clock_creation():
-    u = ClockUpdate(sample_clock["system"], Clock())
+    u = ClockMasterUpdate(sample_clock["system"], Clock())
     g = graph_after_updates(u)
 
     assert g._graph.number_of_nodes() == 1
@@ -44,8 +44,8 @@ def test_clock_creation():
 
 
 def test_clock_aliases():
-    u1 = ClockUpdate(sample_clock["system"], Clock())
-    u2 = ClockUpdate(sample_clock["ptp"], Clock())
+    u1 = ClockMasterUpdate(sample_clock["system"], Clock())
+    u2 = ClockMasterUpdate(sample_clock["ptp"], Clock())
     u3 = ClockAliasUpdate({sample_clock["ptp"], sample_clock["system"]})
     g = graph_after_updates(u1, u2, u3)
 
@@ -55,7 +55,7 @@ def test_clock_aliases():
 
 def test_alias_precedence():
     updates: list[GraphUpdate] = [
-        ClockUpdate(v, Clock()) for v in sample_clock.values()
+        ClockMasterUpdate(v, Clock()) for v in sample_clock.values()
     ]
     updates.append(ClockAliasUpdate(set(sample_clock.values())))
     g = graph_after_updates(*updates)
@@ -71,7 +71,7 @@ def test_ptp_link():
     src = sample_clock["system"]
     dst = remote_clock["ptp"]
 
-    u = PtpPortLinkUpdate(PortId(src, 1), PortId(dst, 1))
+    u = PtpParentUpdate(PortId(src, 1), PortId(dst, 1))
     g = graph_after_updates(u)
 
     assert g._graph.number_of_nodes() == 2
@@ -103,7 +103,7 @@ def test_alias_after_links():
 
     updates = [
         Phc2SysUpdate(src1, dst1, Ok()),
-        PtpPortLinkUpdate(PortId(src2, 1), PortId(dst2, 1)),
+        PtpParentUpdate(PortId(src2, 1), PortId(dst2, 1)),
         ClockAliasUpdate({src1, src2}),
     ]
 

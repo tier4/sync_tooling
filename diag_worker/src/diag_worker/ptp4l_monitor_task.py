@@ -1,13 +1,12 @@
 from diag_tree import diagnose
 from pmc_monitor.pmc_protocol import ParentDataSet
 from sync_graph import (
-    Clock,
     ClockAliasUpdate,
     ClockId,
     PortId,
     PtpClockId,
-    ClockUpdate,
-    PtpPortLinkUpdate,
+    ClockMasterUpdate,
+    PtpParentUpdate,
     PtpPortStateUpdate,
 )
 from diag_worker.monitor_task import MonitorTask
@@ -37,6 +36,7 @@ class Ptp4lMonitorTask(MonitorTask):
         self.hostname_ = hostname
         self.pmc_monitor: PmcMonitor | None = None
         self.ptp4l_clock_id: ClockId | None = None
+        self.domain_id: int | None = None
 
         def ptp4l_state_factory():
             pid = get_unit_pid(unit_name)
@@ -64,6 +64,7 @@ class Ptp4lMonitorTask(MonitorTask):
         print(
             f"Starting PMC monitor with server={config.uds_address}, transport={hex(config.transport_specific)}, domain={config.config['global']['domainNumber']}"
         )
+        self.domain_id = int(config.config["global"]["domainNumber"])
         self.pmc_monitor = PmcMonitor(
             [
                 "-u",
@@ -72,7 +73,7 @@ class Ptp4lMonitorTask(MonitorTask):
                 "-t",
                 hex(config.transport_specific),
                 "-d",
-                config.config["global"]["domainNumber"],
+                str(self.domain_id),
             ]
         )
 
@@ -81,10 +82,14 @@ class Ptp4lMonitorTask(MonitorTask):
             print("Stopping PMC monitor")
             self.pmc_monitor.stop()
         self.pmc_monitor = None
+        self.domain_id = None
 
     def pmc_to_graph_updates(self, state_change: PmcStateChange):
         if state_change.new_state is None:
             return
+
+        if self.domain_id is None:
+            assert False
 
         inst = state_change.new_state
         clock_id: PtpClockId = PtpClockId(inst.id())
@@ -97,16 +102,20 @@ class Ptp4lMonitorTask(MonitorTask):
 
         if isinstance(inst.parent_ds, ParentDataSet):
             pds = inst.parent_ds
-            yield ClockUpdate(clock_id, Clock(PtpClockId(pds.grandmasterIdentity)))
+            yield ClockMasterUpdate(clock_id, PtpClockId(pds.grandmasterIdentity))
 
             parent_clock_id = pds.parentPortIdentity.clock_id
             parent_port_num = pds.parentPortIdentity.port_number
-            parent_port_id = PortId(PtpClockId(parent_clock_id), parent_port_num)
+            parent_port_id = PortId(
+                PtpClockId(parent_clock_id), parent_port_num, self.domain_id
+            )
 
         for port in inst.ports.values():
-            port_id = PortId(clock_id, port.port_ds.portIdentity.port_number)
+            port_id = PortId(
+                clock_id, port.port_ds.portIdentity.port_number, self.domain_id
+            )
             if port.port_ds.portState == "SLAVE" and parent_port_id:
-                yield PtpPortLinkUpdate(parent_port_id, port_id)
+                yield PtpParentUpdate(parent_port_id, clock_id)
             yield PtpPortStateUpdate(port_id, diagnose(port.port_stats))
 
     async def poll(self):

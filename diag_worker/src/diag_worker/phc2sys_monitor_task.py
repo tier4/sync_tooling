@@ -1,4 +1,4 @@
-from sync_graph import Clock, ClockUpdate, Phc2SysUpdate
+from sync_graph import ClockMasterUpdate, Phc2SysUpdate
 from diag_tree import diagnose
 from diag_worker.monitor_task import MonitorTask
 from diag_worker.systemd_util import does_unit_exist, get_command_line, get_unit_pid
@@ -54,13 +54,13 @@ class Phc2SysMonitorTask(MonitorTask):
                 )
 
                 if is_init:
-                    yield ClockUpdate(src_id, Clock())
+                    yield ClockMasterUpdate(src_id, None)
 
                 for clock_id, state in s.dst_clock_states.items():
                     dst_id = linuxptp_to_graph_clock_id(clock_id, self.hostname_)
 
                     if is_init:
-                        yield ClockUpdate(dst_id, Clock(src_id))
+                        yield ClockMasterUpdate(dst_id, src_id)
                     yield Phc2SysUpdate(
                         src_id,
                         dst_id,

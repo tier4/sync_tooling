@@ -1,6 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Iterable
+from enum import Enum
+from typing import Any
 
 import networkx as nx
 
@@ -71,9 +72,10 @@ ClockId = FrameId | PtpClockId | InterfaceId | SystemClockId | LinuxClockDeviceI
 class PortId:
     clock_id: ClockId
     port_number: int
+    domain_number: int
 
     def id(self):
-        return f"{self.clock_id.id()}-{self.port_number}"
+        return f"{self.domain_number}:{self.clock_id.id()}-{self.port_number}"
 
 
 def get_most_human_readable_alias(aliases: set[ClockId]) -> ClockId:
@@ -88,17 +90,11 @@ def get_most_human_readable_alias(aliases: set[ClockId]) -> ClockId:
 
 
 @dataclass
-class Clock:
-    master_id: ClockId | None = None
-
-
-@dataclass
 class PtpSyncLink:
     src_port: PortId
-    dst_port: PortId
 
     def __str__(self) -> str:
-        return f"{self.src_port.port_number} =(PTP)=> {self.dst_port.port_number}"
+        return f"PTP (master port: {self.src_port.port_number})"
 
 
 @dataclass
@@ -115,21 +111,54 @@ class ClockAliasUpdate:
 
 
 @dataclass
-class ClockUpdate:
-    clock_id: ClockId
-    new_state: Clock
+class TimeDifferenceMeasurement:
+    class Type(Enum):
+        Ptp4lReported = 0
+        Phc2SysReported = 1
+        PtpManagementReported = 2
+        NebulaUdpDriver = 3
+        NebulaApproximate = 4
+
+    src: ClockId
+    dst: ClockId
+    diff_ns: int
+    type: Type
 
 
 @dataclass
-class PtpPortLinkUpdate:
+class ClockMasterUpdate:
+    clock_id: ClockId
+    master: ClockId | None
+
+
+@dataclass
+class PtpParentUpdate:
     src: PortId
-    dst: PortId
+    dst: ClockId
 
 
 @dataclass
 class PtpPortStateUpdate:
     port_id: PortId
     new_state: DiagTree
+
+
+@dataclass
+class Ptp4lPortStatusMessage:
+    port_id: PortId
+    message: Warning | Error
+
+
+@dataclass
+class Ptp4lStatusMessage:
+    clock_id: ClockId
+    message: Warning | Error
+
+
+@dataclass
+class Phc2SysStatusMessage:
+    dst_clocks: set[ClockId]
+    message: Warning | Error
 
 
 @dataclass
@@ -141,103 +170,109 @@ class Phc2SysUpdate:
 
 GraphUpdate = (
     ClockAliasUpdate
-    | ClockUpdate
-    | PtpPortLinkUpdate
+    | TimeDifferenceMeasurement
+    | ClockMasterUpdate
+    | PtpParentUpdate
     | PtpPortStateUpdate
+    | Ptp4lPortStatusMessage
+    | Ptp4lStatusMessage
+    | Phc2SysStatusMessage
     | Phc2SysUpdate
 )
+
+C_MASTER = "master"
+C_STATUS_MSG = "status_msg"
+
+L_METADATA = "metadata"
+L_TIME_DIFF = "time_diff"
+L_STATUS_MSG = "status_msg"
+
+P_DIAG = "diag"
+P_STATUS_MSG = "status_msg"
 
 
 @dataclass
 class SyncGraph(Diagnosable):
-    _DATA_KEY = "DATA"
-
     _graph: nx.DiGraph = field(default_factory=nx.DiGraph)
     _known_aliases: dict[ClockId, set[ClockId]] = field(default_factory=dict)
-    _port_diagnostics: defaultdict[PortId, DiagTree] = field(
-        default_factory=lambda: defaultdict(default_factory=Unknown)
+    _ports: defaultdict[PortId, dict[str, Any]] = field(
+        default_factory=lambda: defaultdict(default_factory=dict)
     )  # type: ignore
 
-    def get_canonical_id(self, clock_id: ClockId):
+    def get_canonical_clock_id(self, clock_id: ClockId):
         if clock_id not in self._known_aliases:
             return clock_id
         return get_most_human_readable_alias(self._known_aliases[clock_id])
 
+    def get_canonical_port_id(self, port_id: PortId):
+        return PortId(
+            self.get_canonical_clock_id(port_id.clock_id),
+            port_id.port_number,
+            port_id.domain_number,
+        )
+
     def update(self, update: GraphUpdate):
         match update:
-            case ClockAliasUpdate(aliases):
-                self.update_clock_aliases(aliases)
-            case ClockUpdate(clock_id, clock):
-                self.update_clock(clock_id, clock)
-            case PtpPortLinkUpdate(src, dst):
-                self.create_ptp_link(src, dst)
-            case PtpPortStateUpdate(port_id, state):
-                self.update_ptp_port_state(port_id, state)
-            case Phc2SysUpdate(src, dst, state):
-                link = Phc2SysSyncLink(state)
-                self.update_link(src, dst, link)
+            case ClockAliasUpdate():
+                self.update_clock_aliases(update)
+            case ClockMasterUpdate():
+                self.update_clock_master(update)
+            case PtpParentUpdate():
+                self.create_ptp_link(update)
+            case PtpPortStateUpdate():
+                self.update_ptp_port_state(update)
+            case TimeDifferenceMeasurement():
+                pass
+            case Ptp4lPortStatusMessage():
+                self.update_port_status_msg(update)
+            case Ptp4lStatusMessage():
+                self.update_ptp4l_status_msg(update)
+            case Phc2SysStatusMessage():
+                self.update_phc2sys_status_msg(update)
+            case Phc2SysUpdate():
+                self.update_link(
+                    update.src, update.dst, Phc2SysSyncLink(update.new_state)
+                )
 
     def get_or_create_clock(self, clock_id: ClockId) -> ClockId:
-        clock_id = self.get_canonical_id(clock_id)
+        clock_id = self.get_canonical_clock_id(clock_id)
         if clock_id not in self._graph:
-            self._graph.add_node(clock_id, **{SyncGraph._DATA_KEY: Clock()})
+            self._graph.add_node(clock_id)
         return clock_id
 
-    def update_clock(self, clock_id: ClockId, clock: Clock):
-        clock_id = self.get_or_create_clock(clock_id)
-        nx.set_node_attributes(self._graph, {clock_id: clock}, SyncGraph._DATA_KEY)
+    def update_clock_master(self, u: ClockMasterUpdate):
+        clock_id = self.get_or_create_clock(u.clock_id)
+        nx.set_node_attributes(self._graph, {clock_id: u.master}, C_MASTER)
 
-    def update_clock_aliases(self, aliases: Iterable[ClockId]):
-        if not aliases:
+    def update_clock_aliases(self, u: ClockAliasUpdate):
+        if not u.aliases:
             return
 
-        all_aliases = set(aliases).copy()
-        for alias in aliases:
+        all_aliases = set(u.aliases).copy()
+        for alias in u.aliases:
             if alias in self._known_aliases:
                 all_aliases |= self._known_aliases[alias]
 
         for alias in all_aliases:
             self._known_aliases[alias] = all_aliases
 
-        canonical_id: ClockId = self.get_canonical_id(next(iter(all_aliases)))
+        canonical_id: ClockId = self.get_canonical_clock_id(next(iter(all_aliases)))
         relabelings = {alias: canonical_id for alias in all_aliases}
         self._graph = nx.relabel_nodes(self._graph, relabelings)
 
-    def create_ptp_link(self, src: PortId, dst: PortId):
-        src_clock = self.get_or_create_clock(src.clock_id)
-        dst_clock = self.get_or_create_clock(dst.clock_id)
+        old_items = self._ports.items()
+        self._ports.clear()
+        self._ports.update({self.get_canonical_port_id(p): d for p, d in old_items})
 
-        ################################
-        # Remove edges connected to dst
-        ################################
+    def create_ptp_link(self, u: PtpParentUpdate):
+        src_clock = self.get_or_create_clock(u.src.clock_id)
+        dst_clock = self.get_or_create_clock(u.dst)
 
-        # A master (src) port can have multiple slaves (dst) ports, but a slave port can have at most one master.
-        # Remove all pre-existing links from `dst` as it now is a slave
+        ptp_link = PtpSyncLink(u.src)
+        self._graph.add_edge(src_clock, dst_clock, **{L_METADATA: ptp_link})
 
-        def shall_remove(data: SyncLink):
-            match data:
-                case PtpSyncLink() as ptp_link:
-                    return dst_clock in [ptp_link.src_port, ptp_link.dst_port]
-                case _:
-                    return False
-
-        dst_incoming_edges = self._graph.in_edges(dst_clock, data=SyncGraph._DATA_KEY)  # type: ignore
-        marked_for_removal = [
-            (u, v) for (u, v, data) in dst_incoming_edges if shall_remove(data)
-        ]
-
-        for edge in marked_for_removal:
-            self._graph.remove_edge(*edge)
-
-        ################################
-        # Add new edge from src_clock to dst_clock
-        ################################
-
-        ptp_link = PtpSyncLink(src, dst)
-        self._graph.add_edge(src_clock, dst_clock, **{SyncGraph._DATA_KEY: ptp_link})
-
-    def update_ptp_port_state(self, port_id: PortId, state: DiagTree):
-        self._port_diagnostics[port_id] = state
+    def update_ptp_port_state(self, u: PtpPortStateUpdate):
+        self._ports[u.port_id][P_DIAG] = u.new_state
 
     def update_link(self, src: ClockId, dst: ClockId, link: SyncLink):
         src = self.get_or_create_clock(src)
@@ -245,45 +280,12 @@ class SyncGraph(Diagnosable):
         key = (src, dst)
         if key not in self._graph.edges:
             self._graph.add_edge(*key)
-        nx.set_edge_attributes(self._graph, {key: link}, SyncGraph._DATA_KEY)
+        nx.set_edge_attributes(self._graph, {key: link}, L_METADATA)
 
     def get_link(self, src: ClockId, dst: ClockId) -> SyncLink:
-        src = self.get_canonical_id(src)
-        dst = self.get_canonical_id(dst)
-        return self._graph.edges[(src, dst)][SyncGraph._DATA_KEY]
-
-    @classmethod
-    def iter_clocks(cls, g: nx.DiGraph):
-        for id, data in g.nodes.items():
-            tup: tuple[ClockId, Clock] = (id, data[SyncGraph._DATA_KEY])
-            yield tup
-
-    @classmethod
-    def iter_links(cls, g: nx.DiGraph):
-        for (src, dst), data in g.edges.items():
-            tup: tuple[tuple[ClockId, ClockId], SyncLink] = (
-                (src, dst),
-                data[SyncGraph._DATA_KEY],
-            )
-            yield tup
-
-    def diagnose_link(self, link: SyncLink):
-        match link:
-            case PtpSyncLink(src, dst):
-                return {
-                    "src": self._port_diagnostics.get(src, Unknown()),
-                    "dst": self._port_diagnostics.get(dst, Unknown()),
-                }
-            case Phc2SysSyncLink(diag):
-                return diag
-
-    def _diagnose_links(self) -> DiagTree:
-        return {
-            f"{src.id()} =({link.__class__.__name__})=> {dst.id()}": self.diagnose_link(
-                link
-            )
-            for (src, dst), link in SyncGraph.iter_links(self._graph)
-        }
+        src = self.get_canonical_clock_id(src)
+        dst = self.get_canonical_clock_id(dst)
+        return self._graph.edges[(src, dst)][L_METADATA]
 
     def _diagnose_reachability(self) -> DiagStatus:
         if nx.is_weakly_connected(self._graph):
@@ -299,7 +301,7 @@ class SyncGraph(Diagnosable):
 
     def _diagnose_ptp_domain(self, ptp_domain: nx.DiGraph):
         master_clocks = {
-            self.get_canonical_id(clock.master_id).id()
+            self.get_canonical_clock_id(clock.master_id).id()
             for _, clock in SyncGraph.iter_clocks(ptp_domain)
             if clock.master_id is not None
         }

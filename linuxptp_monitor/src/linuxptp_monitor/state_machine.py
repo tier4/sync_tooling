@@ -2,14 +2,18 @@ from abc import ABC
 from copy import deepcopy
 from dataclasses import dataclass, field
 import re
-from typing import Callable
+from typing import Callable, Generator
 
 from journal_monitor.journal_monitor import JournalEntry
 
 
+class Event:
+    pass
+
+
 @dataclass
 class State(ABC):
-    def parse(self, entry: JournalEntry) -> "State":
+    def parse(self, entry: JournalEntry) -> Generator[Event, None, "State"]:
         raise NotImplementedError()
 
 
@@ -26,7 +30,7 @@ class SystemdUnitStateMachine:
     class Uninitialized(State):
         factory: Callable[[], State] = field(repr=False)
 
-        def parse(self, entry: JournalEntry):
+        def parse(self, entry: JournalEntry) -> Generator[Event, None, State]:
             inner_parser = self.factory()
             return inner_parser.parse(entry)
 
