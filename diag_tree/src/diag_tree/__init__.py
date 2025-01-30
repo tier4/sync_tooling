@@ -1,45 +1,13 @@
 from abc import ABC, ABCMeta, abstractmethod
-from dataclasses import dataclass
 import dataclasses
 from enum import EnumMeta
-from typing import Any, Dict, List
-
-
-@dataclass
-class Unknown:
-    """Not all necessary information to produce a diagnostic status is present."""
-
-    precedence = 1
-    msg: str | None = None
-
-
-@dataclass
-class Ok:
-    """No issues found"""
-
-    precedence = 0
-    msg: str | None = None
-
-
-@dataclass
-class Warning:
-    """A non-critical issue was found"""
-
-    precedence = 2
-    msg: str
-
-
-@dataclass
-class Error:
-    """A critical issue was found"""
-
-    precedence = 3
-    msg: str
-
-
-DiagStatus = Unknown | Ok | Warning | Error
-
-DiagTree = Dict[str, "DiagTree"] | List["DiagTree"] | DiagStatus
+from typing import Any
+from sync_tooling_msgs.diag_status_pb2 import DiagStatus
+from sync_tooling_msgs.diag_tree_pb2 import DiagTree
+from sync_tooling_msgs.unknown_pb2 import Unknown
+from sync_tooling_msgs.ok_pb2 import Ok
+from sync_tooling_msgs.warning_pb2 import Warning
+from sync_tooling_msgs.error_pb2 import Error
 
 
 class DiagnosableEnumMeta(EnumMeta, ABCMeta):
@@ -55,19 +23,32 @@ class Diagnosable(ABC):
 def diagnose(obj: Any) -> DiagTree:
     match obj:
         case None:
-            return Unknown()
-        # Python does not allow to directly match union types 🥲
-        case (Unknown() | Ok() | Warning() | Error()) as status:
-            return status
+            return DiagTree(status=DiagStatus(unknown=Unknown()))
+        case Unknown():
+            return DiagTree(status=DiagStatus(unknown=obj))
+        case Ok():
+            return DiagTree(status=DiagStatus(ok=obj))
+        case Warning():
+            return DiagTree(status=DiagStatus(warning=obj))
+        case Error():
+            return DiagTree(status=DiagStatus(error=obj))
+        case DiagStatus():
+            return DiagTree(status=obj)
+        case DiagTree():
+            return obj
         case list() as ls:
-            return [diagnose(elem) for elem in ls]
+            return DiagTree(list=DiagTree.DiagList([diagnose(elem) for elem in ls]))
         case dict() as d:
-            return {k: diagnose(v) for k, v in d.items()}
+            return DiagTree(
+                map=DiagTree.DiagMap({k: diagnose(v) for k, v in d.items()})
+            )
         case Diagnosable() as diagnosable:
             return diagnosable.diagnose()
         case _:
             if dataclasses.is_dataclass(obj):
-                return {obj.__class__.__name__: diagnose(dataclasses.asdict(obj))}  # type: ignore
+                cls = obj.__class__.__name__  # type: ignore
+                mapping = dataclasses.asdict(obj)  # type: ignore
+                return diagnose({cls: diagnose(mapping)})
             raise NotImplementedError(
                 f"diagnose({type(obj).__qualname__}) is not implemented"
             )
@@ -77,10 +58,13 @@ def prettify(diag_tree: DiagTree, indent=0) -> str:
     lpad = "  " * indent
 
     match diag_tree:
-        case (Unknown() | Ok() | Warning() | Error()) as status:
-            text = status.__class__.__name__
-            if status.msg is not None:
-                text += f"({status.msg})"
+        case DiagTree(status=DiagStatus() as status):
+            obj: Unknown | Ok | Warning | Error = getattr(
+                status, status.WhichOneof("status")
+            )
+            text = obj.__class__.__name__
+            if obj.msg is not None:
+                text += f"({obj.msg})"
             return lpad + text
         case [*subtrees]:
             if not subtrees:
@@ -98,23 +82,33 @@ def prettify(diag_tree: DiagTree, indent=0) -> str:
             assert False
 
 
+def precedence(status: DiagStatus) -> int:
+    match status:
+        case DiagStatus(unknown=Unknown()):
+            return 0
+        case DiagStatus(ok=Ok()):
+            return 1
+        case DiagStatus(warning=Warning()):
+            return 2
+        case DiagStatus(error=Error()):
+            return 3
+
+
 def aggregate(diag_tree: DiagTree) -> DiagStatus:
     match diag_tree:
-        case (Unknown() | Ok() | Warning() | Error()) as status:
+        case DiagTree(status=status):
             return status
-        case [*subtrees]:
+        case DiagTree(list=DiagTree.DiagList(list=subtrees)):
             if not subtrees:
-                return Ok()
+                return DiagStatus(ok=Ok())
 
-            max_status = max(map(aggregate, subtrees), key=lambda s: s.precedence)
+            max_status = max(map(aggregate, subtrees), key=precedence)
             return max_status
-        case {**subtrees}:
+        case DiagTree(map=DiagTree.DiagMap(map={**subtrees})):
             if not subtrees:
-                return Ok()
+                return DiagStatus(ok=Ok())
 
-            max_status = max(
-                map(aggregate, subtrees.values()), key=lambda s: s.precedence
-            )
+            max_status = max(map(aggregate, subtrees.values()), key=precedence)
             return max_status
         case _:
             assert False

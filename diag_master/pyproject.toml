@@ -12,6 +12,7 @@ dependencies = [
     "flask>=3.1.0",
     "http-transport",
     "sync-graph",
+    "sync-tooling-msgs",
 ]
 
 [project.scripts]
@@ -27,3 +28,4 @@ packages = ["src/diag_master"]
 [tool.uv.sources]
 http-transport = { workspace = true }
 sync-graph = { workspace = true }
+sync-tooling-msgs = { workspace = true }

@@ -7,8 +7,7 @@
     "./diag_worker/src",
     "./http_transport/src",
     "./sync_graph/src",
-    "/opt/ros/humble/lib/python3.10/site-packages",
-    "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    "./sync_tooling_msgs/build/bdist.linux-x86_64/wheel"
   ],
   "python.analysis.typeCheckingMode": "standard",
   "ansible.python.interpreterPath": "/home/maximilianschmeller/sync_tooling/.venv/bin/python"
