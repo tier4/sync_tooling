@@ -54,4 +54,5 @@ packages = [
     "diag_master/src/diag_master",
     "sync_graph/src/sync_graph",
     "http_transport/src/http_transport",
+    "sync_tooling_msgs/src/sync_tooling_msgs",
 ]
