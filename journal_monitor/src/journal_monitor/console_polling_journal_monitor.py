@@ -13,9 +13,12 @@ def json_to_journal_entry(json: dict):
     cursor = json["__CURSOR"]
     unit = json["_SYSTEMD_UNIT"]
     message = json.get("MESSAGE")
+    priority = json.get("PRIORITY")
+    if priority is not None:
+        priority = JournalEntry.Priority(int(priority))
 
     return JournalEntry(
-        system_timestamp_us, monotonic_timestamp_us, cursor, unit, message
+        system_timestamp_us, monotonic_timestamp_us, cursor, unit, message, priority
     )
 
 
