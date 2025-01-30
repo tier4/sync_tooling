@@ -1,16 +1,28 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from typing import List
 
 
 @dataclass
 class JournalEntry:
+    class Priority(Enum):
+        Emergency = 0
+        Alert = 1
+        Critical = 2
+        Error = 3
+        Warning = 4
+        Notice = 5
+        Info = 6
+        Debug = 7
+
     system_timestamp: datetime
     monotonic_timestamp_us: int | None
     cursor: str | None
     unit: str
     message: str | None
+    priority: Priority | None
 
 
 class JournalMonitor(ABC):
