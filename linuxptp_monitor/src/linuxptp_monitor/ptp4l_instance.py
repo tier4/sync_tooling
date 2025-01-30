@@ -42,6 +42,17 @@ class PortState(Diagnosable, Enum, metaclass=DiagnosableEnumMeta):
                 return Error(f"Port is not working correctly ({self.name})")
 
 
+@dataclass
+class PortStatus:
+    port_number: int
+    status: Warning | Error
+
+
+@dataclass
+class Ptp4lStatus:
+    status: Warning | Error
+
+
 class NetworkTransport(Enum):
     UDP_IPV4 = 1
     UDP_IPV6 = 2
@@ -185,13 +196,31 @@ class Ptp4lRunningState(State):
             return False
         return True
 
+    def _parse_non_nominal_status_message(
+        self, priority: JournalEntry.Priority, message: str
+    ):
+        severity = Warning if priority == JournalEntry.Priority.Warning else Error
+        m = re.match(Ptp4lRunningState.port_re, message)
+        if not m:
+            return Ptp4lStatus(severity(message))
+        return PortStatus(int(m["port_id"]), severity(message))
+
     def parse(self, entry: JournalEntry):
         if entry.message is None:
-            return self
+            return ([], self)
+
+        if (
+            entry.priority is not None
+            and entry.priority.value <= JournalEntry.Priority.Warning.value
+        ):
+            event = self._parse_non_nominal_status_message(
+                entry.priority, entry.message
+            )
+            return ([event], self)
 
         m = re.match(Ptp4lRunningState.message_re, entry.message)
         if not m:
-            return self
+            return ([], self)
 
         message: str = m["message"]
         if self._parse_master_offset(message):
