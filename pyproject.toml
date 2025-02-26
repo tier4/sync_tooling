@@ -11,6 +11,7 @@ dev = [
  "ansible-dev-tools>=24.12.0",
  "ansible-lint>=6.8.7",
  "pproxy>=2.7.9",
+ "pyinstrument>=5.0.1",
 ]
 
 [project.scripts]
