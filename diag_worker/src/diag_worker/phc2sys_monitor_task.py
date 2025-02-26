@@ -9,6 +9,7 @@ from linuxptp_monitor.state_machine import (
     SystemdUnitStateChange,
     SystemdUnitStateMachine,
 )
+from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 
 
 class Phc2SysMonitorTask(MonitorTask):
@@ -53,18 +54,21 @@ class Phc2SysMonitorTask(MonitorTask):
                     s.config.source_clock, self.hostname_
                 )
 
-                if is_init:
-                    yield ClockMasterUpdate(src_id, None)
-
                 for clock_id, state in s.dst_clock_states.items():
                     dst_id = linuxptp_to_graph_clock_id(clock_id, self.hostname_)
 
                     if is_init:
-                        yield ClockMasterUpdate(dst_id, src_id)
-                    yield Phc2SysUpdate(
-                        src_id,
-                        dst_id,
-                        diagnose(state),
+                        yield GraphUpdate(
+                            clock_master_update=ClockMasterUpdate(
+                                clock_id=dst_id, master=src_id
+                            )
+                        )
+                    yield GraphUpdate(
+                        phc2sys_update=Phc2SysUpdate(
+                            src=src_id,
+                            dst=dst_id,
+                            diag=diagnose(state),
+                        )
                     )
             case _:
                 # TODO(mojomex): add feature to remove links from sync graph

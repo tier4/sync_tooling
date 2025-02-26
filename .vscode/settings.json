@@ -7,8 +7,9 @@
     "./diag_worker/src",
     "./http_transport/src",
     "./sync_graph/src",
-    "./sync_tooling_msgs/build/bdist.linux-x86_64/wheel"
+    "./sync_tooling_msgs/src"
   ],
   "python.analysis.typeCheckingMode": "standard",
-  "ansible.python.interpreterPath": "/home/maximilianschmeller/sync_tooling/.venv/bin/python"
+  "ansible.python.interpreterPath": "/home/maximilianschmeller/sync_tooling/.venv/bin/python",
+  "ros.distro": "humble"
 }
