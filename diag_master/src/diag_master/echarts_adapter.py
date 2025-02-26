@@ -1,5 +1,9 @@
 from diag_tree import Error, Warning, Ok, Unknown, aggregate, prettify
-from sync_graph import Clock, ClockId, Phc2SysSyncLink, PtpSyncLink, SyncGraph
+from sync_graph import C_MASTER, ClockId, SyncGraph
+from sync_tooling_msgs.clock_id import ClockKey, readable_clock_id
+from sync_tooling_msgs.diag_tree_pb2 import DiagTree
+from sync_tooling_msgs.port_id import readable_port_id
+from sync_tooling_msgs.port_id_pb2 import PortId
 
 DIAG_PALETTE = {Unknown: "#264653", Ok: "#2a9d8f", Warning: "#e9c46a", Error: "#e76f51"}
 
@@ -39,19 +43,18 @@ HTML_TEMPLATE = """
 
 def sync_graph_to_echart_data_(sg: SyncGraph) -> tuple[list, list]:
     data = []
-    K = sg._DATA_KEY
     g = sg._graph
 
     for n, node_data in g.nodes.items():
-        n: ClockId
-        clock: Clock = node_data[K]
+        n: ClockKey
+        master: ClockId = node_data.get(C_MASTER)
         data.append(
             {
-                "name": n.id(),
+                "name": n,
                 "x": 0,
                 "y": 0,
                 "tooltip": {
-                    "formatter": f"Master: {clock.master_id if clock.master_id else None}"
+                    "formatter": f"Master: {readable_clock_id(master) if master else None}"
                 },
             }
         )
@@ -62,23 +65,23 @@ def sync_graph_to_echart_data_(sg: SyncGraph) -> tuple[list, list]:
         dst: ClockId
         link = sg.get_link(src, dst)
         match link:
-            case PtpSyncLink(src_port, dst_port):
-                label = f"PTP (port {src_port.port_number} -> {dst_port.port_number})"
-            case Phc2SysSyncLink():
+            case PortId() as port_id:
+                label = f"PTP (port {readable_port_id(port_id)} -> {readable_clock_id(dst)})"
+            case DiagTree():
                 label = "PHC2SYS"
             case _:
                 assert False
 
-        diag = sg.diagnose_link(link)
-        diag_status = aggregate(diag)
+        diag_tree = sg.diagnose_link(src, dst)
+        diag_status = aggregate(diag_tree)
         diag_color = DIAG_PALETTE[diag_status.__class__]
-        diag_json = prettify(diag)
+        diag_json = prettify(diag_tree)
         extended_label = "\n".join([label, diag_json])
 
         links.append(
             {
-                "source": src.id(),
-                "target": dst.id(),
+                "source": readable_clock_id(src),
+                "target": readable_clock_id(dst),
                 "lineStyle": {"color": diag_color},
                 "label": {"show": True, "formatter": label},
                 "select": {"label": {"show": True, "formatter": extended_label}},
