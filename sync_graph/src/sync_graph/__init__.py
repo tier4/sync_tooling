@@ -7,19 +7,23 @@ import networkx as nx
 from diag_tree import Diagnosable
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_diff_measurement_pb2 import ClockDiffMeasurement
-from sync_tooling_msgs.clock_id import ClockKey, readable_clock_id
-from sync_tooling_msgs.port_id import PortKey, readable_port_id
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
+from sync_tooling_msgs.diag_status_pb2 import DiagStatus
 from sync_tooling_msgs.diag_tree_pb2 import DiagTree
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
+from sync_tooling_msgs.ok_pb2 import Ok
 from sync_tooling_msgs.phc2sys_update_pb2 import Phc2SysUpdate
 from sync_tooling_msgs.port_id_pb2 import PortId
+from sync_tooling_msgs.port_state import port_state_name
+from sync_tooling_msgs.port_state_pb2 import PortState
 from sync_tooling_msgs.port_state_update_pb2 import PortStateUpdate
 from sync_tooling_msgs.ptp_parent_update_pb2 import PtpParentUpdate
 from sync_tooling_msgs.ptp4l_status_message_pb2 import Ptp4lStatusMessage
 from sync_tooling_msgs.ptp4l_port_status_message_pb2 import Ptp4lPortStatusMessage
 from sync_tooling_msgs.phc2sys_status_message_pb2 import Phc2SysStatusMessage
+from sync_tooling_msgs.error_pb2 import Error
+from sync_tooling_msgs.warning_pb2 import Warning
 
 
 def get_most_human_readable_alias(aliases: Iterable[ClockId]) -> ClockId:
@@ -47,7 +51,6 @@ L_METADATA = "metadata"
 L_TIME_DIFF = "time_diff"
 L_STATUS_MSG = "status_msg"
 
-P_PORT_ID = "port_id"
 P_DIAG = "diag"
 P_STATUS_MSG = "status_msg"
 
@@ -55,16 +58,15 @@ P_STATUS_MSG = "status_msg"
 @dataclass
 class SyncGraph(Diagnosable):
     _graph: nx.DiGraph = field(default_factory=nx.DiGraph)
-    _known_aliases: dict[ClockKey, list[ClockId]] = field(default_factory=dict)
-    _ports: defaultdict[PortKey, dict[str, Any]] = field(
+    _known_aliases: dict[ClockId, set[ClockId]] = field(default_factory=dict)
+    _ports: defaultdict[PortId, dict[str, Any]] = field(
         default_factory=lambda: defaultdict(default_factory=dict)
     )  # type: ignore
 
     def get_canonical_clock_id(self, clock_id: ClockId) -> ClockId:
-        readable_id = readable_clock_id(clock_id)
-        if readable_id not in self._known_aliases:
+        if clock_id not in self._known_aliases:
             return clock_id
-        return get_most_human_readable_alias(self._known_aliases[readable_id])
+        return get_most_human_readable_alias(self._known_aliases[clock_id])
 
     def get_canonical_port_id(self, port_id: PortId):
         return PortId(
@@ -100,65 +102,55 @@ class SyncGraph(Diagnosable):
     def get_or_create_clock(self, clock_id: ClockId) -> ClockId:
         clock_id = self.get_canonical_clock_id(clock_id)
         if clock_id not in self._graph:
-            self._graph.add_node(readable_clock_id(clock_id))
+            self._graph.add_node(clock_id)
         return clock_id
 
     def update_clock_master(self, u: ClockMasterUpdate):
         clock_id = self.get_or_create_clock(u.clock_id)
         nx.set_node_attributes(
-            self._graph, {readable_clock_id(clock_id): u.master}, C_MASTER
+            self._graph,
+            {clock_id: u.master},  # type: ignore
+            C_MASTER,
         )
 
     def update_clock_aliases(self, u: ClockAliasUpdate):
         if not u.aliases:
             return
 
-        all_aliases = list(u.aliases).copy()
+        all_aliases = set(u.aliases).copy()
         for alias in u.aliases:
-            readable_alias = readable_clock_id(alias)
-            if readable_alias in self._known_aliases:
-                all_aliases += self._known_aliases[readable_alias]
+            if alias in self._known_aliases:
+                all_aliases |= self._known_aliases[alias]
 
         for alias in all_aliases:
-            readable_alias = readable_clock_id(alias)
-            self._known_aliases[readable_alias] = all_aliases
+            self._known_aliases[alias] = all_aliases
 
         canonical_id: ClockId = self.get_canonical_clock_id(next(iter(all_aliases)))
-        relabelings = {
-            readable_clock_id(alias): readable_clock_id(canonical_id)
-            for alias in all_aliases
-        }
+        relabelings = {alias: canonical_id for alias in all_aliases}
         self._graph = nx.relabel_nodes(self._graph, relabelings)
 
         old_items = self._ports.items()
         self._ports.clear()
-        for _, metadata in old_items:
-            port_id = metadata[P_PORT_ID]
+        for port_id, metadata in old_items:
             canonical_port_id = self.get_canonical_port_id(port_id)
-            self._ports[readable_port_id(canonical_port_id)] = metadata
+            self._ports[canonical_port_id] = metadata
 
     def create_ptp_link(self, u: PtpParentUpdate):
         src_clock = self.get_or_create_clock(u.parent.clock_id)
         dst_clock = self.get_or_create_clock(u.clock_id)
-        self._graph.add_edge(
-            readable_clock_id(src_clock),
-            readable_clock_id(dst_clock),
-            **{L_METADATA: u.parent},
-        )
+        self._graph.add_edge(src_clock, dst_clock, **{L_METADATA: u.parent})
 
     def update_ptp_port_state(self, u: PortStateUpdate):
         canonical_id = self.get_canonical_port_id(u.port_id)
-        readable_id = readable_port_id(canonical_id)
 
-        if readable_id not in self._ports:
-            self._ports[readable_id] = {}
-        self._ports[readable_id][P_PORT_ID] = canonical_id
-        self._ports[readable_id][P_DIAG] = u.port_state
+        if canonical_id not in self._ports:
+            self._ports[canonical_id] = {}
+        self._ports[canonical_id][P_DIAG] = u.port_state
 
     def update_phc2sys_link_state(self, u: Phc2SysUpdate):
         src = self.get_or_create_clock(u.src)
         dst = self.get_or_create_clock(u.dst)
-        key = (readable_clock_id(src), readable_clock_id(dst))
+        key = (src, dst)
         if key not in self._graph.edges:
             self._graph.add_edge(*key)
         nx.set_edge_attributes(self._graph, {key: u.diag}, L_METADATA)
@@ -180,13 +172,62 @@ class SyncGraph(Diagnosable):
         dst = self.get_canonical_clock_id(dst)
         return self._graph.edges[(src, dst)][L_METADATA]
 
-    def diagnose_link(self, src: ClockId, dst: ClockId) -> DiagTree:
+    def diagnose_port(self, port_id: PortId) -> DiagTree | None:
+        canonical_port_id = self.get_canonical_port_id(port_id)
+        port_data = self._ports.get(canonical_port_id, None)
+        if port_data is None:
+            return None
+        port_state = port_data.get(P_DIAG)
+        if port_state is None:
+            return None
+        match port_state:
+            case PortState.PS_UNKNOWN:
+                return DiagTree(
+                    status=DiagStatus(error=Error(msg="Invalid port state"))
+                )
+            case PortState.PS_MASTER | PortState.PS_SLAVE | PortState.PS_GRAND_MASTER:
+                return DiagTree(
+                    status=DiagStatus(
+                        ok=Ok(
+                            msg=f"Port is operating nominally ({port_state_name(port_state)})"
+                        )
+                    )
+                )
+            case (
+                PortState.PS_LISTENING
+                | PortState.PS_INITIALIZING
+                | PortState.PS_PRE_MASTER
+                | PortState.PS_UNCALIBRATED
+            ):
+                return DiagTree(
+                    status=DiagStatus(
+                        warning=Warning(
+                            msg=f"Port is in a transient state ({port_state_name(port_state)})"
+                        )
+                    )
+                )
+            case PortState.PS_DISABLED:
+                return DiagTree(
+                    status=DiagStatus(
+                        warning=Warning(
+                            msg=f"Port exists but is not being used ({port_state_name(port_state)})"
+                        )
+                    )
+                )
+            case _:
+                return DiagTree(
+                    status=DiagStatus(
+                        error=Error(
+                            msg=f"Port is not working correctly ({port_state_name(port_state)})"
+                        )
+                    )
+                )
+
+    def diagnose_link(self, src: ClockId, dst: ClockId) -> DiagTree | None:
         link = self.get_link(src, dst)
         match link:
-            case PortId() as port_id:
-                canonical_port_id = self.get_canonical_port_id(port_id)
-                readable_id = readable_port_id(canonical_port_id)
-                return self._ports[readable_id][P_DIAG]
+            case PortId() as parent_port:
+                return self.diagnose_port(parent_port)
             case DiagTree() as tree:
                 return tree
         raise ValueError()
