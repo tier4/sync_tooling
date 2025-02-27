@@ -6,15 +6,19 @@
         cmd: uv sync --all-packages
       args:
         chdir: "{{ lookup('env', 'PWD') }}"
-      register: sync_output
       changed_when: true
+    
+    - name: Test the project for issues
+      ansible.builtin.shell:
+        cmd: uvx ruff check && uv run pytest
+      args:
+        chdir: "{{ lookup('env', 'PWD') }}"
 
     - name: Generate `requirements.txt`
       ansible.builtin.command:
         cmd: uv export --no-hashes --all-packages --no-emit-workspace --no-dev -o /tmp/requirements.txt
       args:
         chdir: "{{ lookup('env', 'PWD') }}"
-      register: export_output
       changed_when: true
 
     - name: Package the current directory with `uv build`
@@ -22,9 +26,8 @@
         cmd: uv build
       args:
         chdir: "{{ lookup('env', 'PWD') }}"
-      register: build_output
       changed_when: true
-
+    
     - name: Find the built wheel file
       ansible.builtin.find:
         paths: "{{ lookup('env', 'PWD') }}/dist"
