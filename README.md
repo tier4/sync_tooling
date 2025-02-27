@@ -8,7 +8,24 @@ The tools currently handle monitoring
 - PHC2SYS logs (servo state, offset)
 - local and remote PTP instances by implementing a PTP Management Client
 
-## Installation
+## Ansible (Recommended)
+
+This tool can be installed on remote machines using Ansible.
+First, create an inventory file akin to `ansible/x2gen2.yml` for your network architecture.
+
+To set up dependencies on the host machine and to enable SSH-key-based login on the remote workers, run
+```shell
+./setup path/to/inventory.yml
+```
+
+Then, to satisfy dependencies and install worker executables on the worker machines, run
+```shell
+./distribute path/to/inventory.yml
+````
+
+Done :tada:!
+
+## Manual Installation
 
 ### Prerequisites
 
@@ -23,7 +40,7 @@ pip install uv
 ```shell
 git clone git@github.com:tier4/sync_tooling
 cd sync_tooling
-uv sync
+uv sync --all-packages
 uv run pytest
 ```
 
@@ -40,4 +57,3 @@ sudo uv run pmc-monitor
 ```
 
 > **Note:** To run `uv` privileged, it needs to be installed system-wide. If `sudo uv` does not work after a normal `pip install uv`, try `sudo pip install uv`.
-
