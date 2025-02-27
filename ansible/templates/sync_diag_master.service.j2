@@ -1,0 +1,12 @@
+[Unit]
+Description="TIER IV Synchronization Diagnostics Tooling master"
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{ venv_path }}/bin/diag-master {{ sync_master.bind_ip }}
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target

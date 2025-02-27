@@ -1,0 +1,12 @@
+[Unit]
+Description="TIER IV Synchronization Diagnostics Tooling worker"
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{ venv_path }}/bin/diag-worker -4 {{ sync_worker.ptp4l_units | join(" ") }} -2 {{ sync_worker.phc2sys_units | join(" ") }} -- {{ sync_master_ip }}
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target

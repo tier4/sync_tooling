@@ -32,10 +32,10 @@
         use_regex: false
       register: wheel_file
 
-    - name: Ensure a wheel file was built
+    - name: Ensure exactly one wheel file was built
       ansible.builtin.fail:
-        msg: "No wheel file found in the dist directory."
-      when: wheel_file.files | length == 0
+        msg: "Expected exactly one wheel file in the dist directory."
+      when: wheel_file.files | length != 1
 
     - name: Save the wheel file path
       ansible.builtin.set_fact:
@@ -47,7 +47,7 @@
     apt_requirements_file: apt-requirements.txt
     # Set the control node (node running the playbook) to be the proxy for nodes not connected to internet
     proxy: "http://{{ ansible_env.SSH_CONNECTION.split(' ')[0] }}:7171"
-    venv_path: "{{ ansible_env.HOME }}/.sync_tooling_venv"
+    venv_path: "/opt/sync_diagnostics/.venv"
   environment:
     all_proxy: "{{ proxy }}"
     http_proxy: "{{ proxy }}"
@@ -76,6 +76,7 @@
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: true
+        cache_valid_time: 7200  # 2 hours
       become: true
     
     - name: Check if Python 3.10 is present
@@ -136,19 +137,72 @@
         - name: Reset venv
           ansible.builtin.command:
             cmd: rm -rf "{{ venv_path }}"
+          become: true
 
         - name: Create venv
           ansible.builtin.command:
             cmd: virtualenv --python python3.10 "{{ venv_path }}"
+          become: true
         
         - name: Install pip
           ansible.builtin.shell:
             cmd: . {{ venv_path }}/bin/activate && (curl -sS https://bootstrap.pypa.io/get-pip.py | python)
+          become: true
     
-    - name: Install wheel's requirements
-      ansible.builtin.shell:
-        cmd: . {{ venv_path }}/bin/activate && pip install -r /tmp/requirements.txt
+    - name: Install sync tooling
+      block:
+        - name: Install wheel's requirements
+          ansible.builtin.shell:
+            cmd: . {{ venv_path }}/bin/activate && pip install -r /tmp/requirements.txt
+          become: true
 
-    - name: Install the wheel file
-      ansible.builtin.shell:
-        cmd: . {{ venv_path }}/bin/activate && pip install --force-reinstall /tmp/{{ hostvars['localhost'].wheel_path | basename }}
+        - name: Install the wheel file
+          ansible.builtin.shell:
+            cmd: . {{ venv_path }}/bin/activate && pip install --force-reinstall /tmp/{{ hostvars['localhost'].wheel_path | basename }}
+          become: true
+    
+    - name: Configure systemd services
+      block:
+        - name: Install Sync Diagnostcs Master
+          ansible.builtin.template:
+            src: templates/sync_diag_master.service.j2
+            dest: /etc/systemd/system/sync_diag_master.service
+            group: root
+            owner: root 
+            mode: 0644
+          when: sync_master is defined
+          register: install_sync_master
+          become: true
+        
+        - name: Install Sync Diagnostcs Worker
+          ansible.builtin.template:
+            src: templates/sync_diag_worker.service.j2
+            dest: /etc/systemd/system/sync_diag_worker.service
+            group: root
+            owner: root 
+            mode: 0644
+          when: sync_worker is defined
+          register: install_sync_worker
+          become: true
+        
+        - name: Reload systemd daemon
+          ansible.builtin.systemd_service:
+            daemon_reload: true
+          when: (install_sync_worker is changed) or (install_sync_master is changed)
+          become: true
+        
+        - name: Enable and run master
+          ansible.builtin.systemd_service:
+            name: sync_diag_master
+            enabled: true
+            state: restarted
+          when: not (install_sync_master is skipped)
+          become: true
+
+        - name: Enable and run worker
+          ansible.builtin.systemd_service:
+            name: sync_diag_worker
+            enabled: true
+            state: restarted
+          when: not (install_sync_worker is skipped)
+          become: true
