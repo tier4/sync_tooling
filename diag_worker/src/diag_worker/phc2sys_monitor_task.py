@@ -2,7 +2,6 @@ from sync_graph import ClockMasterUpdate, Phc2SysUpdate
 from diag_tree import diagnose
 from diag_worker.monitor_task import MonitorTask
 from diag_worker.systemd_util import does_unit_exist, get_command_line, get_unit_pid
-from diag_worker.util import linuxptp_to_graph_clock_id
 from journal_monitor.console_polling_journal_monitor import ConsolePollingJournalMonitor
 from linuxptp_monitor.phc2sys_instance import Phc2SysConfig, Phc2SysRunningState
 from linuxptp_monitor.state_machine import (
@@ -50,13 +49,9 @@ class Phc2SysMonitorTask(MonitorTask):
                 assert False
             case (old, Phc2SysRunningState() as s):
                 is_init = isinstance(old, Uninitialized)
-                src_id = linuxptp_to_graph_clock_id(
-                    s.config.source_clock, self.hostname_
-                )
+                src_id = s.config.source_clock
 
-                for clock_id, state in s.dst_clock_states.items():
-                    dst_id = linuxptp_to_graph_clock_id(clock_id, self.hostname_)
-
+                for dst_id, state in s.dst_clock_states.items():
                     if is_init:
                         yield GraphUpdate(
                             clock_master_update=ClockMasterUpdate(
@@ -77,7 +72,10 @@ class Phc2SysMonitorTask(MonitorTask):
     async def poll(self):
         journal_entries = self.journal_monitor.poll()
         for entry in journal_entries:
-            state_change = self.state_machine.consume(entry)
-            if state_change is not None:
-                for update in self.to_graph_updates(state_change):
-                    yield update
+            for event in self.state_machine.consume(entry):
+                match event:
+                    case GraphUpdate() as update:
+                        yield update
+                    case SystemdUnitStateChange() as state_change:
+                        for update in self.to_graph_updates(state_change):
+                            yield update
