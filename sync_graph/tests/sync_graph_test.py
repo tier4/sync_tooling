@@ -2,7 +2,6 @@
 
 from sync_graph import SyncGraph
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
-from sync_tooling_msgs.clock_id import readable_clock_id
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.diag_status_pb2 import DiagStatus
@@ -65,9 +64,9 @@ def test_alias_precedence():
     g = graph_after_updates(*updates)
 
     assert g._graph.number_of_nodes() == 1
-    assert g._graph.has_node(readable_clock_id(sample_clock["frame"]))
+    assert g._graph.has_node(sample_clock["frame"])
     assert not any(
-        g._graph.has_node(readable_clock_id(v)) for k, v in sample_clock.items() if k != "frame"
+        g._graph.has_node(v) for k, v in sample_clock.items() if k != "frame"
     )
 
 
@@ -80,9 +79,9 @@ def test_ptp_link():
 
     assert g._graph.number_of_nodes() == 2
     assert g._graph.number_of_edges() == 1
-    assert g._graph.has_node(readable_clock_id(src))
-    assert g._graph.has_node(readable_clock_id(dst))
-    assert g._graph.has_edge(readable_clock_id(src), readable_clock_id(dst))
+    assert g._graph.has_node(src)
+    assert g._graph.has_node(dst)
+    assert g._graph.has_edge(src, dst)
 
 
 def test_phc2sys_link():
@@ -93,9 +92,9 @@ def test_phc2sys_link():
 
     assert g._graph.number_of_nodes() == 2
     assert g._graph.number_of_edges() == 1
-    assert g._graph.has_node(readable_clock_id(src))
-    assert g._graph.has_node(readable_clock_id(dst))
-    assert g._graph.has_edge(readable_clock_id(src), readable_clock_id(dst))
+    assert g._graph.has_node(src)
+    assert g._graph.has_node(dst)
+    assert g._graph.has_edge(src, dst)
 
 
 def test_alias_after_links():
@@ -117,5 +116,5 @@ def test_alias_after_links():
     assert g._graph.number_of_edges() == 2
 
     # Alias system clock takes precedence over alias PTP, thus making src1 the replacement for src2
-    assert g._graph.has_edge(readable_clock_id(src1), readable_clock_id(dst1))
-    assert g._graph.has_edge(readable_clock_id(src1), readable_clock_id(dst2))
+    assert g._graph.has_edge(src1, dst1)
+    assert g._graph.has_edge(src1, dst2)
