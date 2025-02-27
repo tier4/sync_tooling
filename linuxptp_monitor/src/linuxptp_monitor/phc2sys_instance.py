@@ -2,13 +2,15 @@ from argparse import ArgumentParser, Namespace
 from configparser import ConfigParser
 from dataclasses import dataclass, field
 import re
+from typing import Generator
 
 from diag_tree import Diagnosable, DiagTree
 from journal_monitor.journal_monitor import JournalEntry
 from linuxptp_monitor.common_types import SyncState
-from linuxptp_monitor.ethtool_harness import CanonicalizedClock, get_canonicalized_clock
+from linuxptp_monitor.ethtool_harness import get_canonicalized_clock
 from linuxptp_monitor.linuxptp_config import LinuxPtpConfig
-from linuxptp_monitor.state_machine import State
+from linuxptp_monitor.state_machine import Event, State
+from sync_tooling_msgs.clock_id_pb2 import ClockId
 
 
 @dataclass
@@ -23,9 +25,9 @@ class ClockState(Diagnosable):
 
 @dataclass(init=False)
 class Phc2SysConfig(LinuxPtpConfig):
-    source_clock: CanonicalizedClock
-    dst_clocks: set[CanonicalizedClock]
-    clock_aliases: dict[str, CanonicalizedClock]
+    source_clock: ClockId
+    dst_clocks: set[ClockId]
+    clock_aliases: dict[str, ClockId]
 
     def add_args_app_specific(self, parser: ArgumentParser) -> None:
         parser.add_argument("-a", action="store_true", dest="do_auto_conf")
@@ -69,7 +71,7 @@ class Phc2SysRunningState(State):
     offset_re = r"(?P<dst_clock>\w+)\s+(?P<src_clock_type>\w+)\s+offset\s+(?P<offset_ns>[+-]?\d+)\s+s(?P<sync_state>[0-3])\s+freq\s+(?P<freq_offset_ppb>[+-]?\d+)(?:\s+delay\s+(?P<delay_ns>[+-]?\d+))?"
 
     config: Phc2SysConfig
-    dst_clock_states: dict[CanonicalizedClock, ClockState] = field(default_factory=dict)
+    dst_clock_states: dict[ClockId, ClockState] = field(default_factory=dict)
 
     def _parse_offset(self, message: str):
         m = re.match(Phc2SysRunningState.offset_re, message)
@@ -90,7 +92,7 @@ class Phc2SysRunningState(State):
         )
         return True
 
-    def parse(self, entry: JournalEntry):
+    def parse(self, entry: JournalEntry) -> Generator[Event, None, State]:
         if entry.message is None:
             return self
 
@@ -102,3 +104,4 @@ class Phc2SysRunningState(State):
         if self._parse_offset(message):
             return self
         return self
+        yield  # force this function to be a generator
