@@ -1,13 +1,12 @@
 from pmc_monitor.pmc_protocol import ParentDataSet
 from diag_worker.monitor_task import MonitorTask
 from diag_worker.systemd_util import does_unit_exist, get_command_line, get_unit_pid
-from diag_worker.util import linuxptp_to_graph_clock_id
 from journal_monitor.console_polling_journal_monitor import ConsolePollingJournalMonitor
 from linuxptp_monitor.ptp4l_instance import (
     Ptp4lConfig,
     Ptp4lRunningState,
 )
-from linuxptp_monitor.state_machine import SystemdUnitStateMachine
+from linuxptp_monitor.state_machine import SystemdUnitStateChange, SystemdUnitStateMachine
 from pmc_monitor.pmc_monitor import PmcMonitor, PmcStateChange
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_id_pb2 import ClockId
@@ -41,9 +40,7 @@ class Ptp4lMonitorTask(MonitorTask):
             pid = get_unit_pid(unit_name)
             cmdline = get_command_line(pid)
             config = Ptp4lConfig(cmdline)
-            self.ptp4l_clock_id = linuxptp_to_graph_clock_id(
-                config.clock, self.hostname_
-            )
+            self.ptp4l_clock_id = config.clock
             self._create_pmc_monitor(config)
             return Ptp4lRunningState(config)
 
@@ -141,16 +138,21 @@ class Ptp4lMonitorTask(MonitorTask):
     async def poll(self):
         journal_entries = self.journal_monitor.poll()
         for entry in journal_entries:
-            state_change = self.state_machine.consume(entry)
-            if state_change is not None:
-                # TODO(mojomex): decide what info is needed from PTP4L
-                print(f"got event: {state_change.__class__.__name__}")
-                pass
+            for event in self.state_machine.consume(entry):
+                match event:
+                    case GraphUpdate() as update:
+                        yield update
+                    case SystemdUnitStateChange() as state_change:
+                        # TODO(mojomex): decide what info is needed from PTP4L
+                        print(f"got event: {state_change.__class__.__name__}")
+                        pass
+                    case _:
+                        print(f"Got unrecognized event of type {type(event)}: {event}")
 
         if self.pmc_monitor is not None:
-            async for event in self.pmc_monitor.poll():
-                print(f"got event: {event.__class__.__name__}")
-                for graph_update in self.pmc_to_graph_updates(event):
+            async for state_change in self.pmc_monitor.poll():
+                print(f"got state change: {state_change.__class__.__name__}")
+                for graph_update in self.pmc_to_graph_updates(state_change):
                     yield graph_update
 
     def stop(self):
