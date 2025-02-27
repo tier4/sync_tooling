@@ -140,7 +140,11 @@ class SyncGraph(Diagnosable):
     def create_ptp_link(self, u: PtpParentUpdate):
         src_clock = self.get_or_create_clock(u.parent.clock_id)
         dst_clock = self.get_or_create_clock(u.clock_id)
-        self._graph.add_edge(src_clock, dst_clock, **{L_METADATA: u.parent})
+        self._graph.add_edge(
+            readable_clock_id(src_clock),
+            readable_clock_id(dst_clock),
+            **{L_METADATA: u.parent},
+        )
 
     def update_ptp_port_state(self, u: PortStateUpdate):
         canonical_id = self.get_canonical_port_id(u.port_id)
@@ -154,7 +158,7 @@ class SyncGraph(Diagnosable):
     def update_phc2sys_link_state(self, u: Phc2SysUpdate):
         src = self.get_or_create_clock(u.src)
         dst = self.get_or_create_clock(u.dst)
-        key = (src, dst)
+        key = (readable_clock_id(src), readable_clock_id(dst))
         if key not in self._graph.edges:
             self._graph.add_edge(*key)
         nx.set_edge_attributes(self._graph, {key: u.diag}, L_METADATA)
