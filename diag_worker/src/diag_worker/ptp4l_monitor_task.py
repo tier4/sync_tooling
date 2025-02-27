@@ -1,13 +1,4 @@
 from pmc_monitor.pmc_protocol import ParentDataSet
-from sync_graph import (
-    ClockAliasUpdate,
-    ClockId,
-    PortId,
-    PtpClockId,
-    ClockMasterUpdate,
-    PtpParentUpdate,
-    PortStateUpdate,
-)
 from diag_worker.monitor_task import MonitorTask
 from diag_worker.systemd_util import does_unit_exist, get_command_line, get_unit_pid
 from diag_worker.util import linuxptp_to_graph_clock_id
@@ -18,8 +9,15 @@ from linuxptp_monitor.ptp4l_instance import (
 )
 from linuxptp_monitor.state_machine import SystemdUnitStateMachine
 from pmc_monitor.pmc_monitor import PmcMonitor, PmcStateChange
+from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
+from sync_tooling_msgs.clock_id_pb2 import ClockId
+from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
+from sync_tooling_msgs.port_id_pb2 import PortId
 from sync_tooling_msgs.port_state import port_state_value
+from sync_tooling_msgs.port_state_update_pb2 import PortStateUpdate
+from sync_tooling_msgs.ptp_clock_id_pb2 import PtpClockId
+from sync_tooling_msgs.ptp_parent_update_pb2 import PtpParentUpdate
 
 
 class Ptp4lMonitorTask(MonitorTask):
