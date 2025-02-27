@@ -7,9 +7,14 @@ from typing import Dict, Literal
 
 from diag_tree import DiagTree, Diagnosable, DiagnosableEnumMeta, Ok, Warning, Error
 from journal_monitor.journal_monitor import JournalEntry
-from linuxptp_monitor.ethtool_harness import CanonicalizedClock, get_canonicalized_clock
+from linuxptp_monitor.ethtool_harness import get_canonicalized_clock
 from linuxptp_monitor.linuxptp_config import LinuxPtpConfig
 from linuxptp_monitor.state_machine import State
+from sync_tooling_msgs.clock_id_pb2 import ClockId
+from sync_tooling_msgs.diag_status_pb2 import DiagStatus
+from sync_tooling_msgs.port_id_pb2 import PortId
+from sync_tooling_msgs.ptp4l_port_status_message_pb2 import Ptp4lPortStatusMessage
+from sync_tooling_msgs.ptp4l_status_message_pb2 import Ptp4lStatusMessage
 
 
 # Adapted from fsm.h of LinuxPTP
@@ -28,29 +33,38 @@ class PortState(Diagnosable, Enum, metaclass=DiagnosableEnumMeta):
     def diagnose(self) -> DiagTree:
         match self:
             case PortState.MASTER | PortState.SLAVE | PortState.GRAND_MASTER:
-                return Ok(f"Port is operating nominally ({self.name})")
+                return DiagTree(
+                    status=DiagStatus(
+                        ok=Ok(msg=f"Port is operating nominally ({self.name})")
+                    )
+                )
             case (
                 PortState.LISTENING
                 | PortState.INITIALIZING
                 | PortState.PRE_MASTER
                 | PortState.UNCALIBRATED
             ):
-                return Warning(f"Port is in a transient state ({self.name})")
-            case PortState.DISABLED | PortState.DISABLED:
-                return Warning(f"Port is not being used ({self.name})")
+                return DiagTree(
+                    status=DiagStatus(
+                        warning=Warning(
+                            msg=f"Port is in a transient state ({self.name})"
+                        )
+                    )
+                )
+            case PortState.DISABLED:
+                return DiagTree(
+                    status=DiagStatus(
+                        warning=Warning(
+                            msg=f"Port exists but is not being used ({self.name})"
+                        )
+                    )
+                )
             case _:
-                return Error(f"Port is not working correctly ({self.name})")
-
-
-@dataclass
-class PortStatus:
-    port_number: int
-    status: Warning | Error
-
-
-@dataclass
-class Ptp4lStatus:
-    status: Warning | Error
+                return DiagTree(
+                    status=DiagStatus(
+                        error=Error(msg=f"Port is not working correctly ({self.name})")
+                    )
+                )
 
 
 class NetworkTransport(Enum):
@@ -94,7 +108,7 @@ class NetworkTransport(Enum):
 
 @dataclass(init=False)
 class Ptp4lConfig(LinuxPtpConfig):
-    clock: CanonicalizedClock
+    clock: ClockId
     uds_address: str
     network_transport: NetworkTransport
     ports: list[str]
@@ -146,7 +160,7 @@ class Ptp4lConfig(LinuxPtpConfig):
             case other:
                 raise NotImplementedError(f"Cannot handle `time_stamping = {other}`")
 
-        clocks = {get_canonicalized_clock(clock) for clock in clocks}
+        clocks = {get_canonicalized_clock(clock) for clock in clocks}  # type: ignore
         if len(clocks) != 1:
             raise RuntimeError(
                 f"PTP4L instance has to be using just one clock, is using multiple ({', '.join(map(str, clocks))})"
@@ -161,6 +175,7 @@ class Ptp4lConfig(LinuxPtpConfig):
         self.transport_specific = int(
             config["global"].get("transportSpecific", "0"), base=0
         )
+        self.domain = int(config["global"].get("domainNumber", "0"), base=0)
 
 
 @dataclass
@@ -199,15 +214,23 @@ class Ptp4lRunningState(State):
     def _parse_non_nominal_status_message(
         self, priority: JournalEntry.Priority, message: str
     ):
-        severity = Warning if priority == JournalEntry.Priority.Warning else Error
+        if priority == JournalEntry.Priority.Warning:
+            status = {"warning": Warning(msg=message)}
+        else:
+            status = {"error": Error(msg=message)}
         m = re.match(Ptp4lRunningState.port_re, message)
         if not m:
-            return Ptp4lStatus(severity(message))
-        return PortStatus(int(m["port_id"]), severity(message))
+            return Ptp4lStatusMessage(clock_id=self.config.clock, **status)  # type: ignore
+        port_id = PortId(
+            clock_id=self.config.clock,
+            port_number=int(m["port_id"]),
+            ptp_domain=self.config.domain,
+        )
+        return Ptp4lPortStatusMessage(port_id=port_id, **status)  # type: ignore
 
     def parse(self, entry: JournalEntry):
         if entry.message is None:
-            return ([], self)
+            return self
 
         if (
             entry.priority is not None
@@ -216,11 +239,12 @@ class Ptp4lRunningState(State):
             event = self._parse_non_nominal_status_message(
                 entry.priority, entry.message
             )
-            return ([event], self)
+            yield event
+            return self
 
         m = re.match(Ptp4lRunningState.message_re, entry.message)
         if not m:
-            return ([], self)
+            return self
 
         message: str = m["message"]
         if self._parse_master_offset(message):

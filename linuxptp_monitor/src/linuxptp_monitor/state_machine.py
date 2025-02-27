@@ -2,13 +2,12 @@ from abc import ABC
 from copy import deepcopy
 from dataclasses import dataclass, field
 import re
-from typing import Callable, Generator
+from typing import Any, Callable, Generator
 
 from journal_monitor.journal_monitor import JournalEntry
 
 
-class Event:
-    pass
+Event = Any
 
 
 @dataclass
@@ -55,14 +54,14 @@ class SystemdUnitStateMachine:
             self._on_unit_stopped(self.state)
         self.state = SystemdUnitStateMachine.Uninitialized(self._factory)
 
-    def consume(self, entry: JournalEntry) -> SystemdUnitStateChange | None:
+    def consume(self, entry: JournalEntry) -> Generator[Event | SystemdUnitStateChange, None, None]:
         old_state = deepcopy(self.state)
-        self.state = self._parse(entry)
+        self.state = yield from self._parse(entry)
 
         if old_state != self.state:
-            return SystemdUnitStateChange(old_state, self.state)
+            yield SystemdUnitStateChange(old_state, self.state)
 
-    def _parse(self, entry: JournalEntry) -> State:
+    def _parse(self, entry: JournalEntry) -> Generator[Event, None, State]:
         if entry.message is None:
             return self.state
 
@@ -74,4 +73,5 @@ class SystemdUnitStateMachine:
         if not entry.unit.startswith(self._unit_prefix):
             return self.state
 
-        return self.state.parse(entry)
+        new_state = yield from self.state.parse(entry)
+        return new_state

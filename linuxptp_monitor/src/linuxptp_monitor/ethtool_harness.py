@@ -1,7 +1,11 @@
 import re
 import shutil
 import subprocess
-from typing import Literal
+
+from linuxptp_monitor.util import get_hostname
+from sync_tooling_msgs.clock_id_pb2 import ClockId
+from sync_tooling_msgs.linux_clock_device_id_pb2 import LinuxClockDeviceId
+from sync_tooling_msgs.system_clock_id_pb2 import SystemClockId
 
 
 def _find_ethtool():
@@ -13,25 +17,35 @@ def _find_ethtool():
     return ethtool
 
 
-CanonicalizedClock = int | Literal["CLOCK_REALTIME"]
-
-
-def get_canonicalized_clock(identifier: str) -> CanonicalizedClock:
+def get_canonicalized_clock(identifier: str) -> ClockId:
     """Get the canonical identifier of the clock specified by `identifier`
 
     Args:
         identifier (str): An interface name (e.g. "eth0"), PTP clock path (e.g. "/dev/ptp0") or the string "CLOCK_REALTIME"
 
     Returns:
-        Path | None: The canonicalized identifier. Either a path to a hardware clock or None (representing CLOCK_REALTIME)
+        ClockId: The canonicalized identifier.
     """
 
-    if identifier == "CLOCK_REALTIME":
-        return "CLOCK_REALTIME"
+    hostname = get_hostname()
 
-    clock_path_re = r"/dev/ptp(\d+)"
+    def make_system_clock_id():
+        return ClockId(system_clock_id=SystemClockId(hostname=hostname))
+
+    def make_ptp_device_clock_id(device_number: int):
+        return ClockId(
+            linux_clock_device_id=LinuxClockDeviceId(
+                hostname=hostname, clock_device_number=device_number
+            )
+        )
+
+    if identifier == "CLOCK_REALTIME":
+        return make_system_clock_id()
+
+    clock_path_re = r"/dev/ptp(?P<device_number>\d+)"
     if m := re.fullmatch(clock_path_re, identifier):
-        return int(m.group(1))
+        device_number = int(m["device_number"])
+        return make_ptp_device_clock_id(device_number)
 
     ethtool = _find_ethtool()
     result = subprocess.run(
@@ -45,10 +59,10 @@ def get_canonicalized_clock(identifier: str) -> CanonicalizedClock:
 
     stdout = result.stdout
 
-    hw_clock_re = r"PTP Hardware Clock: (?P<clock_id>none|\d+)"
+    hw_clock_re = r"PTP Hardware Clock: (?P<device_number>none|\d+)"
     m = re.search(hw_clock_re, stdout)
-    if not m or m["clock_id"] == "none":
-        return "CLOCK_REALTIME"
+    if not m or m["device_number"] == "none":
+        return make_system_clock_id()
 
-    clock_id = int(m["clock_id"])
-    return clock_id
+    device_number = int(m["device_number"])
+    return make_ptp_device_clock_id(device_number)
