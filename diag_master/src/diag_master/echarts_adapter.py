@@ -1,11 +1,18 @@
-from diag_tree import Error, Warning, Ok, Unknown, aggregate, prettify
+from diag_tree import aggregate, prettify
 from sync_graph import C_MASTER, ClockId, SyncGraph
-from sync_tooling_msgs.clock_id import ClockKey, readable_clock_id
+from sync_tooling_msgs.clock_id import readable_clock_id
+from sync_tooling_msgs.diag_status_pb2 import DiagStatus
 from sync_tooling_msgs.diag_tree_pb2 import DiagTree
 from sync_tooling_msgs.port_id import readable_port_id
 from sync_tooling_msgs.port_id_pb2 import PortId
+from sync_tooling_msgs.unknown_pb2 import Unknown
 
-DIAG_PALETTE = {Unknown: "#264653", Ok: "#2a9d8f", Warning: "#e9c46a", Error: "#e76f51"}
+DIAG_PALETTE = {
+    "unknown": "#264653",
+    "ok": "#2a9d8f",
+    "warning": "#e9c46a",
+    "error": "#e76f51",
+}
 
 HTML_TEMPLATE = """
     <!DOCTYPE html>
@@ -46,11 +53,11 @@ def sync_graph_to_echart_data_(sg: SyncGraph) -> tuple[list, list]:
     g = sg._graph
 
     for n, node_data in g.nodes.items():
-        n: ClockKey
+        n: ClockId
         master: ClockId = node_data.get(C_MASTER)
         data.append(
             {
-                "name": n,
+                "name": readable_clock_id(n),
                 "x": 0,
                 "y": 0,
                 "tooltip": {
@@ -73,8 +80,13 @@ def sync_graph_to_echart_data_(sg: SyncGraph) -> tuple[list, list]:
                 assert False
 
         diag_tree = sg.diagnose_link(src, dst)
+        if diag_tree is None:
+            diag_tree = DiagTree(status=DiagStatus(unknown=Unknown(msg="Not received yet")))
         diag_status = aggregate(diag_tree)
-        diag_color = DIAG_PALETTE[diag_status.__class__]
+        severity = diag_status.WhichOneof("status")
+        if severity is None:
+            assert False
+        diag_color = DIAG_PALETTE[severity]
         diag_json = prettify(diag_tree)
         extended_label = "\n".join([label, diag_json])
 
