@@ -10,12 +10,18 @@ from pmc_monitor.pmc_protocol import (
     TimePropertiesDataSet,
     TimeStatusNp,
 )
+from sync_tooling_msgs.diag_status_pb2 import DiagStatus
+from sync_tooling_msgs.diag_tree_pb2 import DiagTree
 
 
 @dataclass
 class Unsupported(Diagnosable):
     def diagnose(self):
-        return Unknown("PTP instance does not support this command")
+        return DiagTree(
+            status=DiagStatus(
+                unknown=Unknown(msg="PTP instance does not support this command")
+            )
+        )
 
 
 @dataclass
