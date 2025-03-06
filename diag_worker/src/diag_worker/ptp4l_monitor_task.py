@@ -93,10 +93,6 @@ class Ptp4lMonitorTask(MonitorTask):
         inst = state_change.new_state
         clock_id: ClockId = ClockId(ptp_clock_id=PtpClockId(id=inst.id()))
 
-        print(
-            f"Got instance {inst.default_ds.clockIdentity}, is{'' if inst.is_local_instance else ' not'} local"
-        )
-
         if inst.is_local_instance:
             assert self.ptp4l_clock_id is not None
             yield GraphUpdate(
