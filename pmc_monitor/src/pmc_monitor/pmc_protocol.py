@@ -6,6 +6,8 @@ from typing import List, TypeVar
 import typing
 
 from diag_tree import Diagnosable, Error, Ok
+from sync_tooling_msgs.diag_status_pb2 import DiagStatus
+from sync_tooling_msgs.diag_tree_pb2 import DiagTree
 
 
 def multiline_regex_from_keys(keys: List[str]) -> str:
@@ -349,10 +351,16 @@ class PortStatsNp(Diagnosable):
         )
 
         if not (has_e2e_traffic or has_p2p_traffic):
-            return Error("There is no PTP communication")
+            return DiagTree(
+                status=DiagStatus(error=Error(msg="There is no PTP communication"))
+            )
 
         if has_e2e_traffic and has_p2p_traffic:
-            return Error("Found both P2P and E2E traffic on the same port")
+            return DiagTree(
+                status=DiagStatus(
+                    error=Error(msg="Found both P2P and E2E traffic on the same port")
+                )
+            )
 
         # It is now ensured that there is only either P2P or E2E traffic, not both
 
@@ -363,15 +371,27 @@ class PortStatsNp(Diagnosable):
         received_from_slave = self.rx_Delay_Req or self.rx_Pdelay_Req
 
         if not (received_from_master or received_from_slave):
-            return Error("Not receiving any PTP traffic")
+            return DiagTree(
+                status=DiagStatus(error=Error(msg="Not receiving any PTP traffic"))
+            )
 
         if sent_as_master and received_from_master:
-            return Error("Multiple PTP instances assumed master role")
+            return DiagTree(
+                status=DiagStatus(
+                    error=Error(msg="Multiple PTP instances assumed master role")
+                )
+            )
 
         if sent_as_slave and received_from_slave:
-            return Error("Slave instance received traffic from another slave")
+            return DiagTree(
+                status=DiagStatus(
+                    error=Error(
+                        msg="Slave instance received traffic from another slave"
+                    )
+                )
+            )
 
-        return Ok()
+        return DiagTree(status=DiagStatus(ok=Ok()))
 
 
 @regex_from_tlv
