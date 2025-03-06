@@ -1,3 +1,4 @@
+from werkzeug.serving import WSGIRequestHandler
 from diag_master.echarts_adapter import (
     HTML_TEMPLATE,
     sync_graph_to_echart_options,
@@ -43,4 +44,7 @@ def main():
     parser.add_argument("--bind_port", "-p", type=int, default=16161)
     args = parser.parse_args()
 
+    # This enables HTTP keep-alive, see
+    # https://stackoverflow.com/questions/10523879/how-to-make-flask-keep-ajax-http-connection-alive
+    WSGIRequestHandler.protocol_version = "HTTP/1.1"
     app.run(args.bind_ip, args.bind_port)
