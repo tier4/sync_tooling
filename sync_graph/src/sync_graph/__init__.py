@@ -109,7 +109,7 @@ class SyncGraph(Diagnosable):
         clock_id = self.get_or_create_clock(u.clock_id)
         nx.set_node_attributes(
             self._graph,
-            {clock_id: self.get_canonical_clock_id(u.master)},  # type: ignore
+            {clock_id: self.get_or_create_clock(u.master)},  # type: ignore
             C_MASTER,
         )
 
@@ -129,7 +129,7 @@ class SyncGraph(Diagnosable):
         relabelings = {alias: canonical_id for alias in all_aliases}
         self._graph = nx.relabel_nodes(self._graph, relabelings)
 
-        for n, data in self._graph.nodes(True):
+        for _, data in self._graph.nodes(True):
             if C_MASTER in data:
                 data[C_MASTER] = self.get_canonical_clock_id(data[C_MASTER])
 
