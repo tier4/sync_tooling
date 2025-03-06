@@ -50,23 +50,40 @@ HTML_TEMPLATE = """
 
 def sync_graph_to_echart_data_(sg: SyncGraph) -> tuple[list, list]:
     data = []
+    links = []
+
     g = sg._graph
 
     for n, node_data in g.nodes.items():
         n: ClockId
         master: ClockId | None = node_data.get(C_MASTER)
+
+        if master is None:
+            master_desc = "No master"
+        elif master == n:
+            master_desc = "Grandmaster"
+        else:
+            master_desc = f"Master: {readable_clock_id(master)}"
+            links.append(
+                {
+                    "source": readable_clock_id(n),
+                    "target": readable_clock_id(master),
+                    "lineStyle": {
+                        "color": DIAG_PALETTE["unknown"],
+                        "type": "dashed",
+                        "curveness": 0.2,
+                    },
+                }
+            )
+
         data.append(
             {
-                "name": f"{readable_clock_id(n)}\nMaster: {readable_clock_id(master) if master else None}",
+                "name": f"{readable_clock_id(n)}\n{master_desc}",
                 "x": 0,
                 "y": 0,
-                "tooltip": {
-                    "formatter": f"Master: {readable_clock_id(master) if master else None}"
-                },
             }
         )
 
-    links = []
     for src, dst in g.edges:
         src: ClockId
         dst: ClockId
