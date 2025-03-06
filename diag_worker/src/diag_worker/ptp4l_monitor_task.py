@@ -6,7 +6,10 @@ from linuxptp_monitor.ptp4l_instance import (
     Ptp4lConfig,
     Ptp4lRunningState,
 )
-from linuxptp_monitor.state_machine import SystemdUnitStateChange, SystemdUnitStateMachine
+from linuxptp_monitor.state_machine import (
+    SystemdUnitStateChange,
+    SystemdUnitStateMachine,
+)
 from pmc_monitor.pmc_monitor import PmcMonitor, PmcStateChange
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_id_pb2 import ClockId
@@ -89,6 +92,10 @@ class Ptp4lMonitorTask(MonitorTask):
 
         inst = state_change.new_state
         clock_id: ClockId = ClockId(ptp_clock_id=PtpClockId(id=inst.id()))
+
+        print(
+            f"Got instance {inst.default_ds.clockIdentity}, is{'' if inst.is_local_instance else ' not'} local"
+        )
 
         if inst.is_local_instance:
             assert self.ptp4l_clock_id is not None
