@@ -1,5 +1,4 @@
 import asyncio
-from collections import defaultdict
 from copy import deepcopy
 from logging import Logger
 import logging
@@ -182,13 +181,8 @@ class PmcMonitor:
             error_text = _safe_read(self._pmc.stderr)
             raise RuntimeError(f"PMC exited with code {return_code}:\n{error_text}")  # type: ignore
 
-        tx_attempt_stats: defaultdict[str, int] = defaultdict(lambda: 0)
-        tx_stats: defaultdict[str, int] = defaultdict(lambda: 0)
-        rx_stats: defaultdict[str, int] = defaultdict(lambda: 0)
-
         for dataset in self.monitored_datasets:
             await self.query_dataset(dataset)
-            tx_attempt_stats[dataset] += 1
 
         await asyncio.sleep(self._max_wait_s)  # type: ignore
 
@@ -213,7 +207,6 @@ class PmcMonitor:
                         self._logger.debug(
                             f"PMC sent {req.action} query for {req.tlv_type}"
                         )
-                        tx_stats[req.tlv_type] += 1
                     case Response() as resp:
                         if resp.action != "RESPONSE":
                             self._logger.warning(
@@ -226,7 +219,6 @@ class PmcMonitor:
                                 self._logger.debug(
                                     f"Got response for {resp.action} query for {payload.tlv_type} from {resp.source_port}"
                                 )
-                                rx_stats[payload.tlv_type] += 1
                                 state_change = self._handle_management_tlv(
                                     mgmt_tlv, resp.source_port
                                 )
@@ -240,6 +232,3 @@ class PmcMonitor:
                                 self._logger.warning(
                                     f"Got an unknown TLV for a {resp.action} query from {resp.source_port}"
                                 )
-
-        stats = self._get_stats_table(tx_attempt_stats, tx_stats, rx_stats)
-        self._logger.debug("\n" + stats.to_markdown())
