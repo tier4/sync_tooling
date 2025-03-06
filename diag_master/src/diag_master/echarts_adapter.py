@@ -54,10 +54,10 @@ def sync_graph_to_echart_data_(sg: SyncGraph) -> tuple[list, list]:
 
     for n, node_data in g.nodes.items():
         n: ClockId
-        master: ClockId = node_data.get(C_MASTER)
+        master: ClockId | None = node_data.get(C_MASTER)
         data.append(
             {
-                "name": readable_clock_id(n),
+                "name": f"{readable_clock_id(n)}\nMaster: {readable_clock_id(master) if master else None}",
                 "x": 0,
                 "y": 0,
                 "tooltip": {
@@ -81,7 +81,9 @@ def sync_graph_to_echart_data_(sg: SyncGraph) -> tuple[list, list]:
 
         diag_tree = sg.diagnose_link(src, dst)
         if diag_tree is None:
-            diag_tree = DiagTree(status=DiagStatus(unknown=Unknown(msg="Not received yet")))
+            diag_tree = DiagTree(
+                status=DiagStatus(unknown=Unknown(msg="Not received yet"))
+            )
         diag_status = aggregate(diag_tree)
         severity = diag_status.WhichOneof("status")
         if severity is None:
