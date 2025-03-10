@@ -48,76 +48,102 @@ HTML_TEMPLATE = """
     """
 
 
+def clock_to_echart_data_(clock: ClockId, metadata: dict):
+    data = []
+    links = []
+
+    master: ClockId | None = metadata.get(C_MASTER)
+
+    if master is None:
+        extended_description = "No master"
+    elif master == clock:
+        extended_description = "Grandmaster"
+    else:
+        extended_description = f"Master: {readable_clock_id(master)}"
+        links.append(
+            {
+                "source": readable_clock_id(master),
+                "target": readable_clock_id(clock),
+                "label": {"show": True, "formatter": "PTP Master"},
+                "lineStyle": {
+                    "color": DIAG_PALETTE["unknown"],
+                    "type": "dashed",
+                    "curveness": 0.2,
+                },
+            }
+        )
+
+    data.append(
+        {
+            "name": readable_clock_id(clock),
+            "x": 0,
+            "y": 0,
+            "toolip": {"formatter": extended_description},
+        }
+    )
+
+    return data, links
+
+
+def link_to_echart_data_(
+    src: ClockId, dst: ClockId, metadata: DiagTree | PortId, diag: DiagTree
+):
+    links = []
+
+    extended_description = []
+
+    match metadata:
+        case PortId() as port_id:
+            label = "PTP"
+            extended_description.append(f"Parent port: {readable_port_id(port_id)}")
+        case DiagTree():
+            label = "PHC2SYS"
+        case _:
+            assert False
+
+    status = aggregate(diag)
+    severity = status.WhichOneof("status")
+    if severity is None:
+        assert False
+    diag_color = DIAG_PALETTE[severity]
+    extended_description.append(prettify(diag))
+    extended_description = "<br/>".join(extended_description)
+
+    links.append(
+        {
+            "source": readable_clock_id(src),
+            "target": readable_clock_id(dst),
+            "lineStyle": {"color": diag_color},
+            "label": {"show": True, "formatter": label},
+            "tooltip": {"formatter": extended_description},
+        }
+    )
+
+    return (), links
+
+
 def sync_graph_to_echart_data_(sg: SyncGraph) -> tuple[list, list]:
     data = []
     links = []
 
     g = sg._graph
 
-    for n, node_data in g.nodes.items():
-        n: ClockId
-        master: ClockId | None = node_data.get(C_MASTER)
-
-        if master is None:
-            master_desc = "No master"
-        elif master == n:
-            master_desc = "Grandmaster"
-        else:
-            master_desc = f"Master: {readable_clock_id(master)}"
-            links.append(
-                {
-                    "source": readable_clock_id(n),
-                    "target": readable_clock_id(master),
-                    "lineStyle": {
-                        "color": DIAG_PALETTE["unknown"],
-                        "type": "dashed",
-                        "curveness": 0.2,
-                    },
-                }
-            )
-
-        data.append(
-            {
-                "name": f"{readable_clock_id(n)}\n{master_desc}",
-                "x": 0,
-                "y": 0,
-            }
-        )
+    for n, metadata in g.nodes.items():
+        node_data, node_links = clock_to_echart_data_(n, metadata)
+        data += node_data
+        links += node_links
 
     for src, dst in g.edges:
         src: ClockId
         dst: ClockId
         link = sg.get_link(src, dst)
-        match link:
-            case PortId() as port_id:
-                label = f"PTP (port {readable_port_id(port_id)} -> {readable_clock_id(dst)})"
-            case DiagTree():
-                label = "PHC2SYS"
-            case _:
-                assert False
+        diag = sg.diagnose_link(src, dst)
+        if diag is None:
+            diag = DiagTree(status=DiagStatus(unknown=Unknown(msg="Not received yet")))
 
-        diag_tree = sg.diagnose_link(src, dst)
-        if diag_tree is None:
-            diag_tree = DiagTree(
-                status=DiagStatus(unknown=Unknown(msg="Not received yet"))
-            )
-        diag_status = aggregate(diag_tree)
-        severity = diag_status.WhichOneof("status")
-        if severity is None:
-            assert False
-        diag_color = DIAG_PALETTE[severity]
-        diag_json = prettify(diag_tree)
-        extended_label = "\n".join([label, diag_json])
-
-        links.append(
-            {
-                "source": readable_clock_id(src),
-                "target": readable_clock_id(dst),
-                "lineStyle": {"color": diag_color},
-                "label": {"show": True, "formatter": label},
-                "select": {"label": {"show": True, "formatter": extended_label}},
-            }
-        )
+        edge_data, edge_links = link_to_echart_data_(src, dst, link, diag)
+        data += edge_data
+        links += edge_links
 
     return data, links
 
@@ -127,6 +153,7 @@ def sync_graph_to_echart_options(sg: SyncGraph):
 
     option = {
         "title": {"text": "Synchronization Graph"},
+        "tooltip": {"trigger": "item"},
         "series": [
             {
                 "type": "graph",
