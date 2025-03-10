@@ -26,22 +26,23 @@ from sync_tooling_msgs.error_pb2 import Error
 from sync_tooling_msgs.warning_pb2 import Warning
 
 
-def get_most_human_readable_alias(aliases: Iterable[ClockId]) -> ClockId:
-    def precedence(clock_id: ClockId):
-        match clock_id.WhichOneof("id"):
-            case "frame_id":
-                return 0
-            case "system_clock_id":
-                return 1
-            case "interface_id":
-                return 2
-            case "linux_clock_device_id":
-                return 3
-            case "ptp_clock_id":
-                return 4
-        raise ValueError()
+def readability_score(clock_id: ClockId):
+    match clock_id.WhichOneof("id"):
+        case "frame_id":
+            return 4
+        case "system_clock_id":
+            return 3
+        case "interface_id":
+            return 2
+        case "linux_clock_device_id":
+            return 1
+        case "ptp_clock_id":
+            return 0
+    raise ValueError()
 
-    return min(aliases, key=precedence)
+
+def get_most_human_readable_alias(aliases: Iterable[ClockId]) -> ClockId:
+    return max(aliases, key=readability_score)
 
 
 C_MASTER = "master"
@@ -138,6 +139,13 @@ class SyncGraph(Diagnosable):
         for port_id, metadata in old_items:
             canonical_port_id = self.get_canonical_port_id(port_id)
             self._ports[canonical_port_id] = metadata
+
+    def get_sorted_aliases(self, clock_id: ClockId) -> list[ClockId]:
+        if clock_id not in self._known_aliases:
+            return [clock_id]
+
+        aliases = self._known_aliases[clock_id]
+        return sorted(aliases, key=readability_score, reverse=True)
 
     def create_ptp_link(self, u: PtpParentUpdate):
         src_clock = self.get_or_create_clock(u.parent.clock_id)
