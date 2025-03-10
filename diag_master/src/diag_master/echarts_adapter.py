@@ -1,6 +1,6 @@
 from diag_tree import aggregate, prettify
 from sync_graph import C_MASTER, ClockId, SyncGraph
-from sync_tooling_msgs.clock_id import readable_clock_id
+from sync_tooling_msgs.clock_id import readable_clock_id, readable_clock_type
 from sync_tooling_msgs.diag_status_pb2 import DiagStatus
 from sync_tooling_msgs.diag_tree_pb2 import DiagTree
 from sync_tooling_msgs.port_id import readable_port_id
@@ -48,18 +48,20 @@ HTML_TEMPLATE = """
     """
 
 
-def clock_to_echart_data_(clock: ClockId, metadata: dict):
+def clock_to_echart_data_(clock: ClockId, metadata: dict, aliases: list[ClockId]):
     data = []
     links = []
+
+    extended_description = []
 
     master: ClockId | None = metadata.get(C_MASTER)
 
     if master is None:
-        extended_description = "No master"
+        extended_description.append("No master")
     elif master == clock:
-        extended_description = "Grandmaster"
+        extended_description.append("Grandmaster")
     else:
-        extended_description = f"Master: {readable_clock_id(master)}"
+        extended_description.append(f"Master: {readable_clock_id(master)}")
         links.append(
             {
                 "source": readable_clock_id(master),
@@ -73,12 +75,27 @@ def clock_to_echart_data_(clock: ClockId, metadata: dict):
             }
         )
 
+    aliases_html = "Known aliases: "
+    aliases = [a for a in aliases if a != clock]
+    if aliases:
+        aliases_html += "<ul>"
+        for alias in aliases:
+            aliases_html += (
+                f"<li>{readable_clock_type(alias)}: {readable_clock_id(alias)}</li>"
+            )
+        aliases_html += "</ul>"
+    else:
+        aliases_html += "None"
+
+    extended_description.append(aliases_html)
+    extended_description = "<br/>".join(extended_description)
+
     data.append(
         {
             "name": readable_clock_id(clock),
             "x": 0,
             "y": 0,
-            "toolip": {"formatter": extended_description},
+            "tooltip": {"formatter": extended_description},
         }
     )
 
@@ -128,8 +145,11 @@ def sync_graph_to_echart_data_(sg: SyncGraph) -> tuple[list, list]:
 
     g = sg._graph
 
-    for n, metadata in g.nodes.items():
-        node_data, node_links = clock_to_echart_data_(n, metadata)
+    for clock_id, metadata in g.nodes.items():
+        node_data, node_links = clock_to_echart_data_(
+            clock_id, metadata, sg.get_sorted_aliases(clock_id)
+        )
+
         data += node_data
         links += node_links
 
