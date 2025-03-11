@@ -1,5 +1,6 @@
 import asyncio
 import socket
+import time
 
 from diag_worker.monitor_task import MonitorTask
 from diag_worker.phc2sys_monitor_task import Phc2SysMonitorTask
@@ -57,7 +58,14 @@ def main():
     parser.add_argument("--phc2sys-units", "-2", nargs="+")
     args = parser.parse_args()
 
-    diag_worker = DiagWorker(
-        args.master_ip, args.master_port, args.ptp4l_units, args.phc2sys_units
-    )
-    asyncio.run(diag_worker.run())
+    while True:
+        diag_worker = DiagWorker(
+            args.master_ip, args.master_port, args.ptp4l_units, args.phc2sys_units
+        )
+
+        try:
+            asyncio.run(diag_worker.run())
+        except Exception as e:
+            print(f"Encountered a problem: {e}")
+            print("Backing off and restarting")
+            time.sleep(5)
