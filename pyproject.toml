@@ -8,10 +8,10 @@ dependencies = ["bottleneck>=1.3.6", "numexpr>=2.8.4", "numpy<2"]
 
 [dependency-groups]
 dev = [
- "ansible-dev-tools>=24.12.0",
- "ansible-lint>=6.8.7",
- "pproxy>=2.7.9",
- "pyinstrument>=5.0.1",
+    "ansible-dev-tools>=24.12.0",
+    "ansible-lint>=6.8.7",
+    "pproxy>=2.7.9",
+    "pyinstrument>=5.0.1",
 ]
 
 [project.scripts]
@@ -38,7 +38,7 @@ members = [
     "diag_master",
     "sync_graph",
     "http_transport",
-    "sync_tooling_msgs"
+    "sync_tooling_msgs",
 ]
 
 [build-system]
@@ -57,3 +57,27 @@ packages = [
     "http_transport/src/http_transport",
     "sync_tooling_msgs/src/sync_tooling_msgs",
 ]
+
+[tool.ruff.lint]
+select = [
+    "B",
+    "C",
+    "E",
+    "F",
+    "I",
+    "N",
+    "Q",
+    "W",
+    "BLE",
+    "RUF",
+    "FAST",
+    "SIM",
+    "TC",
+    "YTT",
+    "PERF",
+    "FLY",
+    "PD",
+    "NPY",
+    "PLC",
+]
+ignore = ["E501", "N817", "TC001"]
