@@ -1,4 +1,4 @@
-from argparse import ArgumentParser
+from argparse import REMAINDER, ArgumentParser
 
 from flask import Flask, jsonify, render_template_string, request
 from werkzeug.serving import WSGIRequestHandler
@@ -7,6 +7,7 @@ from diag_master.echarts_adapter import (
     HTML_TEMPLATE,
     sync_graph_to_echart_options,
 )
+from diag_master.ros2_adapter import Ros2Adapter
 from sync_graph import SyncGraph
 from sync_tooling_msgs.clock_id import readable_clock_id
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
@@ -82,7 +83,22 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("bind_ip")
     parser.add_argument("--bind_port", "-p", type=int, default=16161)
+    parser.add_argument(
+        "--ros",
+        "-r",
+        action="store_true",
+        help="Enables ROS 2 interaction. Passing `--ros-args` implicitly enables ROS 2 interaction.",
+    )
+    parser.add_argument(
+        "--ros-args",
+        nargs=REMAINDER,
+        help="Arguments passed along to ROS 2. See https://docs.ros.org/en/rolling/How-To-Guides/Node-arguments.html for details.",
+    )
     args = parser.parse_args()
+
+    ros_enabled: bool = args.ros or bool(args.ros_args)
+    if ros_enabled:
+        ros2_adapter = Ros2Adapter(args.ros_args or [])  # noqa: F841
 
     # This enables HTTP keep-alive, see
     # https://stackoverflow.com/questions/10523879/how-to-make-flask-keep-ajax-http-connection-alive
