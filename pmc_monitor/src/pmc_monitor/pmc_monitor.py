@@ -1,13 +1,13 @@
 import asyncio
-from copy import deepcopy
-from logging import Logger
 import logging
 import os
 import shutil
-from signal import SIGINT
 import subprocess
-from typing import IO, List
+from copy import deepcopy
 from dataclasses import dataclass
+from logging import Logger
+from signal import SIGINT
+from typing import IO, List
 
 import pandas as pd
 
@@ -18,6 +18,7 @@ from pmc_monitor.pmc_protocol import (
     DefaultDataSet,
     ManagementErrorStatusTlv,
     ManagementTlv,
+    Message,
     ParentDataSet,
     PortDataSet,
     PortIdentity,
@@ -47,7 +48,7 @@ def _safe_read(pipe: IO[bytes] | None) -> str | None:
 
 
 class PmcMonitor:
-    monitored_datasets = [
+    monitored_datasets = (
         "DEFAULT_DATA_SET",
         "CURRENT_DATA_SET",
         "PARENT_DATA_SET",
@@ -55,7 +56,7 @@ class PmcMonitor:
         "TIME_STATUS_NP",
         "PORT_DATA_SET",
         "PORT_STATS_NP",
-    ]
+    )
 
     def __init__(
         self, pmc_args: List[str], logger: Logger | None = None, max_wait_s: float = 0.5
@@ -115,6 +116,34 @@ class PmcMonitor:
         table = table.set_index("TLV type")
         return table
 
+    def _handle_port_tlv(
+        self,
+        ptp_instance: PtpInstance,
+        port_tlv: PortDataSet | PortStatsNp,
+        source_port: PortIdentity,
+    ):
+        port = ptp_instance.ports.get(port_tlv.portIdentity.port_number)
+        match port:
+            case None:
+                match port_tlv:
+                    case PortDataSet() as port_ds:
+                        ptp_instance.ports[port_tlv.portIdentity.port_number] = PtpPort(
+                            port_ds
+                        )
+                    case other:
+                        self._logger.warning(
+                            f"Received {other.__class__.__name__} from port {source_port} before receiving PortDS, ignoring"
+                        )
+                        return None
+            case PtpPort():
+                match port_tlv:
+                    case PortDataSet() as port_ds:
+                        port.port_ds = port_ds
+                    case PortStatsNp() as port_stats:
+                        port.port_stats = port_stats
+            case _:
+                raise AssertionError()
+
     def _handle_management_tlv(
         self, mgmt_tlv: ManagementTlv, source_port: PortIdentity
     ):
@@ -146,35 +175,45 @@ class PmcMonitor:
                     case TimePropertiesDataSet() as time_properties_ds:
                         ptp_instance.time_properties_ds = time_properties_ds
                     case PortDataSet() | PortStatsNp() as port_tlv:
-                        port = ptp_instance.ports.get(port_tlv.portIdentity.port_number)
-                        match port:
-                            case None:
-                                match port_tlv:
-                                    case PortDataSet() as port_ds:
-                                        ptp_instance.ports[
-                                            port_tlv.portIdentity.port_number
-                                        ] = PtpPort(port_ds)
-                                    case other:
-                                        self._logger.warning(
-                                            f"Received {other.__class__.__name__} from port {source_port} before receiving PortDS, ignoring"
-                                        )
-                                        return None
-                            case PtpPort():
-                                match port_tlv:
-                                    case PortDataSet() as port_ds:
-                                        port.port_ds = port_ds
-                                    case PortStatsNp() as port_stats:
-                                        port.port_stats = port_stats
-                            case _:
-                                assert False
+                        self._handle_port_tlv(ptp_instance, port_tlv, source_port)
                     case other_payload:
                         self._logger.warning(
                             f"Ignoring received {other_payload.__class__.__name__}"
                         )
                         return None
             case _:
-                assert False
+                raise AssertionError()
         return PmcStateChange(instance_old, ptp_instance)
+
+    def _handle_message(self, message: Message):
+        match message:
+            case Request() as req:
+                self._logger.debug(f"PMC sent {req.action} query for {req.tlv_type}")
+            case Response() as resp:
+                if resp.action != "RESPONSE":
+                    self._logger.warning(
+                        f"Expected response of type 'RESPONSE', got '{resp.action}'"
+                    )
+                    return
+
+                match resp.tlv:
+                    case ManagementTlv(payload) as mgmt_tlv:
+                        self._logger.debug(
+                            f"Got response for {resp.action} query for {payload.tlv_type} from {resp.source_port}"
+                        )
+                        state_change = self._handle_management_tlv(
+                            mgmt_tlv, resp.source_port
+                        )
+                        if state_change is not None:
+                            return state_change
+                    case ManagementErrorStatusTlv():
+                        self._logger.warning(
+                            f"Got an error status for a {resp.action} query from {resp.source_port}"
+                        )
+                    case UnknownTlv():
+                        self._logger.warning(
+                            f"Got an unknown TLV for a {resp.action} query from {resp.source_port}"
+                        )
 
     async def poll(self):
         if (return_code := self._pmc.poll()) is not None and return_code != 0:
@@ -203,32 +242,5 @@ class PmcMonitor:
                         self._logger.error(
                             f"Failed to parse at:\n{p.trace}\ngiven the following:\n'{p.rest}'"
                         )
-                    case Request() as req:
-                        self._logger.debug(
-                            f"PMC sent {req.action} query for {req.tlv_type}"
-                        )
-                    case Response() as resp:
-                        if resp.action != "RESPONSE":
-                            self._logger.warning(
-                                f"Expected response of type 'RESPONSE', got '{resp.action}'"
-                            )
-                            continue
-
-                        match resp.tlv:
-                            case ManagementTlv(payload) as mgmt_tlv:
-                                self._logger.debug(
-                                    f"Got response for {resp.action} query for {payload.tlv_type} from {resp.source_port}"
-                                )
-                                state_change = self._handle_management_tlv(
-                                    mgmt_tlv, resp.source_port
-                                )
-                                if state_change is not None:
-                                    yield state_change
-                            case ManagementErrorStatusTlv():
-                                self._logger.warning(
-                                    f"Got an error status for a {resp.action} query from {resp.source_port}"
-                                )
-                            case UnknownTlv():
-                                self._logger.warning(
-                                    f"Got an unknown TLV for a {resp.action} query from {resp.source_port}"
-                                )
+                    case Request() | Response():
+                        yield self._handle_message(m)

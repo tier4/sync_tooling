@@ -22,7 +22,6 @@ diag-worker = "diag_worker.main:main"
 journal_monitor = { workspace = true }
 linuxptp_monitor = { workspace = true }
 pmc_monitor = { workspace = true }
-diag_tree = { workspace = true }
 diag_worker = { workspace = true }
 diag_master = { workspace = true }
 sync_graph = { workspace = true }
@@ -33,7 +32,6 @@ members = [
     "journal_monitor",
     "linuxptp_monitor",
     "pmc_monitor",
-    "diag_tree",
     "diag_worker",
     "diag_master",
     "sync_graph",
@@ -50,7 +48,6 @@ packages = [
     "journal_monitor/src/journal_monitor",
     "linuxptp_monitor/src/linuxptp_monitor",
     "pmc_monitor/src/pmc_monitor",
-    "diag_tree/src/diag_tree",
     "diag_worker/src/diag_worker",
     "diag_master/src/diag_master",
     "sync_graph/src/sync_graph",

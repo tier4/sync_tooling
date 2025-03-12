@@ -1,17 +1,17 @@
-from abc import ABC
+import re
+from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass, field
-import re
 from typing import Any, Callable, Generator
 
 from journal_monitor.journal_monitor import JournalEntry
-
 
 Event = Any
 
 
 @dataclass
 class State(ABC):
+    @abstractmethod
     def parse(self, entry: JournalEntry) -> Generator[Event, None, "State"]:
         raise NotImplementedError()
 
@@ -54,9 +54,13 @@ class SystemdUnitStateMachine:
             self._on_unit_stopped(self.state)
         self.state = SystemdUnitStateMachine.Uninitialized(self._factory)
 
-    def consume(self, entry: JournalEntry) -> Generator[Event | SystemdUnitStateChange, None, None]:
+    def consume(
+        self, entries: list[JournalEntry]
+    ) -> Generator[Event | SystemdUnitStateChange, None, None]:
         old_state = deepcopy(self.state)
-        self.state = yield from self._parse(entry)
+
+        for entry in entries:
+            self.state = yield from self._parse(entry)
 
         if old_state != self.state:
             yield SystemdUnitStateChange(old_state, self.state)

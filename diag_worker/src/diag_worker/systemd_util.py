@@ -1,6 +1,6 @@
+import re
 import shutil
 import subprocess
-import re
 
 
 def get_command_line(pid: int) -> list[str]:

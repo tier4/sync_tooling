@@ -1,6 +1,6 @@
-from datetime import datetime
 import json
 import subprocess
+from datetime import datetime
 from typing import Dict, Set
 
 from journal_monitor.journal_monitor import JournalEntry, JournalMonitor

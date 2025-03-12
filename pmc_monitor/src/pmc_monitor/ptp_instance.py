@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 
-from diag_tree import Diagnosable, Unknown
 from pmc_monitor.pmc_protocol import (
     CurrentDataSet,
     DefaultDataSet,
@@ -10,18 +9,14 @@ from pmc_monitor.pmc_protocol import (
     TimePropertiesDataSet,
     TimeStatusNp,
 )
-from sync_tooling_msgs.diag_status_pb2 import DiagStatus
-from sync_tooling_msgs.diag_tree_pb2 import DiagTree
+from sync_tooling_msgs.diag_tree import Diagnosable, to_diag_tree
+from sync_tooling_msgs.unknown_pb2 import Unknown
 
 
 @dataclass
 class Unsupported(Diagnosable):
     def diagnose(self):
-        return DiagTree(
-            status=DiagStatus(
-                unknown=Unknown(msg="PTP instance does not support this command")
-            )
-        )
+        return to_diag_tree(Unknown(msg="PTP instance does not support this command"))
 
 
 @dataclass

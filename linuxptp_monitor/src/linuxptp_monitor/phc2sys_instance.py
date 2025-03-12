@@ -1,26 +1,16 @@
+import re
 from argparse import ArgumentParser, Namespace
 from configparser import ConfigParser
 from dataclasses import dataclass, field
-import re
 from typing import Generator
 
-from diag_tree import Diagnosable, DiagTree
 from journal_monitor.journal_monitor import JournalEntry
-from linuxptp_monitor.common_types import SyncState
 from linuxptp_monitor.ethtool_harness import get_canonicalized_clock
 from linuxptp_monitor.linuxptp_config import LinuxPtpConfig
 from linuxptp_monitor.state_machine import Event, State
 from sync_tooling_msgs.clock_id_pb2 import ClockId
-
-
-@dataclass
-class ClockState(Diagnosable):
-    offset_ns: int
-    sync_state: SyncState
-    delay_ns: int
-
-    def diagnose(self) -> DiagTree:
-        return self.sync_state.diagnose()
+from sync_tooling_msgs.servo_state_pb2 import ServoState
+from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 
 
 @dataclass(init=False)
@@ -50,10 +40,7 @@ class Phc2SysConfig(LinuxPtpConfig):
         self.source_clock = get_canonicalized_clock(args.source_clock)
         self.clock_aliases[args.source_clock] = self.source_clock
 
-        if args.dst_clocks is None:
-            dst_clocks = ["CLOCK_REALTIME"]
-        else:
-            dst_clocks = args.dst_clocks
+        dst_clocks = args.dst_clocks or ["CLOCK_REALTIME"]
 
         self.dst_clocks = set()
         for clock in dst_clocks:
@@ -68,10 +55,10 @@ class Phc2SysConfig(LinuxPtpConfig):
 @dataclass
 class Phc2SysRunningState(State):
     message_re = r"\[(?P<monotonic_time_s>[0-9]+\.[0-9]+)\]\s+(?P<message>.*)\s*$"
-    offset_re = r"(?P<dst_clock>\w+)\s+(?P<src_clock_type>\w+)\s+offset\s+(?P<offset_ns>[+-]?\d+)\s+s(?P<sync_state>[0-3])\s+freq\s+(?P<freq_offset_ppb>[+-]?\d+)(?:\s+delay\s+(?P<delay_ns>[+-]?\d+))?"
+    offset_re = r"(?P<dst_clock>\w+)\s+(?P<src_clock_type>\w+)\s+offset\s+(?P<offset_ns>[+-]?\d+)\s+s(?P<servo_state>[0-3])\s+freq\s+(?P<freq_offset_ppb>[+-]?\d+)(?:\s+delay\s+(?P<delay_ns>[+-]?\d+))?"
 
     config: Phc2SysConfig
-    dst_clock_states: dict[ClockId, ClockState] = field(default_factory=dict)
+    dst_clock_states: dict[ClockId, SlaveClockState] = field(default_factory=dict)
 
     def _parse_offset(self, message: str):
         m = re.match(Phc2SysRunningState.offset_re, message)
@@ -80,15 +67,19 @@ class Phc2SysRunningState(State):
 
         dst_clock = m["dst_clock"]
         offset_ns = int(m["offset_ns"])
-        sync_state = SyncState(int(m["sync_state"]))
+        freq_offset_ppb = int(m["freq_offset_ppb"])
+        servo_state = ServoState.ValueType(int(m["servo_state"]))
         delay_ns = int(m.groupdict().get("delay_ns", "0"))
 
         canonicalized = self.config.clock_aliases.get(dst_clock)
         if canonicalized is None:
             return False
 
-        self.dst_clock_states[canonicalized] = ClockState(
-            offset_ns, sync_state, delay_ns
+        self.dst_clock_states[canonicalized] = SlaveClockState(
+            servo_state=servo_state,
+            offset_ns=offset_ns,
+            delay_ns=delay_ns,
+            frequency_offset_ppb=freq_offset_ppb,
         )
         return True
 

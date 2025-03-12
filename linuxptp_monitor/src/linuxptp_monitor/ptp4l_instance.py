@@ -1,70 +1,25 @@
+import re
 from argparse import ArgumentParser, Namespace
 from configparser import ConfigParser
 from dataclasses import dataclass, field
 from enum import Enum
-import re
 from typing import Dict, Literal
 
-from diag_tree import DiagTree, Diagnosable, DiagnosableEnumMeta, Ok, Warning, Error
 from journal_monitor.journal_monitor import JournalEntry
 from linuxptp_monitor.ethtool_harness import get_canonicalized_clock
 from linuxptp_monitor.linuxptp_config import LinuxPtpConfig
 from linuxptp_monitor.state_machine import State
 from sync_tooling_msgs.clock_id_pb2 import ClockId
-from sync_tooling_msgs.diag_status_pb2 import DiagStatus
+from sync_tooling_msgs.error_pb2 import Error
+from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 from sync_tooling_msgs.port_id_pb2 import PortId
+from sync_tooling_msgs.port_state import port_state_value
+from sync_tooling_msgs.port_state_pb2 import PortState
 from sync_tooling_msgs.ptp4l_port_status_message_pb2 import Ptp4lPortStatusMessage
 from sync_tooling_msgs.ptp4l_status_message_pb2 import Ptp4lStatusMessage
-
-
-# Adapted from fsm.h of LinuxPTP
-class PortState(Diagnosable, Enum, metaclass=DiagnosableEnumMeta):
-    INITIALIZING = 1
-    FAULTY = 2
-    DISABLED = 3
-    LISTENING = 4
-    PRE_MASTER = 5
-    MASTER = 6
-    PASSIVE = 7
-    UNCALIBRATED = 8
-    SLAVE = 9
-    GRAND_MASTER = 10
-
-    def diagnose(self) -> DiagTree:
-        match self:
-            case PortState.MASTER | PortState.SLAVE | PortState.GRAND_MASTER:
-                return DiagTree(
-                    status=DiagStatus(
-                        ok=Ok(msg=f"Port is operating nominally ({self.name})")
-                    )
-                )
-            case (
-                PortState.LISTENING
-                | PortState.INITIALIZING
-                | PortState.PRE_MASTER
-                | PortState.UNCALIBRATED
-            ):
-                return DiagTree(
-                    status=DiagStatus(
-                        warning=Warning(
-                            msg=f"Port is in a transient state ({self.name})"
-                        )
-                    )
-                )
-            case PortState.DISABLED:
-                return DiagTree(
-                    status=DiagStatus(
-                        warning=Warning(
-                            msg=f"Port exists but is not being used ({self.name})"
-                        )
-                    )
-                )
-            case _:
-                return DiagTree(
-                    status=DiagStatus(
-                        error=Error(msg=f"Port is not working correctly ({self.name})")
-                    )
-                )
+from sync_tooling_msgs.servo_state_pb2 import ServoState
+from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
+from sync_tooling_msgs.warning_pb2 import Warning
 
 
 class NetworkTransport(Enum):
@@ -185,10 +140,11 @@ class Ptp4lRunningState(State):
     state_change_re = (
         r"(?P<from_state>\w+)\s+to\s+(?P<to_state>\w+)\s+on\s+(?P<event>\w+)\s*$"
     )
-    master_offset_re = r"master offset (?P<offset_ns>[+-]?\d+)\s+s(?P<sync_state>[0-3])\s+freq\s+(?P<freq_offset_ppb>[+-]?\d+)\s+path delay\s+(?P<path_delay_ns>[+-]?\d+)"
+    master_offset_re = r"master offset (?P<offset_ns>[+-]?\d+)\s+s(?P<servo_state>[0-3])\s+freq\s+(?P<freq_offset_ppb>[+-]?\d+)\s+path delay\s+(?P<path_delay_ns>[+-]?\d+)"
 
     config: Ptp4lConfig
-    port_states: Dict[int, PortState] = field(default_factory=dict)
+    port_states: Dict[int, PortState.ValueType] = field(default_factory=dict)
+    slave_clock_state: SlaveClockState | None = None
 
     def _parse_port_state_change(self, message: str):
         m = re.match(Ptp4lRunningState.port_re, message)
@@ -202,13 +158,25 @@ class Ptp4lRunningState(State):
             return True
 
         to_state = m["to_state"]
-        self.port_states[port_id] = PortState[to_state]
+        self.port_states[port_id] = port_state_value(to_state)
         return True
 
     def _parse_master_offset(self, message: str):
         m = re.match(Ptp4lRunningState.master_offset_re, message)
         if not m:
             return False
+
+        offset_ns = int(m["offset_ns"])
+        freq_offset_ppb = int(m["freq_offset_ppb"])
+        servo_state = ServoState.ValueType(int(m["servo_state"]))
+        delay_ns = int(m["path_delay_ns"])
+
+        self.slave_clock_state = SlaveClockState(
+            servo_state=servo_state,
+            offset_ns=offset_ns,
+            delay_ns=delay_ns,
+            frequency_offset_ppb=freq_offset_ppb,
+        )
         return True
 
     def _parse_non_nominal_status_message(
@@ -220,13 +188,19 @@ class Ptp4lRunningState(State):
             status = {"error": Error(msg=message)}
         m = re.match(Ptp4lRunningState.port_re, message)
         if not m:
-            return Ptp4lStatusMessage(clock_id=self.config.clock, **status)  # type: ignore
+            return GraphUpdate(
+                ptp4l_status_msg=Ptp4lStatusMessage(
+                    clock_id=self.config.clock, **status
+                )
+            )  # type: ignore
         port_id = PortId(
             clock_id=self.config.clock,
             port_number=int(m["port_id"]),
             ptp_domain=self.config.domain,
         )
-        return Ptp4lPortStatusMessage(port_id=port_id, **status)  # type: ignore
+        return GraphUpdate(
+            ptp4l_port_status_msg=Ptp4lPortStatusMessage(port_id=port_id, **status)
+        )  # type: ignore
 
     def parse(self, entry: JournalEntry):
         if entry.message is None:
