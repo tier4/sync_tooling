@@ -1,5 +1,3 @@
-from sync_graph import ClockMasterUpdate, Phc2SysUpdate
-from diag_tree import diagnose
 from diag_worker.monitor_task import MonitorTask
 from diag_worker.systemd_util import does_unit_exist, get_command_line, get_unit_pid
 from journal_monitor.console_polling_journal_monitor import ConsolePollingJournalMonitor
@@ -8,6 +6,7 @@ from linuxptp_monitor.state_machine import (
     SystemdUnitStateChange,
     SystemdUnitStateMachine,
 )
+from sync_graph import ClockMasterUpdate, Phc2SysUpdate
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 
 
@@ -41,12 +40,12 @@ class Phc2SysMonitorTask(MonitorTask):
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(hostname={self.hostname_}, unit={self.unit_name_})"
 
-    def to_graph_updates(self, state_change: SystemdUnitStateChange):
-        Uninitialized = SystemdUnitStateMachine.Uninitialized
+    def phc2sys_to_graph_updates(self, state_change: SystemdUnitStateChange):
+        Uninitialized = SystemdUnitStateMachine.Uninitialized  # noqa: N806
 
         match (state_change.old_state, state_change.new_state):
             case (Uninitialized(), Uninitialized()):
-                assert False
+                raise AssertionError()
             case (old, Phc2SysRunningState() as s):
                 is_init = isinstance(old, Uninitialized)
                 src_id = s.config.source_clock
@@ -62,7 +61,7 @@ class Phc2SysMonitorTask(MonitorTask):
                         phc2sys_update=Phc2SysUpdate(
                             src=src_id,
                             dst=dst_id,
-                            diag=diagnose(state),
+                            clock_state=state,
                         )
                     )
             case _:
@@ -71,11 +70,10 @@ class Phc2SysMonitorTask(MonitorTask):
 
     async def poll(self):
         journal_entries = self.journal_monitor.poll()
-        for entry in journal_entries:
-            for event in self.state_machine.consume(entry):
-                match event:
-                    case GraphUpdate() as update:
+        for event in self.state_machine.consume(journal_entries):
+            match event:
+                case GraphUpdate() as update:
+                    yield update
+                case SystemdUnitStateChange() as state_change:
+                    for update in self.phc2sys_to_graph_updates(state_change):
                         yield update
-                    case SystemdUnitStateChange() as state_change:
-                        for update in self.to_graph_updates(state_change):
-                            yield update

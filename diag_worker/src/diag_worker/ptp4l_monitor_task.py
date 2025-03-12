@@ -1,4 +1,3 @@
-from pmc_monitor.pmc_protocol import ParentDataSet
 from diag_worker.monitor_task import MonitorTask
 from diag_worker.systemd_util import does_unit_exist, get_command_line, get_unit_pid
 from journal_monitor.console_polling_journal_monitor import ConsolePollingJournalMonitor
@@ -11,6 +10,7 @@ from linuxptp_monitor.state_machine import (
     SystemdUnitStateMachine,
 )
 from pmc_monitor.pmc_monitor import PmcMonitor, PmcStateChange
+from pmc_monitor.pmc_protocol import ParentDataSet
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
@@ -88,7 +88,7 @@ class Ptp4lMonitorTask(MonitorTask):
             return
 
         if self.domain_id is None:
-            assert False
+            raise AssertionError()
 
         inst = state_change.new_state
         clock_id: ClockId = ClockId(ptp_clock_id=PtpClockId(id=inst.id()))
@@ -138,19 +138,21 @@ class Ptp4lMonitorTask(MonitorTask):
                 )
             )
 
+    def ptp4l_to_graph_updates(self, state_change: SystemdUnitStateChange):
+        return
+        yield None
+
     async def poll(self):
         journal_entries = self.journal_monitor.poll()
-        for entry in journal_entries:
-            for event in self.state_machine.consume(entry):
-                match event:
-                    case GraphUpdate() as update:
-                        yield update
-                    case SystemdUnitStateChange() as state_change:
-                        # TODO(mojomex): decide what info is needed from PTP4L
-                        print(f"got event: {state_change.__class__.__name__}")
-                        pass
-                    case _:
-                        print(f"Got unrecognized event of type {type(event)}: {event}")
+        for event in self.state_machine.consume(journal_entries):
+            match event:
+                case GraphUpdate() as update:
+                    yield update
+                case SystemdUnitStateChange() as state_change:
+                    for graph_update in self.ptp4l_to_graph_updates(state_change):
+                        yield graph_update
+                case _:
+                    print(f"Got unrecognized event of type {type(event)}: {event}")
 
         if self.pmc_monitor is not None:
             async for state_change in self.pmc_monitor.poll():

@@ -17,7 +17,6 @@ resolution-markers = [
 [manifest]
 members = [
     "diag-master",
-    "diag-tree",
     "diag-worker",
     "http-transport",
     "journal-monitor",
@@ -796,23 +795,11 @@ requires-dist = [
 ]
 
 [[package]]
-name = "diag-tree"
-version = "0.1.0"
-source = { editable = "diag_tree" }
-dependencies = [
-    { name = "sync-tooling-msgs" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "sync-tooling-msgs", editable = "sync_tooling_msgs" }]
-
-[[package]]
 name = "diag-worker"
 version = "0.1.0"
 source = { editable = "diag_worker" }
 dependencies = [
     { name = "aiostream" },
-    { name = "diag-tree" },
     { name = "http-transport" },
     { name = "linuxptp-monitor" },
     { name = "pmc-monitor" },
@@ -822,7 +809,6 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "aiostream", specifier = ">=0.6.4" },
-    { name = "diag-tree", editable = "diag_tree" },
     { name = "http-transport", editable = "http_transport" },
     { name = "linuxptp-monitor", editable = "linuxptp_monitor" },
     { name = "pmc-monitor", editable = "pmc_monitor" },
@@ -1168,14 +1154,12 @@ name = "linuxptp-monitor"
 version = "0.1.0"
 source = { editable = "linuxptp_monitor" }
 dependencies = [
-    { name = "diag-tree" },
     { name = "journal-monitor" },
     { name = "sync-tooling-msgs" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "diag-tree", editable = "diag_tree" },
     { name = "journal-monitor", editable = "journal_monitor" },
     { name = "sync-tooling-msgs", editable = "sync_tooling_msgs" },
 ]
@@ -1699,7 +1683,6 @@ name = "pmc-monitor"
 version = "0.1.0"
 source = { editable = "pmc_monitor" }
 dependencies = [
-    { name = "diag-tree" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or python_full_version >= '3.14'" },
     { name = "pandas", version = "3.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' and python_full_version < '3.14'" },
     { name = "pytest" },
@@ -1708,7 +1691,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "diag-tree", editable = "diag_tree" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "tabulate", specifier = ">=0.9.0" },

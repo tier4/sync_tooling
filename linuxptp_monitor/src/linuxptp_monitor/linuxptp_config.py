@@ -1,5 +1,5 @@
-from abc import ABC
 import argparse
+from abc import ABC, abstractmethod
 from configparser import ConfigParser
 from dataclasses import dataclass, field
 
@@ -11,11 +11,12 @@ class LinuxPtpConfig(ABC):
     def __init__(self, argv: list[str]) -> None:
         self.config = self._parse(argv)
 
+    @abstractmethod
     def add_args_app_specific(self, parser: argparse.ArgumentParser) -> None:
         pass
 
     def validate_args_app_specific(self, args: argparse.Namespace) -> None:
-        pass
+        return
 
     def override_app_specific(
         self, args: argparse.Namespace, config: ConfigParser
@@ -23,7 +24,7 @@ class LinuxPtpConfig(ABC):
         return []
 
     def validate_config_app_specific(self, config: ConfigParser) -> None:
-        pass
+        return
 
     def _parse(self, argv: list[str]) -> ConfigParser:
         if not argv:
@@ -50,7 +51,7 @@ class LinuxPtpConfig(ABC):
         if args.logging_level is not None:
             config["global"]["logging_level"] = args.logging_level
 
-        overridden = ["config"] + self.override_app_specific(args, config)
+        overridden = ["config", *self.override_app_specific(args, config)]
 
         for k, v in vars(args).items():
             if k in overridden or v is None:
