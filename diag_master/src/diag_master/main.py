@@ -1,16 +1,16 @@
+from argparse import ArgumentParser
+
+from flask import Flask, jsonify, render_template_string, request
 from werkzeug.serving import WSGIRequestHandler
+
 from diag_master.echarts_adapter import (
     HTML_TEMPLATE,
     sync_graph_to_echart_options,
 )
-from flask import Flask, jsonify, render_template_string, request
-
 from sync_graph import SyncGraph
-
+from sync_tooling_msgs.clock_id import readable_clock_id
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
-
-
-from argparse import ArgumentParser
+from sync_tooling_msgs.port_id import readable_port_id
 
 app = Flask("diag_master")
 
@@ -34,6 +34,46 @@ def update_graph():
     data = request.get_data()
     graph_update = GraphUpdate()
     graph_update.ParseFromString(data)
+    print(f"  {graph_update.WhichOneof('update')}:")
+    match graph_update.WhichOneof("update"):
+        case "clock_alias_update":
+            u = graph_update.clock_alias_update
+            print(f"    {[readable_clock_id(a) for a in u.aliases]}")
+        case "clock_diff_measurement":
+            u = graph_update.clock_diff_measurement
+            print(
+                f"    {readable_clock_id(u.src)}->{readable_clock_id(u.dst)}: {u.diff_ns*1e-6:.3f} ms"
+            )
+        case "clock_master_update":
+            u = graph_update.clock_master_update
+            print(
+                f"    {readable_clock_id(u.clock_id)} has master {readable_clock_id(u.master) if u.master else 'None'}"
+            )
+        # case "phc2sys_status_msg":
+        #     u = graph_update.phc2sys_status_msg
+        #     print(f"    {u.}")
+        case "phc2sys_update":
+            u = graph_update.phc2sys_update
+            print(
+                f"    {readable_clock_id(u.src)}->{readable_clock_id(u.dst)}: {u.clock_state}"
+            )
+        case "port_state_update":
+            u = graph_update.port_state_update
+            print(f"    {readable_port_id(u.port_id)}: {u.port_state}")
+        # case "ptp4l_port_status_msg":
+        #     u = graph_update.ptp4l_port_status_msg
+        #     print(f"    {u.}")
+        # case "ptp4l_status_msg":
+        #     u = graph_update.ptp4l_status_msg
+        #     print(f"    {u.}")
+        case "ptp_parent_update":
+            u = graph_update.ptp_parent_update
+            print(
+                f"    {readable_clock_id(u.clock_id)} has parent {readable_port_id(u.parent)}"
+            )
+        case _:
+            pass
+
     sync_graph.update(graph_update)
     return {}
 

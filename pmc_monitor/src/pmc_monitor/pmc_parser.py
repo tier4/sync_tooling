@@ -1,11 +1,12 @@
 import builtins
-from dataclasses import dataclass
 import dataclasses
 import logging
 import re
 import types
-from typing import Any, List
 import typing
+from dataclasses import dataclass
+from typing import Any, List
+
 from pmc_monitor.pmc_protocol import Message
 
 

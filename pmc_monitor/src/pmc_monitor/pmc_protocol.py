@@ -1,13 +1,11 @@
-from dataclasses import dataclass
 import dataclasses
 import re
+import typing
+from dataclasses import dataclass
 from types import UnionType
 from typing import List, TypeVar
-import typing
 
-from diag_tree import Diagnosable, Error, Ok
-from sync_tooling_msgs.diag_status_pb2 import DiagStatus
-from sync_tooling_msgs.diag_tree_pb2 import DiagTree
+# ruff: noqa: N815
 
 
 def multiline_regex_from_keys(keys: List[str]) -> str:
@@ -20,7 +18,7 @@ def multiline_regex_from_keys(keys: List[str]) -> str:
         for k in keys
     ]
 
-    return separator_re.join([""] + lines) + r"\s*(\n|$)"
+    return separator_re.join(["", *lines]) + r"\s*(\n|$)"
 
 
 T = TypeVar("T")
@@ -33,12 +31,12 @@ def regex_from_tlv(cls: T) -> T:
     if not hasattr(cls, "tlv_type"):
         raise KeyError(f"{cls.__name__} has no `tlv_type` attribute")  # type: ignore
 
-    tlv_type: str = getattr(cls, "tlv_type")
+    tlv_type: str = cls.tlv_type
 
     fields = dataclasses.fields(cls)
     field_names = [f.name for f in fields]
 
-    setattr(cls, "regex", tlv_type + multiline_regex_from_keys(field_names))
+    cls.regex = tlv_type + multiline_regex_from_keys(field_names)
     return cls
 
 
@@ -51,7 +49,7 @@ def regex_from_tlv_union(union: UnionType) -> str:
             raise KeyError(f"Type {typ} does not have a regex attribute")
         regexes.append(typ.regex)
 
-    combined_regex = "|".join(map(lambda regex: f"(?:{regex})", regexes))
+    combined_regex = "|".join(f"(?:{regex})" for regex in regexes)
     combined_regex = re.sub(r"\?P<.*?>", "?:", combined_regex)
     return combined_regex
 
@@ -298,20 +296,17 @@ class PortDataSetNp:
 
 @regex_from_tlv
 @dataclass
-class PortPropertiesNp(Diagnosable):
+class PortPropertiesNp:
     tlv_type = "PORT_PROPERTIES_NP"
     portIdentity: PortIdentity
     portState: str
     timestamping: str
     interface: str
 
-    def diagnose(self):
-        raise NotImplementedError()
-
 
 @regex_from_tlv
 @dataclass
-class PortStatsNp(Diagnosable):
+class PortStatsNp:
     tlv_type = "PORT_STATS_NP"
     portIdentity: PortIdentity
     rx_Sync: int
@@ -334,64 +329,6 @@ class PortStatsNp(Diagnosable):
     tx_Announce: int
     tx_Signaling: int
     tx_Management: int
-
-    def diagnose(self):
-        has_p2p_traffic = (
-            self.rx_Pdelay_Req
-            or self.rx_Pdelay_Resp
-            or self.tx_Pdelay_Req
-            or self.tx_Pdelay_Resp
-        )
-
-        has_e2e_traffic = (
-            self.rx_Delay_Req
-            or self.rx_Delay_Resp
-            or self.tx_Delay_Req
-            or self.tx_Delay_Resp
-        )
-
-        if not (has_e2e_traffic or has_p2p_traffic):
-            return DiagTree(
-                status=DiagStatus(error=Error(msg="There is no PTP communication"))
-            )
-
-        if has_e2e_traffic and has_p2p_traffic:
-            return DiagTree(
-                status=DiagStatus(
-                    error=Error(msg="Found both P2P and E2E traffic on the same port")
-                )
-            )
-
-        # It is now ensured that there is only either P2P or E2E traffic, not both
-
-        sent_as_master = self.tx_Sync or self.tx_Delay_Resp or self.tx_Pdelay_Resp
-        sent_as_slave = self.tx_Delay_Req or self.tx_Pdelay_Req
-
-        received_from_master = self.rx_Sync or self.rx_Delay_Resp or self.rx_Pdelay_Resp
-        received_from_slave = self.rx_Delay_Req or self.rx_Pdelay_Req
-
-        if not (received_from_master or received_from_slave):
-            return DiagTree(
-                status=DiagStatus(error=Error(msg="Not receiving any PTP traffic"))
-            )
-
-        if sent_as_master and received_from_master:
-            return DiagTree(
-                status=DiagStatus(
-                    error=Error(msg="Multiple PTP instances assumed master role")
-                )
-            )
-
-        if sent_as_slave and received_from_slave:
-            return DiagTree(
-                status=DiagStatus(
-                    error=Error(
-                        msg="Slave instance received traffic from another slave"
-                    )
-                )
-            )
-
-        return DiagTree(status=DiagStatus(ok=Ok()))
 
 
 @regex_from_tlv

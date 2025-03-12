@@ -3,7 +3,6 @@
     "./journal_monitor/src",
     "./linuxptp_monitor/src",
     "./pmc_monitor/src",
-    "./diag_tree/src",
     "./diag_worker/src",
     "./http_transport/src",
     "./sync_graph/src",

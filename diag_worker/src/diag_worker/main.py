@@ -1,14 +1,15 @@
 import asyncio
+import logging
 import socket
 import time
+from argparse import ArgumentParser
+
+from aiostream.stream import merge
 
 from diag_worker.monitor_task import MonitorTask
 from diag_worker.phc2sys_monitor_task import Phc2SysMonitorTask
 from diag_worker.ptp4l_monitor_task import Ptp4lMonitorTask
-from aiostream.stream import merge
-
 from http_transport import HttpClient
-from argparse import ArgumentParser
 
 
 class DiagWorker:
@@ -65,7 +66,7 @@ def main():
 
         try:
             asyncio.run(diag_worker.run())
-        except Exception as e:
-            print(f"Encountered a problem: {e}")
+        except Exception:
+            logging.exception("Encountered a problem")
             print("Backing off and restarting")
             time.sleep(5)

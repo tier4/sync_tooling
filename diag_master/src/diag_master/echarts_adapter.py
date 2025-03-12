@@ -1,10 +1,12 @@
-from diag_tree import aggregate, prettify
-from sync_graph import C_MASTER, ClockId, SyncGraph
+from sync_graph import ClockId, SyncGraph
 from sync_tooling_msgs.clock_id import readable_clock_id, readable_clock_type
 from sync_tooling_msgs.diag_status_pb2 import DiagStatus
+from sync_tooling_msgs.diag_tree import aggregate, prettify, to_diag_tree
 from sync_tooling_msgs.diag_tree_pb2 import DiagTree
 from sync_tooling_msgs.port_id import readable_port_id
 from sync_tooling_msgs.port_id_pb2 import PortId
+from sync_tooling_msgs.servo_state import diagnose_servo_state
+from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 from sync_tooling_msgs.unknown_pb2 import Unknown
 
 DIAG_PALETTE = {
@@ -47,108 +49,163 @@ HTML_TEMPLATE = """
     </html>
     """
 
+NOT_RECEIVED_DIAG = to_diag_tree(Unknown(msg="Not received yet"))
 
-def clock_to_echart_data_(clock: ClockId, metadata: dict, aliases: list[ClockId]):
-    data = []
-    links = []
 
-    extended_description = []
+def get_status_color(status: DiagStatus):
+    if (severity := status.WhichOneof("status")) is not None:
+        return DIAG_PALETTE[severity]
+    return DIAG_PALETTE["unknown"]
 
-    master: ClockId | None = metadata.get(C_MASTER)
+
+def _pretty_diag_html(diag: DiagTree):
+    status = aggregate(diag)
+    status_color = get_status_color(status)
+    return f'<span style="color: {status_color}">{prettify(diag)}</span>'
+
+
+def _clock_master_to_echart_data(sg: SyncGraph, clock: ClockId):
+    master = sg.get_master(clock)
 
     if master is None:
-        extended_description.append("No master")
+        return "No master", []
     elif master == clock:
-        extended_description.append("Grandmaster")
+        return "Grandmaster", []
     else:
-        extended_description.append(f"Master: {readable_clock_id(master)}")
-        links.append(
-            {
-                "source": readable_clock_id(master),
-                "target": readable_clock_id(clock),
-                "label": {"show": True, "formatter": "PTP Master"},
-                "lineStyle": {
-                    "color": DIAG_PALETTE["unknown"],
-                    "type": "dashed",
-                    "curveness": 0.2,
-                },
-            }
-        )
+        master_description = f"Master: {readable_clock_id(master)}"
+        link = {
+            "source": readable_clock_id(master),
+            "target": readable_clock_id(clock),
+            "label": {"show": True, "formatter": "PTP Master"},
+            "lineStyle": {
+                "color": DIAG_PALETTE["unknown"],
+                "type": "dashed",
+                "curveness": 0.2,
+            },
+        }
+
+        return master_description, [link]
+
+
+def _clock_aliases_to_description(sg: SyncGraph, clock: ClockId):
+    aliases = [a for a in sg.get_sorted_aliases(clock) if a != clock]
 
     aliases_html = "Known aliases: "
-    aliases = [a for a in aliases if a != clock]
-    if aliases:
-        aliases_html += "<ul>"
-        for alias in aliases:
-            aliases_html += (
-                f"<li>{readable_clock_type(alias)}: {readable_clock_id(alias)}</li>"
-            )
-        aliases_html += "</ul>"
-    else:
-        aliases_html += "None"
+    if not aliases:
+        return aliases_html + "None"
 
-    extended_description.append(aliases_html)
-    extended_description = "<br/>".join(extended_description)
+    aliases_html += "<ul>"
+    for alias in aliases:
+        aliases_html += (
+            f"<li>{readable_clock_type(alias)}: {readable_clock_id(alias)}</li>"
+        )
+    aliases_html += "</ul>"
+
+    return aliases_html
+
+
+def _port_diags_to_description(sg: SyncGraph, clock: ClockId):
+    ports = sorted(sg.get_ports(clock), key=lambda port: port.port_number)
+
+    ports_html = "PTP ports: "
+    if not ports:
+        return ports_html + "None"
+
+    ports_html += "<ul>"
+    domains = sorted({port.ptp_domain for port in ports})
+    for domain in domains:
+        ports_html += f"<li>Domain {domain}:<ul>"
+        for port in ports:
+            diag = sg.diagnose_port(port) or NOT_RECEIVED_DIAG
+            ports_html += f"<li>{port.port_number}: {_pretty_diag_html(diag)}</li>"
+        ports_html += "</ul></li>"
+    ports_html += "</ul>"
+    return ports_html
+
+
+def _clock_to_echart_data(sg: SyncGraph, clock: ClockId):
+    data = []
+    links = []
+    extended_description = []
+
+    master_description, master_links = _clock_master_to_echart_data(sg, clock)
+    extended_description.append(master_description)
+    links += master_links
+
+    aliases_description = _clock_aliases_to_description(sg, clock)
+    extended_description.append(aliases_description)
+
+    ports_description = _port_diags_to_description(sg, clock)
+    extended_description.append(ports_description)
+
+    diag = sg.diagnose_clock(clock)
+    status = aggregate(diag)
+    status_color = get_status_color(status)
 
     data.append(
         {
             "name": readable_clock_id(clock),
             "x": 0,
             "y": 0,
-            "tooltip": {"formatter": extended_description},
+            "tooltip": {"formatter": "<br/>".join(extended_description)},
+            "itemStyle": {"color": status_color},
         }
     )
 
     return data, links
 
 
-def link_to_echart_data_(
-    src: ClockId, dst: ClockId, metadata: DiagTree | PortId, diag: DiagTree
-):
-    links = []
-
+def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
     extended_description = []
 
-    match metadata:
+    link = sg.get_link(src, dst)
+
+    match link:
         case PortId() as port_id:
-            label = "PTP"
-            extended_description.append(f"Parent port: {readable_port_id(port_id)}")
-        case DiagTree():
+            label = f"PTP {port_id.ptp_domain}"
+            extended_description.append(f"PTP domain: {port_id.ptp_domain}")
+            extended_description.append(
+                f"Parent port: {readable_port_id(port_id, False)}"
+            )
+            port_diag = sg.diagnose_port(port_id)
+            extended_description.append(
+                f"Parent port state: {_pretty_diag_html(port_diag)}"
+            )
+        case SlaveClockState() as state:
             label = "PHC2SYS"
+            servo_diag = diagnose_servo_state(state.servo_state)
+            extended_description.append(
+                f"Master offset: {state.offset_ns / 1e3:.0f} µs"
+            )
+            extended_description.append(f"Sync delay: {state.delay_ns / 1e3:.0f} µs")
+            extended_description.append(
+                f"Frequency offset: {state.frequency_offset_ppb} ppb"
+            )
+            extended_description.append(f"Servo state: {_pretty_diag_html(servo_diag)}")
         case _:
-            assert False
+            raise AssertionError()
 
+    diag = sg.diagnose_link(src, dst) or NOT_RECEIVED_DIAG
     status = aggregate(diag)
-    severity = status.WhichOneof("status")
-    if severity is None:
-        assert False
-    diag_color = DIAG_PALETTE[severity]
-    extended_description.append(prettify(diag))
-    extended_description = "<br/>".join(extended_description)
+    status_color = get_status_color(status)
 
-    links.append(
-        {
-            "source": readable_clock_id(src),
-            "target": readable_clock_id(dst),
-            "lineStyle": {"color": diag_color},
-            "label": {"show": True, "formatter": label},
-            "tooltip": {"formatter": extended_description},
-        }
-    )
-
-    return (), links
+    return {
+        "source": readable_clock_id(src),
+        "target": readable_clock_id(dst),
+        "lineStyle": {"color": status_color},
+        "label": {"show": True, "formatter": label},
+        "tooltip": {"formatter": "<br/>".join(extended_description)},
+    }
 
 
-def sync_graph_to_echart_data_(sg: SyncGraph) -> tuple[list, list]:
+def _sync_graph_to_echart_data_and_links(sg: SyncGraph) -> tuple[list, list]:
     data = []
     links = []
 
     g = sg._graph
 
-    for clock_id, metadata in g.nodes.items():
-        node_data, node_links = clock_to_echart_data_(
-            clock_id, metadata, sg.get_sorted_aliases(clock_id)
-        )
+    for clock_id in g.nodes:
+        node_data, node_links = _clock_to_echart_data(sg, clock_id)
 
         data += node_data
         links += node_links
@@ -156,20 +213,15 @@ def sync_graph_to_echart_data_(sg: SyncGraph) -> tuple[list, list]:
     for src, dst in g.edges:
         src: ClockId
         dst: ClockId
-        link = sg.get_link(src, dst)
-        diag = sg.diagnose_link(src, dst)
-        if diag is None:
-            diag = DiagTree(status=DiagStatus(unknown=Unknown(msg="Not received yet")))
 
-        edge_data, edge_links = link_to_echart_data_(src, dst, link, diag)
-        data += edge_data
-        links += edge_links
+        edge_link = _link_to_echart_link(sg, src, dst)
+        links.append(edge_link)
 
     return data, links
 
 
 def sync_graph_to_echart_options(sg: SyncGraph):
-    data, links = sync_graph_to_echart_data_(sg)
+    data, links = _sync_graph_to_echart_data_and_links(sg)
 
     option = {
         "title": {"text": "Synchronization Graph"},
@@ -178,7 +230,6 @@ def sync_graph_to_echart_options(sg: SyncGraph):
             {
                 "type": "graph",
                 "layout": "force",
-                "selectedMode": True,
                 "roam": True,
                 "label": {"show": True, "fontSize": 20},
                 "symbolSize": 300,
@@ -186,6 +237,7 @@ def sync_graph_to_echart_options(sg: SyncGraph):
                 "edgeSymbol": [None, "arrow"],
                 "edgeSymbolSize": 20,
                 "edgeLabel": {"fontSize": 20},
+                "animation": False,
                 "data": data,
                 "links": links,
             }
