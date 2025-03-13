@@ -155,7 +155,7 @@ def consume(
 def parse(text: str, logger: logging.Logger | None = None):
     if logger is None:
         logger = logging.getLogger("TLV parser")
-        logger.setLevel(logging.DEBUG)
+        logger.setLevel(logging.INFO)
 
     outputs: List[Message | ParseError] = []
     rest = text
@@ -176,7 +176,5 @@ def parse(text: str, logger: logging.Logger | None = None):
                     f"  remainder: '{e.rest}'\n"
                     f"  original text: '{text}'\n"
                 )
-                outputs.append(e)
-                break
 
     return outputs
