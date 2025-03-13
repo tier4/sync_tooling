@@ -1,5 +1,7 @@
-from sync_graph import ClockId, SyncGraph
+import logging
+from sync_graph import SyncGraph
 from sync_tooling_msgs.clock_id import readable_clock_id, readable_clock_type
+from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.diag_status_pb2 import DiagStatus
 from sync_tooling_msgs.diag_tree import aggregate, prettify, to_diag_tree
 from sync_tooling_msgs.diag_tree_pb2 import DiagTree
@@ -68,23 +70,11 @@ def _clock_master_to_echart_data(sg: SyncGraph, clock: ClockId):
     master = sg.get_master(clock)
 
     if master is None:
-        return "No master", []
+        return "No master"
     elif master == clock:
-        return "Grandmaster", []
+        return "Grandmaster"
     else:
-        master_description = f"Master: {readable_clock_id(master)}"
-        link = {
-            "source": readable_clock_id(master),
-            "target": readable_clock_id(clock),
-            "label": {"show": True, "formatter": "PTP Master"},
-            "lineStyle": {
-                "color": DIAG_PALETTE["unknown"],
-                "type": "dashed",
-                "curveness": 0.2,
-            },
-        }
-
-        return master_description, [link]
+        return f"Master: {readable_clock_id(master)}"
 
 
 def _clock_aliases_to_description(sg: SyncGraph, clock: ClockId):
@@ -124,13 +114,10 @@ def _port_diags_to_description(sg: SyncGraph, clock: ClockId):
 
 
 def _clock_to_echart_data(sg: SyncGraph, clock: ClockId):
-    data = []
-    links = []
     extended_description = []
 
-    master_description, master_links = _clock_master_to_echart_data(sg, clock)
+    master_description = _clock_master_to_echart_data(sg, clock)
     extended_description.append(master_description)
-    links += master_links
 
     aliases_description = _clock_aliases_to_description(sg, clock)
     extended_description.append(aliases_description)
@@ -142,48 +129,59 @@ def _clock_to_echart_data(sg: SyncGraph, clock: ClockId):
     status = aggregate(diag)
     status_color = get_status_color(status)
 
-    data.append(
-        {
-            "name": readable_clock_id(clock),
-            "x": 0,
-            "y": 0,
-            "tooltip": {"formatter": "<br/>".join(extended_description)},
-            "itemStyle": {"color": status_color},
-        }
-    )
-
-    return data, links
+    return {
+        "name": readable_clock_id(clock),
+        "x": 0,
+        "y": 0,
+        "tooltip": {"formatter": "<br/>".join(extended_description)},
+        "itemStyle": {"color": status_color},
+    }
 
 
 def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
     extended_description = []
+    link_labels = []
+    is_pseudo_link = False
 
-    link = sg.get_link(src, dst)
+    links = sg.get_links(src, dst)
 
-    match link:
-        case PortId() as port_id:
-            label = f"PTP {port_id.ptp_domain}"
-            extended_description.append(f"PTP domain: {port_id.ptp_domain}")
-            extended_description.append(
-                f"Parent port: {readable_port_id(port_id, False)}"
-            )
-            port_diag = sg.diagnose_port(port_id)
-            extended_description.append(
-                f"Parent port state: {_pretty_diag_html(port_diag)}"
-            )
-        case SlaveClockState() as state:
-            label = "PHC2SYS"
-            servo_diag = diagnose_servo_state(state.servo_state)
-            extended_description.append(
-                f"Master offset: {state.offset_ns / 1e3:.0f} µs"
-            )
-            extended_description.append(f"Sync delay: {state.delay_ns / 1e3:.0f} µs")
-            extended_description.append(
-                f"Frequency offset: {state.frequency_offset_ppb} ppb"
-            )
-            extended_description.append(f"Servo state: {_pretty_diag_html(servo_diag)}")
-        case _:
-            raise AssertionError()
+    for type, metadata in links.items():
+        match type, metadata:
+            case "ptp_parent", PortId() as port_id:
+                link_labels.append(f"PTP {port_id.ptp_domain}")
+                is_pseudo_link = False
+                extended_description.append(f"PTP domain: {port_id.ptp_domain}")
+                extended_description.append(
+                    f"Parent port: {readable_port_id(port_id, False)}"
+                )
+                port_diag = sg.diagnose_port(port_id)
+                extended_description.append(
+                    f"Parent port state: {_pretty_diag_html(port_diag)}"
+                )
+            case "phc2sys", SlaveClockState() as state:
+                link_labels.append("PHC2SYS")
+                is_pseudo_link = False
+                servo_diag = diagnose_servo_state(state.servo_state)
+                extended_description.append(
+                    f"Master offset: {state.offset_ns / 1e3:.0f} µs"
+                )
+                extended_description.append(
+                    f"Sync delay: {state.delay_ns / 1e3:.0f} µs"
+                )
+                extended_description.append(
+                    f"Frequency offset: {state.frequency_offset_ppb} ppb"
+                )
+                extended_description.append(
+                    f"Servo state: {_pretty_diag_html(servo_diag)}"
+                )
+            case "measurement", int() as time_diff_ns:
+                link_labels.append("Measurement")
+                extended_description.append(f"Time offset: {time_diff_ns / 1e3:.0f} µs")
+            case "master", None:
+                link_labels.append("Master")
+            case _:
+                logging.error(f"{type} {metadata}")
+                continue
 
     diag = sg.diagnose_link(src, dst) or NOT_RECEIVED_DIAG
     status = aggregate(diag)
@@ -192,8 +190,11 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
     return {
         "source": readable_clock_id(src),
         "target": readable_clock_id(dst),
-        "lineStyle": {"color": status_color},
-        "label": {"show": True, "formatter": label},
+        "lineStyle": {
+            "color": status_color,
+            "type": "dashed" if is_pseudo_link else "solid",
+        },
+        "label": {"show": True, "formatter": ", ".join(link_labels)},
         "tooltip": {"formatter": "<br/>".join(extended_description)},
     }
 
@@ -205,12 +206,10 @@ def _sync_graph_to_echart_data_and_links(sg: SyncGraph) -> tuple[list, list]:
     g = sg._graph
 
     for clock_id in g.nodes:
-        node_data, node_links = _clock_to_echart_data(sg, clock_id)
+        node = _clock_to_echart_data(sg, clock_id)
+        data.append(node)
 
-        data += node_data
-        links += node_links
-
-    for src, dst in g.edges:
+    for src, dst in set(g.edges()):
         src: ClockId
         dst: ClockId
 
@@ -231,13 +230,12 @@ def sync_graph_to_echart_options(sg: SyncGraph):
                 "type": "graph",
                 "layout": "force",
                 "roam": True,
-                "label": {"show": True, "fontSize": 20},
-                "symbolSize": 300,
+                "label": {"show": True},
+                "symbolSize": 100,
                 "itemStyle": {"color": "#264653"},
                 "edgeSymbol": [None, "arrow"],
                 "edgeSymbolSize": 20,
-                "edgeLabel": {"fontSize": 20},
-                "animation": False,
+                "autoCurveness": True,
                 "data": data,
                 "links": links,
             }
