@@ -47,9 +47,7 @@ def graph_after_updates(*updates: GraphUpdate):
 
 def test_clock_creation():
     u = GraphUpdate(
-        clock_master_update=ClockMasterUpdate(
-            clock_id=sample_clock["system"], master=None
-        )
+        clock_master_update=ClockMasterUpdate(clock_id=sample_clock["system"])
     )
     g = graph_after_updates(u)
 
@@ -59,12 +57,10 @@ def test_clock_creation():
 
 def test_clock_aliases():
     u1 = GraphUpdate(
-        clock_master_update=ClockMasterUpdate(
-            clock_id=sample_clock["system"], master=None
-        )
+        clock_master_update=ClockMasterUpdate(clock_id=sample_clock["system"])
     )
     u2 = GraphUpdate(
-        clock_master_update=ClockMasterUpdate(clock_id=sample_clock["ptp"], master=None)
+        clock_master_update=ClockMasterUpdate(clock_id=sample_clock["ptp"])
     )
     u3 = GraphUpdate(
         clock_alias_update=ClockAliasUpdate(
@@ -79,7 +75,7 @@ def test_clock_aliases():
 
 def test_alias_precedence():
     updates: list[GraphUpdate] = [
-        GraphUpdate(clock_master_update=ClockMasterUpdate(clock_id=v, master=None))
+        GraphUpdate(clock_master_update=ClockMasterUpdate(clock_id=v))
         for v in sample_clock.values()
     ]
     updates.append(
