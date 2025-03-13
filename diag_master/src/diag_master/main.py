@@ -7,7 +7,6 @@ from diag_master.echarts_adapter import (
     HTML_TEMPLATE,
     sync_graph_to_echart_options,
 )
-from diag_master.ros2_adapter import Ros2Adapter
 from sync_graph import SyncGraph
 from sync_tooling_msgs.clock_id import readable_clock_id
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
@@ -98,6 +97,7 @@ def main():
 
     ros_enabled: bool = args.ros or bool(args.ros_args)
     if ros_enabled:
+        from diag_master.ros2_adapter import Ros2Adapter
         ros2_adapter = Ros2Adapter(args.ros_args or [])  # noqa: F841
 
     # This enables HTTP keep-alive, see
