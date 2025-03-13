@@ -12,7 +12,6 @@ from typing import IO, List
 import pandas as pd
 
 from pmc_monitor import pmc_parser
-from pmc_monitor.pmc_parser import ParseError
 from pmc_monitor.pmc_protocol import (
     CurrentDataSet,
     DefaultDataSet,
@@ -134,7 +133,6 @@ class PmcMonitor:
                         self._logger.warning(
                             f"Received {other.__class__.__name__} from port {source_port} before receiving PortDS, ignoring"
                         )
-                        return None
             case PtpPort():
                 match port_tlv:
                     case PortDataSet() as port_ds:
@@ -148,7 +146,6 @@ class PmcMonitor:
         self, mgmt_tlv: ManagementTlv, source_port: PortIdentity
     ):
         ptp_instance = self._ptp_instances.get(source_port.clock_id)
-        instance_old = deepcopy(ptp_instance)
         match ptp_instance:
             case None:
                 match mgmt_tlv.payload:
@@ -161,7 +158,6 @@ class PmcMonitor:
                         self._logger.warning(
                             f"Received {payload.__class__.__name__} from port {source_port} before receiving DefaultDS, ignoring"
                         )
-                        return None
             case PtpInstance():
                 match mgmt_tlv.payload:
                     case DefaultDataSet() as default_ds:
@@ -180,10 +176,8 @@ class PmcMonitor:
                         self._logger.warning(
                             f"Ignoring received {other_payload.__class__.__name__}"
                         )
-                        return None
             case _:
                 raise AssertionError()
-        return PmcStateChange(instance_old, ptp_instance)
 
     def _handle_message(self, message: Message):
         match message:
@@ -236,12 +230,13 @@ class PmcMonitor:
             self._logger.debug(f"stdout=\n{response_text}")
             parsed_messages = pmc_parser.parse(response_text)
 
+            previous_instances = deepcopy(self._ptp_instances)
             for m in parsed_messages:
-                match m:
-                    case ParseError() as p:
-                        self._logger.error(
-                            f"Failed to parse at:\n{p.trace}\ngiven the following:\n'{p.rest}'"
-                        )
-                    case Request() | Response():
-                        if (state_change := self._handle_message(m)) is not None:
-                            yield state_change
+                self._handle_message(m)
+
+            for key in {*previous_instances, *self._ptp_instances}:
+                old_state = previous_instances.get(key)
+                new_state = self._ptp_instances.get(key)
+
+                if old_state != new_state:
+                    yield PmcStateChange(old_state, new_state)

@@ -1,5 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
+import logging
 from typing import Any, Iterable, Literal
 
 import networkx as nx
@@ -10,7 +11,9 @@ from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.diag_tree import Diagnosable, to_diag_tree
 from sync_tooling_msgs.diag_tree_pb2 import DiagTree
+from sync_tooling_msgs.error_pb2 import Error
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
+from sync_tooling_msgs.ok_pb2 import Ok
 from sync_tooling_msgs.phc2sys_status_message_pb2 import Phc2SysStatusMessage
 from sync_tooling_msgs.phc2sys_update_pb2 import Phc2SysUpdate
 from sync_tooling_msgs.port_id_pb2 import PortId
@@ -43,13 +46,24 @@ def get_most_human_readable_alias(aliases: Iterable[ClockId]) -> ClockId:
     return max(aliases, key=readability_score)
 
 
-C_MASTER = "master"
+def diagnose_clock_diff(time_diff_ns: int):
+    threshold_us = 500
+    if abs(time_diff_ns) <= threshold_us * 1e3:
+        return to_diag_tree(Ok(msg=f"Within bounds of {threshold_us} µs"))
+    return to_diag_tree(Error(msg=f"Exceeds bounds of {threshold_us} µs"))
+
+
 C_STATUS_MSG = "status_msg"
 C_PORT_IDS = "port_ids"
 
 L_METADATA = "metadata"
 L_TIME_DIFF = "time_diff"
 L_STATUS_MSG = "status_msg"
+
+L_MASTER = "master"
+L_PTP_PARENT = "ptp_parent"
+L_MEASUREMENT = "measurement"
+L_PHC2SYS = "phc2sys"
 
 P_PORT_STATE = "port_state"
 P_STATUS_MSG = "status_msg"
@@ -66,34 +80,10 @@ def _set_node_attr(
 ):
     g.nodes[n][k] = v
 
-def _del_node_attr(
-    g: nx.DiGraph, n: ClockId, k: Literal["master", "status_msg", "port_ids"]
-):
-    node_attrs = g.nodes[n]
-    if k in node_attrs:
-        del node_attrs[k]
-
-
-def _get_edge_attr(
-    g: nx.DiGraph,
-    e: tuple[ClockId, ClockId],
-    k: Literal["metadata", "time_diff", "status_msg"],
-):
-    return g.edges[e].get(k)
-
-
-def _set_edge_attr(
-    g: nx.DiGraph,
-    e: tuple[ClockId, ClockId],
-    k: Literal["metadata", "time_diff", "status_msg"],
-    v,
-):
-    nx.set_edge_attributes(g, {e: v}, k)
-
 
 @dataclass
 class SyncGraph(Diagnosable):
-    _graph: nx.DiGraph = field(default_factory=nx.DiGraph)
+    _graph: nx.MultiDiGraph = field(default_factory=nx.MultiDiGraph)
     _known_aliases: dict[ClockId, set[ClockId]] = field(default_factory=dict)
     _ports: defaultdict[PortId, dict[str, Any]] = field(
         default_factory=lambda: defaultdict(dict)
@@ -156,14 +146,22 @@ class SyncGraph(Diagnosable):
         raise ValueError()
 
     def update_clock_master(self, u: ClockMasterUpdate):
-        clock_id = self.get_or_create_clock(u.clock_id)
-        if not u.HasField("master"):
-            _del_node_attr(self._graph, clock_id, "master")
+        if not u.HasField("clock_id"):
             return
 
-        _set_node_attr(
-            self._graph, clock_id, "master", self.get_or_create_clock(u.master)
-        )
+        clock_id = self.get_or_create_clock(u.clock_id)
+        if not u.HasField("master"):
+            outdated_edges = [
+                (src, clock_id, key)
+                for src, _, key in self._graph.in_edges(clock_id, keys=True)
+                if key == L_MASTER
+            ]
+
+            self._graph.remove_edges_from(outdated_edges)
+            return
+
+        master_id = self.get_or_create_clock(u.master)
+        self._graph.add_edge(master_id, clock_id, L_MASTER)
 
     def update_clock_aliases(self, u: ClockAliasUpdate):
         if not u.aliases:
@@ -194,18 +192,14 @@ class SyncGraph(Diagnosable):
             for p in dataset.get(C_PORT_IDS, set())  # type: ignore
         }
         combined_status_msg = None
-        combined_master = None
 
         relabelings = {alias: canonical_id for alias in all_aliases}
         self._graph = nx.relabel_nodes(self._graph, relabelings)
 
         _set_node_attr(self._graph, canonical_id, C_PORT_IDS, combined_port_ids)
         _set_node_attr(self._graph, canonical_id, C_STATUS_MSG, combined_status_msg)
-        _set_node_attr(self._graph, canonical_id, C_MASTER, combined_master)
 
         for _, data in self._graph.nodes(True):
-            if C_MASTER in data:
-                data[C_MASTER] = self.get_canonical_clock_id(data[C_MASTER])
             if C_PORT_IDS in data:
                 data[C_PORT_IDS] = {  # type: ignore
                     self.get_canonical_port_id(p)
@@ -219,20 +213,41 @@ class SyncGraph(Diagnosable):
             self._ports[canonical_port_id] = metadata
 
     def create_ptp_link(self, u: PtpParentUpdate):
-        parent_port = self.get_or_create_port(u.parent)
-        src_clock = parent_port.clock_id
+        if not u.HasField("clock_id"):
+            return
+
         dst_clock = self.get_or_create_clock(u.clock_id)
+        if not u.HasField("parent"):
+            outdated_edges = [
+                (src, dst_clock, key)
+                for src, _, key in self._graph.in_edges(dst_clock, keys=True)
+                if key == L_PTP_PARENT
+            ]
+
+            self._graph.remove_edges_from(outdated_edges)
+            return
+
+        if u.parent.port_number == 0:
+            return
+
+        parent_port = self.get_or_create_port(u.parent)
+        src_clock = self.get_or_create_clock(parent_port.clock_id)
 
         updated_port_ids = {
             self.get_canonical_port_id(p)
-            for p in _get_node_attr(self._graph, src_clock, C_PORT_IDS) or set() # type: ignore
+            for p in _get_node_attr(self._graph, src_clock, C_PORT_IDS) or set()  # type: ignore
         }  # type: ignore
+
         updated_port_ids.add(parent_port)
         _set_node_attr(self._graph, src_clock, C_PORT_IDS, updated_port_ids)
 
-        self._graph.add_edge(src_clock, dst_clock, **{L_METADATA: u.parent})
+        self._graph.add_edge(
+            src_clock, dst_clock, L_PTP_PARENT, **{L_METADATA: parent_port}
+        )
 
     def update_ptp_port_state(self, u: PortStateUpdate):
+        if u.port_id.port_number == 0:
+            return
         canonical_id = self.get_or_create_port(u.port_id)
 
         if canonical_id not in self._ports:
@@ -240,13 +255,20 @@ class SyncGraph(Diagnosable):
         self._ports[canonical_id][P_PORT_STATE] = u.port_state
 
     def update_phc2sys_link_state(self, u: Phc2SysUpdate):
-        src = self.get_or_create_clock(u.src)
-        dst = self.get_or_create_clock(u.dst)
-        key = (src, dst)
-        if key not in self._graph.edges:
-            self._graph.add_edge(*key)
+        if not u.HasField("dst"):
+            return
 
-        _set_edge_attr(self._graph, key, L_METADATA, u.clock_state)
+        dst = self.get_or_create_clock(u.dst)
+        if not u.HasField("src"):
+            outdated_edges = [
+                (src, dst, key)
+                for src, _, key in self._graph.in_edges(dst, keys=True)
+                if key == L_PHC2SYS
+            ]
+            self._graph.remove_edges_from(outdated_edges)
+
+        src = self.get_or_create_clock(u.src)
+        self._graph.add_edge(src, dst, L_PHC2SYS, **{L_METADATA: u.clock_state})
 
     def handle_ptp4l_port_status_message(self, m: Ptp4lPortStatusMessage):
         pass
@@ -258,16 +280,35 @@ class SyncGraph(Diagnosable):
         pass
 
     def handle_clock_diff_measurement(self, m: ClockDiffMeasurement):
-        pass
+        if not m.HasField("src") or not m.HasField("dst"):
+            return
 
-    def get_link(self, src: ClockId, dst: ClockId) -> SlaveClockState | PortId:
+        src = self.get_or_create_clock(m.src)
+        dst = self.get_or_create_clock(m.dst)
+
+        self._graph.add_edge(src, dst, L_MEASUREMENT, **{L_METADATA: m.diff_ns})
+
+    def get_links(
+        self, src: ClockId, dst: ClockId
+    ) -> dict[str, None | SlaveClockState | PortId | int]:
         src = self.get_canonical_clock_id(src)
         dst = self.get_canonical_clock_id(dst)
-        return _get_edge_attr(self._graph, (src, dst), L_METADATA)
+
+        try:
+            all_edges = self._graph[src][dst]
+        except KeyError:
+            all_edges = {}
+        all_edges = {key: attrs.get(L_METADATA) for key, attrs in all_edges.items()}
+        return all_edges
 
     def get_master(self, clock_id: ClockId) -> ClockId | None:
         clock_id = self.get_canonical_clock_id(clock_id)
-        return _get_node_attr(self._graph, clock_id, C_MASTER)
+        all_in_edges = self._graph.in_edges(clock_id, keys=True)
+        for src, _, key in all_in_edges:
+            if key == L_MASTER:
+                return src
+
+        return None
 
     def get_ports(self, clock_id: ClockId) -> set[PortId]:
         clock_id = self.get_canonical_clock_id(clock_id)
@@ -293,13 +334,22 @@ class SyncGraph(Diagnosable):
         return diagnose_port_state(port_state)
 
     def diagnose_link(self, src: ClockId, dst: ClockId) -> DiagTree:
-        link = self.get_link(src, dst)
-        match link:
-            case PortId() as parent_port:
-                return self.diagnose_port(parent_port)
-            case SlaveClockState() as clock_state:
-                return diagnose_servo_state(clock_state.servo_state)
-        raise ValueError()
+        links = self.get_links(src, dst)
+        diags = []
+        for key, metadata in links.items():
+            match key, metadata:
+                case "ptp_parent", PortId() as port_id:
+                    diags.append(self.diagnose_port(port_id))
+                case "phc2sys", SlaveClockState() as state:
+                    diags.append(diagnose_servo_state(state.servo_state))
+                case "measurement", int() as time_diff_ns:
+                    diags.append(diagnose_clock_diff(time_diff_ns))
+                case "master", None:
+                    diags.append(to_diag_tree(Ok(msg="Master present")))
+                case _:
+                    logging.error(f"{key}, {metadata}")
+
+        return to_diag_tree(diags)
 
     def diagnose_clock(self, clock_id: ClockId) -> DiagTree:
         ports = self.get_ports(clock_id)
