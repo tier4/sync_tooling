@@ -67,6 +67,8 @@ class Ptp4lMonitorTask(MonitorTask):
         self.pmc_monitor = PmcMonitor(
             [
                 "-u",
+                "-b",
+                "0",
                 "-s",
                 config.uds_address,
                 "-t",
