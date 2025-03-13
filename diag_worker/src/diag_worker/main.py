@@ -55,8 +55,8 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("master_ip")
     parser.add_argument("--master_port", "-p", type=int, default=16161)
-    parser.add_argument("--ptp4l-units", "-4", nargs="+")
-    parser.add_argument("--phc2sys-units", "-2", nargs="+")
+    parser.add_argument("--ptp4l-units", "-4", nargs="*")
+    parser.add_argument("--phc2sys-units", "-2", nargs="*")
     args = parser.parse_args()
 
     while True:
