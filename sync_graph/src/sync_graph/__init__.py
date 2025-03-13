@@ -66,6 +66,13 @@ def _set_node_attr(
 ):
     g.nodes[n][k] = v
 
+def _del_node_attr(
+    g: nx.DiGraph, n: ClockId, k: Literal["master", "status_msg", "port_ids"]
+):
+    node_attrs = g.nodes[n]
+    if k in node_attrs:
+        del node_attrs[k]
+
 
 def _get_edge_attr(
     g: nx.DiGraph,
@@ -150,6 +157,10 @@ class SyncGraph(Diagnosable):
 
     def update_clock_master(self, u: ClockMasterUpdate):
         clock_id = self.get_or_create_clock(u.clock_id)
+        if not u.HasField("master"):
+            _del_node_attr(self._graph, clock_id, "master")
+            return
+
         _set_node_attr(
             self._graph, clock_id, "master", self.get_or_create_clock(u.master)
         )
@@ -214,7 +225,7 @@ class SyncGraph(Diagnosable):
 
         updated_port_ids = {
             self.get_canonical_port_id(p)
-            for p in _get_node_attr(self._graph, src_clock, C_PORT_IDS) or set()
+            for p in _get_node_attr(self._graph, src_clock, C_PORT_IDS) or set() # type: ignore
         }  # type: ignore
         updated_port_ids.add(parent_port)
         _set_node_attr(self._graph, src_clock, C_PORT_IDS, updated_port_ids)
