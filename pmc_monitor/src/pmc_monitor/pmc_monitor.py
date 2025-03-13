@@ -243,4 +243,5 @@ class PmcMonitor:
                             f"Failed to parse at:\n{p.trace}\ngiven the following:\n'{p.rest}'"
                         )
                     case Request() | Response():
-                        yield self._handle_message(m)
+                        if (state_change := self._handle_message(m)) is not None:
+                            yield state_change
