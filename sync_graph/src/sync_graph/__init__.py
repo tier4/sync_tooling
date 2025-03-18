@@ -1,6 +1,6 @@
+import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-import logging
 from typing import Any, Iterable, Literal
 
 import networkx as nx
@@ -9,7 +9,8 @@ from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_diff_measurement_pb2 import ClockDiffMeasurement
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
-from sync_tooling_msgs.diag_tree import Diagnosable, to_diag_tree
+from sync_tooling_msgs.diag_status_pb2 import DiagStatus
+from sync_tooling_msgs.diag_tree import to_diag_tree
 from sync_tooling_msgs.diag_tree_pb2 import DiagTree
 from sync_tooling_msgs.error_pb2 import Error
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
@@ -82,7 +83,7 @@ def _set_node_attr(
 
 
 @dataclass
-class SyncGraph(Diagnosable):
+class SyncGraph:
     _graph: nx.MultiDiGraph = field(default_factory=nx.MultiDiGraph)
     _known_aliases: dict[ClockId, set[ClockId]] = field(default_factory=dict)
     _ports: defaultdict[PortId, dict[str, Any]] = field(
@@ -358,70 +359,57 @@ class SyncGraph(Diagnosable):
             list=DiagTree.DiagList(list=[self.diagnose_port(p) for p in ports])
         )
 
-    # def _diagnose_reachability(self) -> DiagStatus:
-    #     if nx.is_weakly_connected(self._graph):
-    #         return DiagStatus(ok=Ok())
-    #     return DiagStatus(
-    #         error=Error(
-    #             msg=f"There are {nx.number_weakly_connected_components(self._graph)} mutually unreachable subgraphs"
-    #         )
-    #     )
+    def _diagnose_reachability(self) -> DiagStatus:
+        if nx.is_weakly_connected(self._graph):
+            return DiagStatus(ok=Ok())
+        return DiagStatus(
+            error=Error(
+                msg=f"There are {nx.number_weakly_connected_components(self._graph)} mutually unreachable subgraphs"
+            )
+        )
 
-    # def _diagnose_loops(self) -> DiagStatus:
-    #     if nx.is_directed_acyclic_graph(self._graph):
-    #         return DiagStatus(ok=Ok())
-    #     return DiagStatus(error=Error(msg="There are loops in the graph"))
+    def _diagnose_cycles(self) -> DiagStatus:
+        if nx.is_directed_acyclic_graph(self._graph):
+            return DiagStatus(ok=Ok())
+        return DiagStatus(error=Error(msg="There are loops in the graph"))
 
-    # def _diagnose_ptp_domain(self, ptp_domain: nx.DiGraph):
-    #     master_clocks = {
-    #         self.get_canonical_clock_id(clock.master_id).id()
-    #         for _, clock in SyncGraph.iter_clocks(ptp_domain)
-    #         if clock.master_id is not None
-    #     }
+    def _diagnose_grandmaster(self) -> DiagStatus:
+        grandmaster_candiates: list[ClockId] = [
+            n for n, in_degree in self._graph.in_degree() if in_degree == 0
+        ]
 
-    #     if len(master_clocks) != 1:
-    #         return DiagStatus(
-    #             error=Error(
-    #                 msg=f"Not all clocks in the domain agree on the same master. "
-    #                 f"{len(master_clocks)} master clocks reported: {', '.join(master_clocks)}"
-    #             )
-    #         )
+        match grandmaster_candiates:
+            case []:
+                return DiagStatus(
+                    error=Error(msg="There are no clocks without a parent/master")
+                )
+            case [candidate]:
+                grandmaster = candidate
+            case _:
+                return DiagStatus(
+                    error=Error(
+                        msg="There is more than one clock without a parent/master"
+                    )
+                )
 
-    #     master = next(iter(master_clocks))
+        reachable_from_grandmaster: set[ClockId] = nx.descendants(
+            self._graph, grandmaster
+        )
 
-    #     if master not in ptp_domain:
-    #         return DiagStatus(
-    #             error=Error(
-    #                 msg=f"The reported master clock {master} cannot be found in the PTP domain"
-    #             )
-    #         )
+        if len(reachable_from_grandmaster) == len(self._graph) - 1:
+            return DiagStatus(
+                ok=Ok(msg="There is exactly one grandmaster which all clocks sync to")
+            )
 
-    #     master_reaches_whole_domain = all(
-    #         nx.has_path(ptp_domain, master, dst)
-    #         for dst, _ in SyncGraph.iter_clocks(ptp_domain)
-    #     )
+        return DiagStatus(
+            error=Error(msg="Not all clocks are reachable from the grandmaster")
+        )
 
-    #     if not master_reaches_whole_domain:
-    #         return DiagStatus(
-    #             error=Error(
-    #                 msg="Not all clocks in the domain are reachable from the master"
-    #             )
-    #         )
-
-    #     return DiagStatus(ok=Ok())
-
-    # def _iter_ptp_domain_graphs(self):
-    #     def is_ptp_edge(src, dst):
-    #         link = self.get_link(src, dst)
-    #         return isinstance(link, PtpSyncLink)
-
-    #     ptp_only_graph: nx.DiGraph = nx.subgraph_view(
-    #         self._graph, filter_edge=is_ptp_edge
-    #     )  # type: ignore
-
-    #     for ptp_domain_nodes in nx.connected_components(ptp_only_graph):
-    #         ptp_domain: nx.DiGraph = ptp_only_graph.subgraph(ptp_domain_nodes)
-    #         yield ptp_domain
-
-    def diagnose(self) -> DiagTree:
-        return DiagTree()
+    def diagnose_graph(self) -> DiagTree:
+        return to_diag_tree(
+            {
+                "reachability": self._diagnose_reachability(),
+                "acyclicity": self._diagnose_cycles(),
+                "grandmaster": self._diagnose_grandmaster(),
+            }
+        )
