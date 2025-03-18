@@ -66,7 +66,7 @@ all:
         ptp4l_units:
           - ptp4l
         phc2sys_units: []
-    out_vehicle:
+    voice-system:
       ansible_host: 192.168.20.51
       sync_worker:
         ptp4l_units:
