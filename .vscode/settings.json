@@ -6,7 +6,9 @@
     "./diag_worker/src",
     "./http_transport/src",
     "./sync_graph/src",
-    "./sync_tooling_msgs/src"
+    "./sync_tooling_msgs/src",
+    "/opt/ros/humble/local/lib/python3.10/dist-packages",
+    "/opt/ros/humble/lib/python3.10/site-packages",
   ],
   "python.analysis.typeCheckingMode": "standard",
   "ansible.python.interpreterPath": "${workspaceFolder}/.venv/bin/python",
