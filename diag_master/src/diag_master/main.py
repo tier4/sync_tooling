@@ -1,5 +1,7 @@
 from argparse import REMAINDER, ArgumentParser
+from collections import namedtuple
 
+import yaml
 from flask import Flask, jsonify, render_template_string, request
 from werkzeug.serving import WSGIRequestHandler
 
@@ -7,14 +9,19 @@ from diag_master.echarts_adapter import (
     HTML_TEMPLATE,
     sync_graph_to_echart_options,
 )
+from diag_master.ros2_adapter import Ros2Adapter
 from sync_graph import SyncGraph
+from sync_graph.yaml import clock_tree_to_digraph
 from sync_tooling_msgs.clock_id import readable_clock_id
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 from sync_tooling_msgs.port_id import readable_port_id
 
+Args = namedtuple("Args", ["bind_ip", "bind_port", "reference", "ros", "ros_args"])
+
 app = Flask("diag_master")
 
 sync_graph = SyncGraph()
+ros2_adapter: Ros2Adapter | None = None
 
 
 @app.route("/")
@@ -78,13 +85,15 @@ def update_graph():
     return {}
 
 
-def main():
+def parse_args() -> Args:
     parser = ArgumentParser()
     parser.add_argument("bind_ip")
     parser.add_argument("--bind_port", "-p", type=int, default=16161)
     parser.add_argument(
+        "--reference", "-r", help="Reference synchronization graph in YAML format."
+    )
+    parser.add_argument(
         "--ros",
-        "-r",
         action="store_true",
         help="Enables ROS 2 interaction. Passing `--ros-args` implicitly enables ROS 2 interaction.",
     )
@@ -93,12 +102,31 @@ def main():
         nargs=REMAINDER,
         help="Arguments passed along to ROS 2. See https://docs.ros.org/en/rolling/How-To-Guides/Node-arguments.html for details.",
     )
-    args = parser.parse_args()
+    return parser.parse_args()  # type: ignore
+
+
+def parse_reference_graph(reference_path: str):
+    with open(reference_path) as f:
+        yaml_data = yaml.safe_load(f)
+
+    return clock_tree_to_digraph(yaml_data["clock_tree"])
+
+
+def main():
+    global sync_graph
+    global ros2_adapter
+
+    args = parse_args()
+
+    if args.reference:
+        reference_graph = parse_reference_graph(args.reference)
+        sync_graph = SyncGraph(reference_graph)
 
     ros_enabled: bool = args.ros or bool(args.ros_args)
     if ros_enabled:
         from diag_master.ros2_adapter import Ros2Adapter
-        ros2_adapter = Ros2Adapter(args.ros_args or [])  # noqa: F841
+
+        ros2_adapter = Ros2Adapter(args.ros_args or [])
 
     # This enables HTTP keep-alive, see
     # https://stackoverflow.com/questions/10523879/how-to-make-flask-keep-ajax-http-connection-alive
