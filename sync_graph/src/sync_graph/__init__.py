@@ -84,6 +84,8 @@ def _set_node_attr(
 
 @dataclass
 class SyncGraph:
+    reference_graph: nx.DiGraph | None = None
+
     _graph: nx.MultiDiGraph = field(default_factory=nx.MultiDiGraph)
     _known_aliases: dict[ClockId, set[ClockId]] = field(default_factory=dict)
     _ports: defaultdict[PortId, dict[str, Any]] = field(
