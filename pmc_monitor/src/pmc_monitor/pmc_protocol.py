@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from types import UnionType
 from typing import List, TypeVar
 
-# ruff: noqa: N815
+# ruff: noqa: N815 -- attribute naming is dictated by the PMC standard, silence such warnings
 
 
 def multiline_regex_from_keys(keys: List[str]) -> str:
@@ -25,18 +25,21 @@ T = TypeVar("T")
 
 
 def regex_from_tlv(cls: T) -> T:
+    if not hasattr(cls, "__name__"):
+        raise TypeError(f"{type(cls)} is not a class")
+
     if not dataclasses.is_dataclass(cls):
         raise TypeError(f"{cls.__name__} is not a dataclass")  # type: ignore
 
     if not hasattr(cls, "tlv_type"):
         raise KeyError(f"{cls.__name__} has no `tlv_type` attribute")  # type: ignore
 
-    tlv_type: str = cls.tlv_type
+    tlv_type: str = cls.tlv_type  # type: ignore
 
     fields = dataclasses.fields(cls)
     field_names = [f.name for f in fields]
 
-    cls.regex = tlv_type + multiline_regex_from_keys(field_names)
+    cls.regex = tlv_type + multiline_regex_from_keys(field_names)  # type: ignore
     return cls
 
 

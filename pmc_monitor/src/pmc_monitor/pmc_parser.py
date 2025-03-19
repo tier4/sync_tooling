@@ -5,7 +5,7 @@ import re
 import types
 import typing
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any
 
 from pmc_monitor.pmc_protocol import Message
 
@@ -157,7 +157,7 @@ def parse(text: str, logger: logging.Logger | None = None):
         logger = logging.getLogger("TLV parser")
         logger.setLevel(logging.INFO)
 
-    outputs: List[Message | ParseError] = []
+    outputs: list[Message] = []
     rest = text
     while rest:
         logger.debug(f"start parsing with text='{abbreviate(rest)}'")
