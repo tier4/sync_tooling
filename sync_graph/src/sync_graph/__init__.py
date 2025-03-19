@@ -30,7 +30,7 @@ from sync_tooling_msgs.unknown_pb2 import Unknown
 
 def readability_score(clock_id: ClockId):
     match clock_id.WhichOneof("id"):
-        case "frame_id":
+        case "sensor_id":
             return 4
         case "system_clock_id":
             return 3

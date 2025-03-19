@@ -2,7 +2,6 @@ from sync_graph import SyncGraph
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
-from sync_tooling_msgs.frame_id_pb2 import FrameId
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 from sync_tooling_msgs.interface_id_pb2 import InterfaceId
 from sync_tooling_msgs.linux_clock_device_id_pb2 import LinuxClockDeviceId
@@ -10,13 +9,14 @@ from sync_tooling_msgs.phc2sys_update_pb2 import Phc2SysUpdate
 from sync_tooling_msgs.port_id_pb2 import PortId
 from sync_tooling_msgs.ptp_clock_id_pb2 import PtpClockId
 from sync_tooling_msgs.ptp_parent_update_pb2 import PtpParentUpdate
+from sync_tooling_msgs.sensor_id_pb2 import SensorId
 from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 from sync_tooling_msgs.system_clock_id_pb2 import SystemClockId
 
 sample_clock = {
     "system": ClockId(system_clock_id=SystemClockId(hostname="sample")),
     "ptp": ClockId(ptp_clock_id=PtpClockId(id="012345.fffe.6789ab")),
-    "frame": ClockId(frame_id=FrameId(frame="my_frame")),
+    "sensor": ClockId(sensor_id=SensorId(name="my_sensor", ip="192.168.1.201")),
     "iface": ClockId(
         interface_id=InterfaceId(hostname="sample", interface_name="eno1")
     ),
@@ -86,9 +86,9 @@ def test_alias_precedence():
     g = graph_after_updates(*updates)
 
     assert g._graph.number_of_nodes() == 1
-    assert g._graph.has_node(sample_clock["frame"])
+    assert g._graph.has_node(sample_clock["sensor"])
     assert not any(
-        g._graph.has_node(v) for k, v in sample_clock.items() if k != "frame"
+        g._graph.has_node(v) for k, v in sample_clock.items() if k != "sensor"
     )
 
 
