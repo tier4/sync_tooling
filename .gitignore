@@ -1,3 +1,9 @@
+# code analysis reports
+
+ruff.json
+coverage.xml
+pytest-results.xml
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
