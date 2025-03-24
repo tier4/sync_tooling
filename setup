@@ -1,15 +1,4 @@
 #!/usr/bin/bash
 
-if [ "$#" -eq 0 ]
-then
-  echo "Usage: $0 <path/to/inventory.yml>"
-  exit 1
-fi
-
-inventory="$1"
-
 pip install uv
 uv sync --all-packages
-
-ssh-keygen
-grep "ansible_host" "$inventory" | awk '{print $2;}' | xargs -L1 ssh-copy-id

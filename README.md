@@ -19,19 +19,26 @@ The tools currently handle monitoring
 This tool can be installed on remote machines using Ansible.
 First, create an inventory file akin to `ansible/x2gen2.yml` for your network architecture.
 
-To set up dependencies on the host machine and to enable SSH-key-based login on the remote workers, run
+To set up dependencies on the host machine, run
 ```shell
-./setup path/to/inventory.yml
+./setup
 ```
 
 Then, to satisfy dependencies and install worker executables on the worker machines, run
 ```shell
 ./distribute path/to/inventory.yml
-````
+```
+
+> **Note:** If you have not set up SSH key-based authentication from the host to the inventory
+> machines, this script will generate and install SSH keys to all the inventory machines.
+
+> **:warning: Caution:** **Never use password-less SSH keys in any production system!** 
 
 Done :tada:!
 
 ## Manual Installation
+
+This has to be done for every machine that sync tooling should run on.
 
 ### Prerequisites
 
@@ -54,12 +61,11 @@ uv run pytest
 
 ```shell
 # In the `sync_tooling` folder checked out above
-uv run phc2sys-monitor
-uv run ptp4l-monitor
+uv run diag-master 0.0.0.0
 
-# PMC monitor needs to run privileged so that it can communicate with local Unix domain sockets.
+# The diag-worker needs to run privileged so that it can communicate with local Unix domain sockets and read the journal of services running with elevated privileges
 # See notes below.
-sudo uv run pmc-monitor
+sudo uv run diag-worker --ptp4l-units ptp4l@eno1 ptp4l@enp3s0 -- 127.0.0.1
 ```
 
 > **Note:** To run `uv` privileged, it needs to be installed system-wide. If `sudo uv` does not work after a normal `pip install uv`, try `sudo pip install uv`.
