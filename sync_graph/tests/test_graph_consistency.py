@@ -1,41 +1,11 @@
 from sync_graph import SyncGraph
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
-from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
-from sync_tooling_msgs.interface_id_pb2 import InterfaceId
-from sync_tooling_msgs.linux_clock_device_id_pb2 import LinuxClockDeviceId
 from sync_tooling_msgs.phc2sys_update_pb2 import Phc2SysUpdate
 from sync_tooling_msgs.port_id_pb2 import PortId
-from sync_tooling_msgs.ptp_clock_id_pb2 import PtpClockId
 from sync_tooling_msgs.ptp_parent_update_pb2 import PtpParentUpdate
-from sync_tooling_msgs.sensor_id_pb2 import SensorId
 from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
-from sync_tooling_msgs.system_clock_id_pb2 import SystemClockId
-
-sample_clock = {
-    "system": ClockId(system_clock_id=SystemClockId(hostname="sample")),
-    "ptp": ClockId(ptp_clock_id=PtpClockId(id="012345.fffe.6789ab")),
-    "sensor": ClockId(sensor_id=SensorId(name="my_sensor", ip="192.168.1.201")),
-    "iface": ClockId(
-        interface_id=InterfaceId(hostname="sample", interface_name="eno1")
-    ),
-    "device": ClockId(
-        linux_clock_device_id=LinuxClockDeviceId(
-            hostname="sample", clock_device_number=0
-        )
-    ),
-}
-
-nic_clock = {
-    "device": ClockId(
-        linux_clock_device_id=LinuxClockDeviceId(
-            hostname="sample", clock_device_number=3
-        )
-    )
-}
-
-remote_clock = {"ptp": ClockId(ptp_clock_id=PtpClockId(id="010101.fffe.101010"))}
 
 
 def graph_after_updates(*updates: GraphUpdate):
@@ -45,9 +15,9 @@ def graph_after_updates(*updates: GraphUpdate):
     return g
 
 
-def test_clock_creation():
+def test_clock_creation(sample_clock_ids):
     u = GraphUpdate(
-        clock_master_update=ClockMasterUpdate(clock_id=sample_clock["system"])
+        clock_master_update=ClockMasterUpdate(clock_id=sample_clock_ids["system"])
     )
     g = graph_after_updates(u)
 
@@ -55,16 +25,16 @@ def test_clock_creation():
     assert g._graph.number_of_edges() == 0
 
 
-def test_clock_aliases():
+def test_clock_aliases(sample_clock_ids):
     u1 = GraphUpdate(
-        clock_master_update=ClockMasterUpdate(clock_id=sample_clock["system"])
+        clock_master_update=ClockMasterUpdate(clock_id=sample_clock_ids["system"])
     )
     u2 = GraphUpdate(
-        clock_master_update=ClockMasterUpdate(clock_id=sample_clock["ptp"])
+        clock_master_update=ClockMasterUpdate(clock_id=sample_clock_ids["ptp"])
     )
     u3 = GraphUpdate(
         clock_alias_update=ClockAliasUpdate(
-            aliases=[sample_clock["ptp"], sample_clock["system"]]
+            aliases=[sample_clock_ids["ptp"], sample_clock_ids["system"]]
         )
     )
     g = graph_after_updates(u1, u2, u3)
@@ -73,28 +43,28 @@ def test_clock_aliases():
     assert g._graph.number_of_edges() == 0
 
 
-def test_alias_precedence():
+def test_alias_precedence(sample_clock_ids):
     updates: list[GraphUpdate] = [
         GraphUpdate(clock_master_update=ClockMasterUpdate(clock_id=v))
-        for v in sample_clock.values()
+        for v in sample_clock_ids.values()
     ]
     updates.append(
         GraphUpdate(
-            clock_alias_update=ClockAliasUpdate(aliases=list(sample_clock.values()))
+            clock_alias_update=ClockAliasUpdate(aliases=list(sample_clock_ids.values()))
         )
     )
     g = graph_after_updates(*updates)
 
     assert g._graph.number_of_nodes() == 1
-    assert g._graph.has_node(sample_clock["sensor"])
+    assert g._graph.has_node(sample_clock_ids["sensor"])
     assert not any(
-        g._graph.has_node(v) for k, v in sample_clock.items() if k != "sensor"
+        g._graph.has_node(v) for k, v in sample_clock_ids.items() if k != "sensor"
     )
 
 
-def test_ptp_link():
-    src = sample_clock["system"]
-    dst = remote_clock["ptp"]
+def test_ptp_link(sample_clock_ids, remote_clock_ids):
+    src = sample_clock_ids["system"]
+    dst = remote_clock_ids["ptp"]
 
     u = GraphUpdate(
         ptp_parent_update=PtpParentUpdate(
@@ -110,9 +80,9 @@ def test_ptp_link():
     assert g._graph.has_edge(src, dst)
 
 
-def test_phc2sys_link():
-    src = sample_clock["system"]
-    dst = nic_clock["device"]
+def test_phc2sys_link(sample_clock_ids, nic_clock_ids):
+    src = sample_clock_ids["system"]
+    dst = nic_clock_ids["device"]
     u = GraphUpdate(
         phc2sys_update=Phc2SysUpdate(src=src, dst=dst, clock_state=SlaveClockState())
     )
@@ -125,12 +95,12 @@ def test_phc2sys_link():
     assert g._graph.has_edge(src, dst)
 
 
-def test_alias_after_links():
-    src1 = sample_clock["system"]
-    dst1 = nic_clock["device"]
+def test_alias_after_links(sample_clock_ids, nic_clock_ids, remote_clock_ids):
+    src1 = sample_clock_ids["system"]
+    dst1 = nic_clock_ids["device"]
 
-    src2 = sample_clock["ptp"]
-    dst2 = remote_clock["ptp"]
+    src2 = sample_clock_ids["ptp"]
+    dst2 = remote_clock_ids["ptp"]
 
     updates = [
         GraphUpdate(
