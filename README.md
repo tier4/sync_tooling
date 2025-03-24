@@ -1,5 +1,11 @@
 # Synchronization Tool Suite
 
+[![Build and test](https://github.com/tier4/sync_tooling/actions/workflows/build-and-test.yaml/badge.svg)](https://github.com/tier4/sync_tooling/actions/workflows/build-and-test.yaml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=tier4_sync_tooling&metric=alert_status&token=784a45ca7dc24a6bbde7badd4774612ccd458e82)](https://sonarcloud.io/summary/new_code?id=tier4_sync_tooling)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=tier4_sync_tooling&metric=coverage&token=784a45ca7dc24a6bbde7badd4774612ccd458e82)](https://sonarcloud.io/summary/new_code?id=tier4_sync_tooling)
+![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Ftier4%2Fsync_tooling%2Frefs%2Fheads%2Fmain%2Fpyproject.toml%3Ftoken%3DGHSAT0AAAAAAC6B65T22THJU5J6SA2Y6CUMZ7BETVQ)
+
+
 Tools for monitoring and diagnosing time synchronization in a distributed system.
 
 The tools currently handle monitoring
