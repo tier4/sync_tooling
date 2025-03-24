@@ -196,7 +196,7 @@ class SyncGraph:
         }
         combined_status_msg = None
 
-        relabelings = {alias: canonical_id for alias in all_aliases}
+        relabelings = dict.fromkeys(all_aliases, canonical_id)
         self._graph = nx.relabel_nodes(self._graph, relabelings)
 
         _set_node_attr(self._graph, canonical_id, C_PORT_IDS, combined_port_ids)
