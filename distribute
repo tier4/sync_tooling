@@ -8,6 +8,14 @@ fi
 
 inventory="$1"
 
+
+if [ ! -f ~/.ssh/id_rsa.pub ]
+then
+  ssh-keygen
+fi
+
+grep "ansible_host" "$inventory" | awk '{print $2;}' | xargs -L1 ssh-copy-id
+
 uv run pproxy -l http://:7171 &
 pproxy_pid=$!
 uv run ansible-playbook -f10 --ask-become-pass -i "$inventory" ansible/install_workers.yml 
