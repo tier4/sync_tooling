@@ -930,7 +930,7 @@ dependencies = [
     { name = "http-transport" },
     { name = "linuxptp-monitor" },
     { name = "pmc-monitor" },
-    { name = "sync-graph" },
+    { name = "sync-tooling-msgs" },
 ]
 
 [package.metadata]
@@ -939,7 +939,7 @@ requires-dist = [
     { name = "http-transport", editable = "http_transport" },
     { name = "linuxptp-monitor", editable = "linuxptp_monitor" },
     { name = "pmc-monitor", editable = "pmc_monitor" },
-    { name = "sync-graph", editable = "sync_graph" },
+    { name = "sync-tooling-msgs", editable = "sync_tooling_msgs" },
 ]
 
 [[package]]
