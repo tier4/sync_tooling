@@ -1,8 +1,10 @@
 from argparse import REMAINDER, ArgumentParser
 from collections import namedtuple
+from datetime import timedelta
 
 import yaml
 from flask import Flask, jsonify, render_template_string, request
+from networkx import DiGraph
 from werkzeug.serving import WSGIRequestHandler
 
 from diag_master.echarts_adapter import (
@@ -10,18 +12,39 @@ from diag_master.echarts_adapter import (
     sync_graph_to_echart_options,
 )
 from diag_master.ros2_adapter import Ros2Adapter
-from sync_graph import SyncGraph
+from sync_graph.sync_graph import SyncGraph
+from sync_graph.timed_graph_update_queue import TimedGraphUpdateQueue
 from sync_graph.yaml import clock_tree_to_digraph
-from sync_tooling_msgs.clock_id import readable_clock_id
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
-from sync_tooling_msgs.port_id import readable_port_id
 
-Args = namedtuple("Args", ["bind_ip", "bind_port", "reference", "ros", "ros_args"])
+Args = namedtuple(
+    "Args", ["bind_ip", "bind_port", "reference", "ros", "ros_args", "update_expiry_s"]
+)
+
+
+class AppState:
+    def __init__(
+        self,
+        reference_graph: DiGraph | None,
+        ros2_adapter: Ros2Adapter | None,
+        update_expiry: timedelta,
+    ) -> None:
+        self._reference_graph = reference_graph
+        self._ros2_adapter = ros2_adapter
+        self._update_queue = TimedGraphUpdateQueue(update_expiry)
+
+    def update(self, u: GraphUpdate):
+        self._update_queue.push(u)
+
+    @property
+    def sync_graph(self):
+        sg = SyncGraph(self._reference_graph)
+        for u in self._update_queue.updates:
+            sg.update(u)
+        return sg
+
 
 app = Flask("diag_master")
-
-sync_graph = SyncGraph()
-ros2_adapter: Ros2Adapter | None = None
 
 
 @app.route("/")
@@ -31,57 +54,19 @@ def index():
 
 @app.route("/get_graph")
 def get_graph():
-    global sync_graph
-    option = sync_graph_to_echart_options(sync_graph)
+    global app_state
+    option = sync_graph_to_echart_options(app_state.sync_graph)
     return jsonify(option)
 
 
 @app.route("/update_graph", methods=["POST"])
 def update_graph():
+    global app_state
+
     data = request.get_data()
     graph_update = GraphUpdate()
     graph_update.ParseFromString(data)
-    print(f"  {graph_update.WhichOneof('update')}:")
-    match graph_update.WhichOneof("update"):
-        case "clock_alias_update":
-            u = graph_update.clock_alias_update
-            print(f"    {[readable_clock_id(a) for a in u.aliases]}")
-        case "clock_diff_measurement":
-            u = graph_update.clock_diff_measurement
-            print(
-                f"    {readable_clock_id(u.src)}->{readable_clock_id(u.dst)}: {u.diff_ns*1e-6:.3f} ms"
-            )
-        case "clock_master_update":
-            u = graph_update.clock_master_update
-            print(
-                f"    {readable_clock_id(u.clock_id)} has master {readable_clock_id(u.master) if u.master else 'None'}"
-            )
-        # case "phc2sys_status_msg":
-        #     u = graph_update.phc2sys_status_msg
-        #     print(f"    {u.}")
-        case "phc2sys_update":
-            u = graph_update.phc2sys_update
-            print(
-                f"    {readable_clock_id(u.src)}->{readable_clock_id(u.dst)}: {u.clock_state}"
-            )
-        case "port_state_update":
-            u = graph_update.port_state_update
-            print(f"    {readable_port_id(u.port_id)}: {u.port_state}")
-        # case "ptp4l_port_status_msg":
-        #     u = graph_update.ptp4l_port_status_msg
-        #     print(f"    {u.}")
-        # case "ptp4l_status_msg":
-        #     u = graph_update.ptp4l_status_msg
-        #     print(f"    {u.}")
-        case "ptp_parent_update":
-            u = graph_update.ptp_parent_update
-            print(
-                f"    {readable_clock_id(u.clock_id)} has parent {readable_port_id(u.parent)}"
-            )
-        case _:
-            pass
-
-    sync_graph.update(graph_update)
+    app_state.update(graph_update)
     return {}
 
 
@@ -89,6 +74,14 @@ def parse_args() -> Args:
     parser = ArgumentParser()
     parser.add_argument("bind_ip")
     parser.add_argument("--bind_port", "-p", type=int, default=16161)
+    parser.add_argument(
+        "--update-expiry-s",
+        "-e",
+        type=int,
+        default=2,
+        help="After how many seconds a received graph update is removed from the graph.",
+    )
+    parser.add_argument("--instrument", action="store_true")
     parser.add_argument(
         "--reference", "-r", help="Reference synchronization graph in YAML format."
     )
@@ -112,21 +105,22 @@ def parse_reference_graph(reference_path: str):
     return clock_tree_to_digraph(yaml_data["clock_tree"])
 
 
-def main():
-    global sync_graph
-    global ros2_adapter
-
-    args = parse_args()
-
-    if args.reference:
-        reference_graph = parse_reference_graph(args.reference)
-        sync_graph = SyncGraph(reference_graph)
+def initial_state_from_args(args: Args):
+    reference_graph = parse_reference_graph(args.reference) if args.reference else None
 
     ros_enabled: bool = args.ros or bool(args.ros_args)
-    if ros_enabled:
-        from diag_master.ros2_adapter import Ros2Adapter
+    ros2_adapter = Ros2Adapter(args.ros_args or []) if ros_enabled else None
 
-        ros2_adapter = Ros2Adapter(args.ros_args or [])
+    update_expiry = timedelta(seconds=args.update_expiry_s)
+
+    return AppState(reference_graph, ros2_adapter, update_expiry)
+
+
+def main():
+    global app_state
+
+    args = parse_args()
+    app_state = initial_state_from_args(args)
 
     # This enables HTTP keep-alive, see
     # https://stackoverflow.com/questions/10523879/how-to-make-flask-keep-ajax-http-connection-alive
