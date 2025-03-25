@@ -12,5 +12,9 @@
   ],
   "python.analysis.typeCheckingMode": "standard",
   "ansible.python.interpreterPath": "${workspaceFolder}/.venv/bin/python",
-  "ros.distro": "humble"
+  "ros.distro": "humble",
+  "sonarlint.connectedMode.project": {
+    "connectionId": "tier4",
+    "projectKey": "tier4_sync_tooling"
+  }
 }
