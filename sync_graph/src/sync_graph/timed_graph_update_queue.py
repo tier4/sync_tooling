@@ -19,7 +19,7 @@ class TimedGraphUpdateQueue:
     @property
     def updates(self):
         self._drop_expired_updates()
-        return self._graph_updates
+        return (update_stamped.u for update_stamped in self._graph_updates)
 
     def push(self, u: GraphUpdate):
         update_stamped = GraphUpdateStamped(datetime.now(), u)
