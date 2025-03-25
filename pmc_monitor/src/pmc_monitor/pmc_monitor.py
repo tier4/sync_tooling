@@ -58,7 +58,7 @@ class PmcMonitor:
     )
 
     def __init__(
-        self, pmc_args: List[str], logger: Logger | None = None, max_wait_s: float = 0.5
+        self, pmc_args: List[str], logger: Logger | None = None, max_wait_s: float = 0.1
     ):
         pmc = shutil.which("pmc")
         if pmc is None:
