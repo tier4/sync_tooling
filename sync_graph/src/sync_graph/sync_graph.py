@@ -7,10 +7,11 @@ import networkx as nx
 
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_diff_measurement_pb2 import ClockDiffMeasurement
+from sync_tooling_msgs.clock_id import readable_clock_id
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.diag_status_pb2 import DiagStatus
-from sync_tooling_msgs.diag_tree import to_diag_tree
+from sync_tooling_msgs.diag_tree import aggregate, to_diag_tree
 from sync_tooling_msgs.diag_tree_pb2 import DiagTree
 from sync_tooling_msgs.error_pb2 import Error
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
@@ -26,6 +27,7 @@ from sync_tooling_msgs.ptp_parent_update_pb2 import PtpParentUpdate
 from sync_tooling_msgs.servo_state import diagnose_servo_state
 from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 from sync_tooling_msgs.unknown_pb2 import Unknown
+from sync_tooling_msgs.warning_pb2 import Warning
 
 
 def readability_score(clock_id: ClockId):
@@ -407,7 +409,20 @@ class SyncGraph:
             error=Error(msg="Not all clocks are reachable from the grandmaster")
         )
 
-    def _diagnose_if_clocks_match_reference(self) -> dict[str, DiagStatus]:
+    def _diagnose_if_clocks_match_reference(self) -> DiagStatus:
+        """
+        Compare the current graph to its reference graph (if any).
+
+        Resulting status:
+        - No reference given: Ok
+        - All reference clocks and no other clocks present: Ok
+        - All reference clocks and unexpected clocks present: Warning
+        - Not all reference clocks present: Error
+
+        Returns:
+            DiagStatus: The result of the comparison
+        """
+
         if not self.reference_graph:
             return DiagStatus(ok=Ok(msg="No reference graph present"))
 
@@ -417,15 +432,94 @@ class SyncGraph:
         missing_clocks = expected_clocks - found_clocks
         rogue_clocks = found_clocks - expected_clocks
 
+        statuses = []
+
         if missing_clocks:
-            msg = f"{len(missing_clocks)} are not present: {', '.join(map(str, missing_clocks))}"
-            return DiagStatus(error=Error(msg=msg))
+            msg = f"{len(missing_clocks)} clocks are not present: {', '.join(map(readable_clock_id, missing_clocks))}"
+            statuses.append(DiagStatus(error=Error(msg=msg)))
 
         if rogue_clocks:
-            msg = f"{len(rogue_clocks)}"
+            msg = f"{len(rogue_clocks)} unexpected clocks found: {', '.join(map(readable_clock_id, rogue_clocks))}"
+            statuses.append(DiagStatus(warning=Warning(msg=msg)))
+
+        if statuses:
+            return aggregate(to_diag_tree(statuses))
 
         return DiagStatus(
             ok=Ok(msg=f"All {len(self.reference_graph.nodes)} clocks are present")
+        )
+
+    def _diagnose_if_links_match_reference(self) -> DiagStatus:
+        """
+        Compare the links in the current graph to its reference graph (if any).
+
+        Since some devices do not report their direct parent directly, this check also succeeds if
+        transitive parents in the reference are reported to have a master / measurement link in the
+        current graph.
+
+        For example, a reference
+        ```
+        A -> B
+        B -> C
+        ```
+        and the current graph
+        ```
+        A -(master)-> B
+        A -(measurement)-> C
+        ```
+        would result in a successful check.
+
+
+        Resulting status:
+        - No reference given: Ok
+        - All non-grandmaster clocks have a link from their (indirect) parent: Ok
+        - Some clocks do not have a link from any of their (indirect) parents: Error
+
+        Returns:
+            DiagStatus: The result of the comparison
+        """
+
+        if not self.reference_graph:
+            return DiagStatus(ok=Ok(msg="No reference graph present"))
+
+        missing_links: list[tuple[ClockId, ClockId]] = []
+        for n in self.reference_graph.nodes:
+            ancestors = nx.ancestors(self.reference_graph, n)
+
+            # Reference graph is guaranteed to be a tree, so the only node without ancestors
+            # is the grandmaster (root node)
+            if not ancestors:
+                continue
+
+            ancestors = map(self.get_canonical_clock_id, ancestors)
+
+            clock_id = self.get_canonical_clock_id(n)
+
+            # If none of the (indirect) parents in the reference have an edge to the clock in the
+            # real graph, flag the edge as missing
+            if not any((a, clock_id) in self._graph.edges for a in ancestors):
+                reference_parent: ClockId | None = next(
+                    self.reference_graph.predecessors(n), None
+                )
+                if reference_parent is None:
+                    raise AssertionError(
+                        "A non-root node in a tree has to have one parent"
+                    )
+                reference_parent = self.get_canonical_clock_id(reference_parent)
+                missing_links.append((n, reference_parent))
+
+        if missing_links:
+            readable_links = [
+                f"{readable_clock_id(parent)} -> {readable_clock_id(clock)}"
+                for clock, parent in missing_links
+            ]
+            msg = f"The following links were not found: {', '.join(readable_links)}"
+            return DiagStatus(error=Error(msg=msg))
+
+        return DiagStatus(
+            ok=Ok(
+                msg=f"All {len(self.reference_graph.nodes)} have links compliant with reference"
+            )
         )
 
     def diagnose_graph(self) -> DiagTree:
@@ -436,14 +530,7 @@ class SyncGraph:
         }
 
         if self.reference_graph:
-            diagnostics["clocks_match_reference"] = (
-                self._diagnose_if_clocks_match_reference()
-            )
-            diagnostics["links_match_reference"] = (
-                self._diagnose_if_links_match_reference()
-            )
+            diagnostics["reference.clocks"] = self._diagnose_if_clocks_match_reference()
+            diagnostics["reference.links"] = self._diagnose_if_links_match_reference()
 
         return to_diag_tree(diagnostics)
-
-    def diagnose_against_reference(self) -> DiagTree:
-        pass
