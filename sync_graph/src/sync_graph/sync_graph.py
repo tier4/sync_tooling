@@ -407,11 +407,43 @@ class SyncGraph:
             error=Error(msg="Not all clocks are reachable from the grandmaster")
         )
 
-    def diagnose_graph(self) -> DiagTree:
-        return to_diag_tree(
-            {
-                "reachability": self._diagnose_reachability(),
-                "acyclicity": self._diagnose_cycles(),
-                "grandmaster": self._diagnose_grandmaster(),
-            }
+    def _diagnose_if_clocks_match_reference(self) -> dict[str, DiagStatus]:
+        if not self.reference_graph:
+            return DiagStatus(ok=Ok(msg="No reference graph present"))
+
+        expected_clocks: set[ClockId] = set(self.reference_graph.nodes)
+        found_clocks: set[ClockId] = set(self._graph.nodes)
+
+        missing_clocks = expected_clocks - found_clocks
+        rogue_clocks = found_clocks - expected_clocks
+
+        if missing_clocks:
+            msg = f"{len(missing_clocks)} are not present: {', '.join(map(str, missing_clocks))}"
+            return DiagStatus(error=Error(msg=msg))
+
+        if rogue_clocks:
+            msg = f"{len(rogue_clocks)}"
+
+        return DiagStatus(
+            ok=Ok(msg=f"All {len(self.reference_graph.nodes)} clocks are present")
         )
+
+    def diagnose_graph(self) -> DiagTree:
+        diagnostics = {
+            "reachability": self._diagnose_reachability(),
+            "acyclicity": self._diagnose_cycles(),
+            "grandmaster": self._diagnose_grandmaster(),
+        }
+
+        if self.reference_graph:
+            diagnostics["clocks_match_reference"] = (
+                self._diagnose_if_clocks_match_reference()
+            )
+            diagnostics["links_match_reference"] = (
+                self._diagnose_if_links_match_reference()
+            )
+
+        return to_diag_tree(diagnostics)
+
+    def diagnose_against_reference(self) -> DiagTree:
+        pass
