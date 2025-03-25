@@ -9,6 +9,9 @@ from typing import Any
 
 from pmc_monitor.pmc_protocol import Message
 
+hex_float_re = re.compile(r"[+-]?0x[\da-fA-F]+\.[\da-fA-F]+$")
+hex_int_re = re.compile(r"[+-]?0x[\da-fA-F]+$")
+
 
 def indent(msg: str, level: int):
     return f"{'  ' * level}{msg}"
@@ -38,7 +41,6 @@ def abbreviate(text: str):
 
 
 def parse_float(string: str):
-    hex_float_re = r"[+-]?0x[\da-fA-F]+\.[\da-fA-F]+$"
     if re.match(hex_float_re, string):
         return Some(float.fromhex(string)), ""
 
@@ -51,7 +53,6 @@ def parse_float(string: str):
 
 
 def parse_int(string: str):
-    hex_int_re = r"[+-]?0x[\da-fA-F]+$"
     if re.match(hex_int_re, string):
         return Some(int(string, 16)), ""
 
