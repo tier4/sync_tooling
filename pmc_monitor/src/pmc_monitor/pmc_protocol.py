@@ -39,12 +39,12 @@ def regex_from_tlv(cls: T) -> T:
     fields = dataclasses.fields(cls)
     field_names = [f.name for f in fields]
 
-    cls.regex = tlv_type + multiline_regex_from_keys(field_names)  # type: ignore
+    cls.regex = re.compile(tlv_type + multiline_regex_from_keys(field_names))  # type: ignore
     return cls
 
 
 def regex_from_tlv_union(union: UnionType) -> str:
-    regexes = []
+    regexes: list[re.Pattern[str]] = []
 
     types = typing.get_args(union)
     for typ in types:
@@ -52,14 +52,14 @@ def regex_from_tlv_union(union: UnionType) -> str:
             raise KeyError(f"Type {typ} does not have a regex attribute")
         regexes.append(typ.regex)
 
-    combined_regex = "|".join(f"(?:{regex})" for regex in regexes)
-    combined_regex = re.sub(r"\?P<.*?>", "?:", combined_regex)
+    combined_regex = "|".join(f"(?:{regex.pattern})" for regex in regexes)
+    combined_regex = re.sub(r"\?P<[^>]+>", "?:", combined_regex)
     return combined_regex
 
 
 @dataclass
 class PortIdentity:
-    regex = r"(?P<clock_id>[\da-f\.]+)-(?P<port_number>\d+)"
+    regex = re.compile(r"(?P<clock_id>[\da-f\.]+)-(?P<port_number>\d+)")
     clock_id: str
     port_number: int
 
@@ -425,13 +425,13 @@ class LogMinPdelayReqInterval:
 @dataclass
 class Empty:
     tlv_type = "EMPTY"
-    regex = r"empty-tlv\s*?(\n|$)"
+    regex = re.compile(r"empty-tlv\s*(\n|$)")
 
 
 @dataclass
 class NullManagement:
     tlv_type = "NULL_MANAGEMENT"
-    regex = r"\s*?(\n|$)"
+    regex = re.compile(r"\s*(\n|$)")
 
 
 ManagementTlvPayload = (
@@ -477,7 +477,7 @@ ManagementTlvPayload = (
 
 @dataclass
 class ManagementTlv:
-    regex = (
+    regex = re.compile(
         r"MANAGEMENT\s+(?P<payload>" + regex_from_tlv_union(ManagementTlvPayload) + ")"
     )
     payload: ManagementTlvPayload
@@ -485,12 +485,12 @@ class ManagementTlv:
 
 @dataclass
 class ManagementErrorStatusTlv:
-    regex = r"MANAGEMENT_ERROR_STATUS\s*?(\n|$)"
+    regex = re.compile(r"MANAGEMENT_ERROR_STATUS\s*(\n|$)")
 
 
 @dataclass
 class UnknownTlv:
-    regex = r"unknown-tlv\s*?(\n|$)"
+    regex = re.compile(r"unknown-tlv\s*(\n|$)")
 
 
 ResponseTlvPayload = ManagementTlv | ManagementErrorStatusTlv | UnknownTlv
@@ -498,7 +498,7 @@ ResponseTlvPayload = ManagementTlv | ManagementErrorStatusTlv | UnknownTlv
 
 @dataclass
 class Response:
-    regex = (
+    regex = re.compile(
         r"\s+(?P<source_port>[\da-f\.-]+)\s+seq\s+(?P<seq>\d+)\s+(?P<action>\w+)\s*?(?P<tlv>"
         + regex_from_tlv_union(ResponseTlvPayload)
         + r")"
@@ -512,7 +512,7 @@ class Response:
 
 @dataclass
 class Request:
-    regex = r"\s*sending: (?P<action>\w+)\s+(?P<tlv_type>\w+)\s*\n"
+    regex = re.compile(r"\s*sending: (?P<action>\w+)\s+(?P<tlv_type>\w+)\s*\n")
     action: str
     tlv_type: str
 
