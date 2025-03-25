@@ -6,8 +6,9 @@ from linuxptp_monitor.state_machine import (
     SystemdUnitStateChange,
     SystemdUnitStateMachine,
 )
-from sync_graph import ClockMasterUpdate, Phc2SysUpdate
+from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
+from sync_tooling_msgs.phc2sys_update_pb2 import Phc2SysUpdate
 
 
 class Phc2SysMonitorTask(MonitorTask):
