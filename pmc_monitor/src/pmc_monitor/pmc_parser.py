@@ -167,14 +167,11 @@ def parse(text: str, logger: logging.Logger | None = None):
                 outputs.append(x)
                 rest = remainder
                 logger.debug(f"parsing {type(x)} succeeded")
-            case ParseError() as e:
-                raise RuntimeError(
-                    "parsing failed:\n"
-                    f"  last parsed: {outputs[-1] if outputs else None}\n"
-                    f"  parse tree: {e.trace}\n"
-                    f"  with text: '{rest}'\n"
-                    f"  remainder: '{e.rest}'\n"
-                    f"  original text: '{text}'\n"
-                )
+            case ParseError():
+                try:
+                    next_linebreak = rest.index("\n")
+                    rest = rest[next_linebreak + 1 :]
+                except ValueError:
+                    rest = ""
 
     return outputs
