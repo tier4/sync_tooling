@@ -5,6 +5,7 @@ import pytest
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.interface_id_pb2 import InterfaceId
 from sync_tooling_msgs.linux_clock_device_id_pb2 import LinuxClockDeviceId
+from sync_tooling_msgs.port_id_pb2 import PortId
 from sync_tooling_msgs.ptp_clock_id_pb2 import PtpClockId
 from sync_tooling_msgs.sensor_id_pb2 import SensorId
 from sync_tooling_msgs.system_clock_id_pb2 import SystemClockId
@@ -38,6 +39,11 @@ def nic_clock_ids() -> dict[Literal["device"], ClockId]:
             )
         )
     }
+
+
+@pytest.fixture
+def nic_port_id(nic_clock_ids):
+    return PortId(clock_id=nic_clock_ids["device"], port_number=0, ptp_domain=1)
 
 
 @pytest.fixture
