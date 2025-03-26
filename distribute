@@ -14,7 +14,13 @@ then
   ssh-keygen
 fi
 
-grep "ansible_host" "$inventory" | awk '{print $2;}' | xargs -L1 ssh-copy-id
+function copy_id_if_online() {
+  local ip="$1"
+  ping -c1 -W1 "$ip" > /dev/null && ssh-copy-id "$ip" || echo "$ip is unreachable, skipping."
+}
+
+export -f copy_id_if_online
+grep "ansible_host" "$inventory" | awk '{print $2;}' | xargs -L1 -I {} bash -c 'copy_id_if_online "{}"'
 
 uv run pproxy -l http://:7171 &
 pproxy_pid=$!
