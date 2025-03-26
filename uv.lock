@@ -908,6 +908,7 @@ dependencies = [
     { name = "flask" },
     { name = "flask-api" },
     { name = "http-transport" },
+    { name = "pyyaml" },
     { name = "sync-graph" },
     { name = "sync-tooling-msgs" },
 ]
@@ -917,6 +918,7 @@ requires-dist = [
     { name = "flask", specifier = ">=3.1.0" },
     { name = "flask-api", specifier = ">=3.1" },
     { name = "http-transport", editable = "http_transport" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "sync-graph", editable = "sync_graph" },
     { name = "sync-tooling-msgs", editable = "sync_tooling_msgs" },
 ]
