@@ -20,7 +20,17 @@ class TimedGraphUpdateQueue:
     @property
     def updates(self):
         self._drop_expired_updates()
-        return (update_stamped.u for update_stamped in self._graph_updates)
+
+        def get_type_precedence(u: GraphUpdate):
+            match u.WhichOneof("update"):
+                case "clock_alias_update":
+                    return 0
+                case "ptp_parent_update":
+                    return 1
+                case _:
+                    return 1000
+
+        return sorted((update_stamped.u for update_stamped in self._graph_updates), key=get_type_precedence)
 
     def push(self, u: GraphUpdate):
         update_stamped = GraphUpdateStamped(time.monotonic(), u)
