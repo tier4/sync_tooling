@@ -10,7 +10,7 @@ from linuxptp_monitor.state_machine import (
     SystemdUnitStateMachine,
 )
 from pmc_monitor.pmc_monitor import PmcMonitor, PmcStateChange
-from pmc_monitor.pmc_protocol import ParentDataSet
+from pmc_monitor.pmc_protocol import CurrentDataSet, ParentDataSet
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
@@ -107,12 +107,17 @@ class Ptp4lMonitorTask(MonitorTask):
 
         if isinstance(inst.parent_ds, ParentDataSet):
             pds = inst.parent_ds
-            yield GraphUpdate(
-                clock_master_update=ClockMasterUpdate(
-                    clock_id=clock_id,
-                    master=ClockId(ptp_clock_id=PtpClockId(id=pds.grandmasterIdentity)),
+
+            if isinstance(inst.current_ds, CurrentDataSet):
+                yield GraphUpdate(
+                    clock_master_update=ClockMasterUpdate(
+                        clock_id=clock_id,
+                        master=ClockId(
+                            ptp_clock_id=PtpClockId(id=pds.grandmasterIdentity)
+                        ),
+                        master_offset_ns=int(inst.current_ds.offsetFromMaster),
+                    )
                 )
-            )
 
             parent_clock_id = pds.parentPortIdentity.clock_id
             parent_port_num = pds.parentPortIdentity.port_number
