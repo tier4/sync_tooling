@@ -95,6 +95,7 @@ class SyncGraph:
     )
 
     def get_canonical_clock_id(self, clock_id: ClockId) -> ClockId:
+        assert clock_id is not None
         if clock_id not in self._known_aliases:
             return clock_id
         return get_most_human_readable_alias(self._known_aliases[clock_id])
@@ -275,6 +276,7 @@ class SyncGraph:
                 if key == L_PHC2SYS
             ]
             self._graph.remove_edges_from(outdated_edges)
+            return
 
         src = self.get_or_create_clock(u.src)
         self._graph.add_edge(src, dst, L_PHC2SYS, **{L_METADATA: u.clock_state})
