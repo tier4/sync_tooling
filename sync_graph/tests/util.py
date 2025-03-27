@@ -3,16 +3,21 @@ from typing import Literal
 from sync_graph.sync_graph import SyncGraph
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_diff_measurement_pb2 import ClockDiffMeasurement
+from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.diag_tree import aggregate
 from sync_tooling_msgs.diag_tree_pb2 import DiagTree
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 from sync_tooling_msgs.phc2sys_status_message_pb2 import Phc2SysStatusMessage
 from sync_tooling_msgs.phc2sys_update_pb2 import Phc2SysUpdate
+from sync_tooling_msgs.port_id_pb2 import PortId
+from sync_tooling_msgs.port_state_pb2 import PortState
 from sync_tooling_msgs.port_state_update_pb2 import PortStateUpdate
 from sync_tooling_msgs.ptp4l_port_status_message_pb2 import Ptp4lPortStatusMessage
 from sync_tooling_msgs.ptp4l_status_message_pb2 import Ptp4lStatusMessage
 from sync_tooling_msgs.ptp_parent_update_pb2 import PtpParentUpdate
+from sync_tooling_msgs.servo_state_pb2 import ServoState
+from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 
 
 def _gu(u):
@@ -41,8 +46,35 @@ def graph_after_updates(*updates: GraphUpdate):
     return g
 
 
+def make_phc2sys_link(src: ClockId, dst: ClockId, faulty: bool):
+    link_state = (
+        SlaveClockState(servo_state=ServoState.SERVO_UNLOCKED)
+        if faulty
+        else SlaveClockState(servo_state=ServoState.SERVO_LOCKED)
+    )
+    return _gu(Phc2SysUpdate(src=src, dst=dst, clock_state=link_state))
+
+
+def make_ptp_link(src_port: PortId, dst: ClockId, faulty: bool):
+    port_state = PortState.PS_FAULTY if faulty else PortState.PS_MASTER
+    u_port_state = _gu(PortStateUpdate(port_id=src_port, port_state=port_state))
+    u_parent = _gu(PtpParentUpdate(clock_id=dst, parent=src_port))
+    return [u_port_state, u_parent]
+
+
+def make_measurement(src: ClockId, dst: ClockId, faulty: bool):
+    diff_ns = 1_000_000_000 if faulty else 0
+    return _gu(ClockDiffMeasurement(src=src, dst=dst, diff_ns=diff_ns))
+
+
+def make_master_link(src: ClockId, dst: ClockId, faulty: bool):
+    offset_ns = 1_000_000_000 if faulty else 0
+    return _gu(ClockMasterUpdate(clock_id=dst, master=src, master_offset_ns=offset_ns))
+
+
 def assert_aggregated_status(
-    diag_tree: DiagTree, status: Literal["ok", "warning", "error", "unknown", None]
+    diag_tree: DiagTree,
+    status: Literal["ok", "warning", "error", "unknown", None] | str,
 ):
     diag_status = aggregate(diag_tree)
     assert (
