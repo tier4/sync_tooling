@@ -6,7 +6,6 @@ from linuxptp_monitor.state_machine import (
     SystemdUnitStateChange,
     SystemdUnitStateMachine,
 )
-from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 from sync_tooling_msgs.phc2sys_update_pb2 import Phc2SysUpdate
 
@@ -47,17 +46,10 @@ class Phc2SysMonitorTask(MonitorTask):
         match (state_change.old_state, state_change.new_state):
             case (Uninitialized(), Uninitialized()):
                 raise AssertionError()
-            case (old, Phc2SysRunningState() as s):
-                is_init = isinstance(old, Uninitialized)
+            case (_, Phc2SysRunningState() as s):
                 src_id = s.config.source_clock
 
                 for dst_id, state in s.dst_clock_states.items():
-                    if is_init:
-                        yield GraphUpdate(
-                            clock_master_update=ClockMasterUpdate(
-                                clock_id=dst_id, master=src_id
-                            )
-                        )
                     yield GraphUpdate(
                         phc2sys_update=Phc2SysUpdate(
                             src=src_id,
