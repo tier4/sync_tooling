@@ -1,5 +1,3 @@
-from typing import Literal
-
 from sync_graph.sync_graph import SyncGraph
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_diff_measurement_pb2 import ClockDiffMeasurement
@@ -72,11 +70,6 @@ def make_master_link(src: ClockId, dst: ClockId, faulty: bool):
     return _gu(ClockMasterUpdate(clock_id=dst, master=src, master_offset_ns=offset_ns))
 
 
-def assert_aggregated_status(
-    diag_tree: DiagTree,
-    status: Literal["ok", "warning", "error", "unknown", None] | str,
-):
+def aggregated_status_label(diag_tree: DiagTree):
     diag_status = aggregate(diag_tree)
-    assert (
-        diag_status.WhichOneof("status") == status
-    ), f"Expected {status}, got {diag_status.WhichOneof('status')}"
+    return diag_status.WhichOneof("status")
