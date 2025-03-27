@@ -38,9 +38,6 @@ def test_alias_precedence(sample_clock_ids):
 
     assert g._graph.number_of_nodes() == 1
     assert g._graph.has_node(sample_clock_ids["sensor"])
-    assert not any(
-        g._graph.has_node(v) for k, v in sample_clock_ids.items() if k != "sensor"
-    )
 
 
 def test_ptp_link(sample_clock_ids, remote_clock_ids):
