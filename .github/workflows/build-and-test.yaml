@@ -37,9 +37,11 @@ jobs:
           uvx ruff check --output-format=github .;
           uvx ruff check --output-file=ruff.json --output-format=json .
       - name: Test with pytest
+        if: success() || failure()
         run: |
           uv run pytest --cov --cov-report=xml --junit-xml=pytest-results.xml
       - name: SonarQube Scan
+        if: success() || failure()
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
