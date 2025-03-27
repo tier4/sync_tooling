@@ -232,6 +232,7 @@ class SyncGraph:
             self._graph.remove_edges_from(outdated_edges)
             return
 
+        # Port number 0 is reserved for internal PTP mechanisms, discard it
         if u.parent.port_number == 0:
             return
 
@@ -251,8 +252,11 @@ class SyncGraph:
         )
 
     def update_ptp_port_state(self, u: PortStateUpdate):
+        # Port 0 is reserved for internal PTP instance mechanisms.
+        # Keeping track of it has no particular use, so discard it
         if u.port_id.port_number == 0:
             return
+
         canonical_id = self.get_or_create_port(u.port_id)
 
         if canonical_id not in self._ports:
