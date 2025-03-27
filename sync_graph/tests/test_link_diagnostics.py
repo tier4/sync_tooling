@@ -1,7 +1,7 @@
 import pytest
 
 from .util import (
-    assert_aggregated_status,
+    aggregated_status_label,
     graph_after_updates,
     make_master_link,
     make_measurement,
@@ -15,6 +15,15 @@ from .util import (
 def test_link_diagnostics(
     nic_port_id, sample_clock_ids, is_faulty, expected_status, link_type
 ):
+    """
+    Test diagnostics for known-ok and known-faulty links.
+
+    The status of the source clock shall be unaffected by any faults, while the status of the destination clock
+    shall inherit the aggregated status of the link itself and the source clock's status.
+
+    Here, the source ok is always okay, so the destination clock status shall be equal to the link status.
+    """
+
     src_port = nic_port_id
     src = src_port.clock_id
     dst = sample_clock_ids["system"]
@@ -32,5 +41,9 @@ def test_link_diagnostics(
             raise AssertionError()
 
     g = graph_after_updates(*us)
-    diag_tree = g.diagnose_link(src, dst)
-    assert_aggregated_status(diag_tree, expected_status)
+    link_diag = g.diagnose_link(src, dst)
+    assert aggregated_status_label(link_diag) == expected_status
+    dst_diag = g.diagnose_clock(dst)
+    assert aggregated_status_label(dst_diag) == expected_status
+    src_diag = g.diagnose_clock(src)
+    assert aggregated_status_label(src_diag) == "ok"
