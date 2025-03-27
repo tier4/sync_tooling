@@ -43,7 +43,7 @@ def nic_clock_ids() -> dict[Literal["device"], ClockId]:
 
 @pytest.fixture
 def nic_port_id(nic_clock_ids):
-    return PortId(clock_id=nic_clock_ids["device"], port_number=0, ptp_domain=1)
+    return PortId(clock_id=nic_clock_ids["device"], port_number=1, ptp_domain=1)
 
 
 @pytest.fixture

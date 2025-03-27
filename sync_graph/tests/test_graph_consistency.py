@@ -3,6 +3,8 @@ from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 from sync_tooling_msgs.phc2sys_update_pb2 import Phc2SysUpdate
 from sync_tooling_msgs.port_id_pb2 import PortId
+from sync_tooling_msgs.port_state_pb2 import PortState
+from sync_tooling_msgs.port_state_update_pb2 import PortStateUpdate
 from sync_tooling_msgs.ptp_parent_update_pb2 import PtpParentUpdate
 from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 
@@ -10,6 +12,7 @@ from .util import _gu, graph_after_updates
 
 
 def test_clock_creation(sample_clock_ids):
+    # A graph containing only a single clock without a master or parent
     u = _gu(ClockMasterUpdate(clock_id=sample_clock_ids["system"]))
     g = graph_after_updates(u)
 
@@ -18,6 +21,7 @@ def test_clock_creation(sample_clock_ids):
 
 
 def test_clock_aliases(sample_clock_ids):
+    # A graph containing only a single clock without a master or parent, but two aliases
     u1 = _gu(ClockMasterUpdate(clock_id=sample_clock_ids["system"]))
     u2 = _gu(ClockMasterUpdate(clock_id=sample_clock_ids["ptp"]))
     u3 = _gu(
@@ -90,3 +94,45 @@ def test_alias_after_links(sample_clock_ids, nic_clock_ids, remote_clock_ids):
     # Alias system clock takes precedence over alias PTP, thus making src1 the replacement for src2
     assert g._graph.has_edge(src1, dst1)
     assert g._graph.has_edge(src1, dst2)
+
+
+def test_clocks_referenced_in_updates_created(
+    sample_clock_ids, nic_clock_ids, nic_port_id
+):
+    """
+    Any clock referenced in a valid graph update shall be created if not existent in the graph.
+    """
+
+    src = nic_clock_ids["device"]
+    src_port = nic_port_id
+
+    dst = sample_clock_ids["sensor"]
+
+    u_clock_without_master = _gu(ClockMasterUpdate(clock_id=dst))
+    u_clock_with_master = _gu(ClockMasterUpdate(clock_id=dst, master=src))
+    u_parent_without_port = _gu(PtpParentUpdate(clock_id=dst))
+    u_parent_with_port = _gu(PtpParentUpdate(clock_id=dst, parent=src_port))
+    u_alias = _gu(ClockAliasUpdate(aliases=sample_clock_ids.values()))
+    u_port_state = _gu(
+        PortStateUpdate(port_id=src_port, port_state=PortState.PS_MASTER)
+    )
+    u_phc2sys_without_src = _gu(Phc2SysUpdate(dst=dst))
+    u_phc2sys_with_src = _gu(Phc2SysUpdate(src=src, dst=dst))
+
+    expectations = [
+        (u_clock_without_master, [dst]),
+        (u_clock_with_master, [src, dst]),
+        (u_parent_without_port, [dst]),
+        (u_parent_with_port, [src, dst]),
+        (u_alias, [dst]),
+        (u_port_state, [src]),
+        (u_phc2sys_without_src, [dst]),
+        (u_phc2sys_with_src, [src, dst]),
+    ]
+
+    for update, expected_clocks in expectations:
+        g = graph_after_updates(update)
+        expected_clocks = set(expected_clocks)
+        actual_clocks = set(g._graph.nodes)
+
+        assert expected_clocks == actual_clocks, f"Unexpected result for {update}"
