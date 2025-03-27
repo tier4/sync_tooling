@@ -30,7 +30,10 @@ class TimedGraphUpdateQueue:
                 case _:
                     return 1000
 
-        return sorted((update_stamped.u for update_stamped in self._graph_updates), key=get_type_precedence)
+        return sorted(
+            (update_stamped.u for update_stamped in self._graph_updates),
+            key=get_type_precedence,
+        )
 
     def push(self, u: GraphUpdate):
         update_stamped = GraphUpdateStamped(time.monotonic(), u)
