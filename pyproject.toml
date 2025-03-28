@@ -11,7 +11,10 @@ dev = [
     "ansible-dev-tools>=24.12.0",
     "ansible-lint>=6.8.7",
     "mkdocs>=1.6.1",
+    "mkdocs-api-autonav>=0.2.1",
     "mkdocs-material>=9.6.9",
+    "mkdocs-section-index>=0.3.9",
+    "mkdocstrings[python]>=0.29.0",
     "pproxy>=2.7.9",
     "pyinstrument>=5.0.1",
     "pytest-cov>=6.0.0",
@@ -28,6 +31,7 @@ pmc_monitor = { workspace = true }
 diag_worker = { workspace = true }
 diag_master = { workspace = true }
 sync_graph = { workspace = true }
+http_transport = { workspace = true }
 sync_tooling_msgs = { workspace = true }
 
 [tool.uv.workspace]
