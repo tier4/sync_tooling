@@ -178,11 +178,13 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
             case "measurement", int() as time_diff_ns:
                 link_labels.append("Measurement")
                 extended_description.append(f"Time offset: {time_diff_ns / 1e3:.0f} µs")
-            case "master", None:
+            case "master", int() as master_offset_ns:
                 link_labels.append("Master")
+                extended_description.append(
+                    f"PTP Master offset: {master_offset_ns / 1e3:.0f} µs"
+                )
             case _:
                 logging.error(f"{type} {metadata}")
-                continue
 
     diag = sg.diagnose_link(src, dst) or NOT_RECEIVED_DIAG
     status = aggregate(diag)

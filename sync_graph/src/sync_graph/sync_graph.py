@@ -59,9 +59,7 @@ def diagnose_clock_diff(time_diff_ns: int):
 C_STATUS_MSG = "status_msg"
 C_PORT_IDS = "port_ids"
 
-L_METADATA = "metadata"
-L_TIME_DIFF = "time_diff"
-L_STATUS_MSG = "status_msg"
+METADATA = "metadata"
 
 L_MASTER = "master"
 L_PTP_PARENT = "ptp_parent"
@@ -167,7 +165,9 @@ class SyncGraph:
             return
 
         master_id = self.get_or_create_clock(u.master)
-        self._graph.add_edge(master_id, clock_id, L_MASTER)
+        self._graph.add_edge(
+            master_id, clock_id, L_MASTER, **{METADATA: u.master_offset_ns}
+        )
 
     def update_clock_aliases(self, u: ClockAliasUpdate):
         if not u.aliases:
@@ -249,7 +249,7 @@ class SyncGraph:
         _set_node_attr(self._graph, src_clock, C_PORT_IDS, updated_port_ids)
 
         self._graph.add_edge(
-            src_clock, dst_clock, L_PTP_PARENT, **{L_METADATA: parent_port}
+            src_clock, dst_clock, L_PTP_PARENT, **{METADATA: parent_port}
         )
 
     def update_ptp_port_state(self, u: PortStateUpdate):
@@ -279,7 +279,7 @@ class SyncGraph:
             return
 
         src = self.get_or_create_clock(u.src)
-        self._graph.add_edge(src, dst, L_PHC2SYS, **{L_METADATA: u.clock_state})
+        self._graph.add_edge(src, dst, L_PHC2SYS, **{METADATA: u.clock_state})
 
     def handle_ptp4l_port_status_message(self, m: Ptp4lPortStatusMessage):
         pass
@@ -297,7 +297,7 @@ class SyncGraph:
         src = self.get_or_create_clock(m.src)
         dst = self.get_or_create_clock(m.dst)
 
-        self._graph.add_edge(src, dst, L_MEASUREMENT, **{L_METADATA: m.diff_ns})
+        self._graph.add_edge(src, dst, L_MEASUREMENT, **{METADATA: m.diff_ns})
 
     def get_links(
         self, src: ClockId, dst: ClockId
@@ -309,7 +309,7 @@ class SyncGraph:
             all_edges = self._graph[src][dst]
         except KeyError:
             all_edges = {}
-        all_edges = {key: attrs.get(L_METADATA) for key, attrs in all_edges.items()}
+        all_edges = {key: attrs.get(METADATA) for key, attrs in all_edges.items()}
         return all_edges
 
     def get_master(self, clock_id: ClockId) -> ClockId | None:
@@ -355,8 +355,8 @@ class SyncGraph:
                     diags.append(diagnose_servo_state(state.servo_state))
                 case "measurement", int() as time_diff_ns:
                     diags.append(diagnose_clock_diff(time_diff_ns))
-                case "master", None:
-                    diags.append(to_diag_tree(Ok(msg="Master present")))
+                case "master", int() as master_offset_ns:
+                    diags.append(diagnose_clock_diff(master_offset_ns))
                 case _:
                     logging.error(f"{key}, {metadata}")
 
