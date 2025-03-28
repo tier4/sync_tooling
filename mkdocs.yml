@@ -10,3 +10,49 @@ markdown_extensions:
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
+plugins: 
+  - search
+  - api-autonav:
+      modules:
+        - diag_master/src/diag_master
+        - diag_worker/src/diag_worker
+        - sync_graph/src/sync_graph
+        - pmc_monitor/src/pmc_monitor
+        - linuxptp_monitor/src/linuxptp_monitor
+        - journal_monitor/src/journal_monitor
+        - http_transport/src/http_transport
+      nav_section_title: "API Reference"
+      api_root_uri: "reference" 
+      nav_item_prefix: "<code class='doc-symbol doc-symbol-nav doc-symbol-module'></code>"
+      exclude_private: true
+      on_implicit_namespace_packge: "warn"
+  - section-index
+  - mkdocstrings:
+      handlers:
+        python:
+          inventories:
+            - url: https://docs.python.org/3/objects.inv
+              domains: [std, py]
+            - https://typing-extensions.readthedocs.io/en/latest/objects.inv
+          options:
+            backlinks: tree
+            docstring_options:
+              ignore_init_summary: true
+            docstring_style: google
+            docstring_section_style: list
+            heading_level: 2
+            inherited_members: true
+            merge_init_into_class: true
+            parameter_headings: false
+            separate_signature: true
+            show_bases: true
+            show_inheritance_diagram: false
+            show_root_heading: true
+            show_root_full_path: false
+            show_source: false
+            show_signature_annotations: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            show_if_no_docstring: false
+            signature_crossrefs: true
+            summary: true
