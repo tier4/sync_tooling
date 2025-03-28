@@ -28,6 +28,7 @@ pmc_monitor = { workspace = true }
 diag_worker = { workspace = true }
 diag_master = { workspace = true }
 sync_graph = { workspace = true }
+http_transport = { workspace = true }
 sync_tooling_msgs = { workspace = true }
 
 [tool.uv.workspace]
