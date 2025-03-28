@@ -126,6 +126,21 @@ class SyncGraph:
         return port_id
 
     def update(self, update: GraphUpdate):
+        """
+        Apply `update` to the sync graph.
+
+        Graph consistency is ensured:
+
+        - for an invalid update, nothing changes
+        - for an update referencing new clocks, the clocks are added to the graph
+        - for clock alias updates, references to all aliases are updated to the (new) canonical alias
+
+        Args:
+            update: The update to apply. The `update` field has to be set.
+
+        Raises:
+            If the `update` field is unset or set to an unsupported update type.
+        """
         match update.WhichOneof("update"):
             case "clock_alias_update":
                 return self.update_clock_aliases(update.clock_alias_update)
@@ -301,7 +316,28 @@ class SyncGraph:
 
     def get_links(
         self, src: ClockId, dst: ClockId
-    ) -> dict[str, None | SlaveClockState | PortId | int]:
+    ) -> list[
+        tuple[Literal["master", "measurement"], int]
+        | tuple[Literal["ptp_parent"], PortId]
+        | tuple[Literal["phc2sys"], SlaveClockState]
+    ]:
+        """
+        Get all links between `src` and `dst`.
+
+        There are multiple link types, and up to one of each can exist at the same time:
+
+        - PHC2SYS, with the current slave clock state
+        - PTP (parent), with the PTP parent port ID
+        - PTP (master), with the master offset in nanoseconds
+        - Measurement, with the `src` to `dst` offset measurement in nanoseconds
+
+        Args:
+            src: The source clock. Has to be valid and in the graph.
+            dst: The destination clock. Has to be valid and in the graph.
+
+        Returns:
+            Up to four links, at most one of each kind.
+        """
         src = self.get_canonical_clock_id(src)
         dst = self.get_canonical_clock_id(dst)
 
@@ -309,10 +345,20 @@ class SyncGraph:
             all_edges = self._graph[src][dst]
         except KeyError:
             all_edges = {}
-        all_edges = {key: attrs.get(METADATA) for key, attrs in all_edges.items()}
+        all_edges = [(key, attrs.get(METADATA)) for key, attrs in all_edges.items()]
         return all_edges
 
     def get_master(self, clock_id: ClockId) -> ClockId | None:
+        """
+        Retrieve the master of `clock_id`, if any.
+
+        Args:
+            clock_id: The clock ID to get the master for. Has to be a valid clock ID.
+
+        Returns:
+            The master clock ID if a master link was in the graph, otherwise `None`.
+        """
+
         clock_id = self.get_canonical_clock_id(clock_id)
         all_in_edges = self._graph.in_edges(clock_id, keys=True)
         for src, _, key in all_in_edges:
@@ -369,7 +415,7 @@ class SyncGraph:
             list=DiagTree.DiagList(list=[self.diagnose_port(p) for p in ports])
         )
 
-    def _diagnose_reachability(self) -> DiagStatus:
+    def diagnose_reachability(self) -> DiagStatus:
         if nx.is_weakly_connected(self._graph):
             return DiagStatus(ok=Ok())
         return DiagStatus(
@@ -378,12 +424,12 @@ class SyncGraph:
             )
         )
 
-    def _diagnose_cycles(self) -> DiagStatus:
+    def diagnose_cycles(self) -> DiagStatus:
         if nx.is_directed_acyclic_graph(self._graph):
             return DiagStatus(ok=Ok())
         return DiagStatus(error=Error(msg="There are loops in the graph"))
 
-    def _diagnose_grandmaster(self) -> DiagStatus:
+    def diagnose_grandmaster(self) -> DiagStatus:
         grandmaster_candiates: list[ClockId] = [
             n for n, in_degree in self._graph.in_degree() if in_degree == 0
         ]
@@ -415,18 +461,19 @@ class SyncGraph:
             error=Error(msg="Not all clocks are reachable from the grandmaster")
         )
 
-    def _diagnose_if_clocks_match_reference(self) -> DiagStatus:
+    def diagnose_clock_reference_adherence(self) -> DiagStatus:
         """
         Compare the current graph to its reference graph (if any).
 
         Resulting status:
+
         - No reference given: Ok
         - All reference clocks and no other clocks present: Ok
         - All reference clocks and unexpected clocks present: Warning
         - Not all reference clocks present: Error
 
         Returns:
-            DiagStatus: The result of the comparison
+            The result of the comparison
         """
 
         if not self.reference_graph:
@@ -455,7 +502,7 @@ class SyncGraph:
             ok=Ok(msg=f"All {len(self.reference_graph.nodes)} clocks are present")
         )
 
-    def _diagnose_if_links_match_reference(self) -> DiagStatus:
+    def diagnose_link_reference_adherence(self) -> DiagStatus:
         """
         Compare the links in the current graph to its reference graph (if any).
 
@@ -482,7 +529,7 @@ class SyncGraph:
         - Some clocks do not have a link from any of their (indirect) parents: Error
 
         Returns:
-            DiagStatus: The result of the comparison
+            The result of the comparison
         """
 
         if not self.reference_graph:
@@ -530,13 +577,26 @@ class SyncGraph:
 
     def diagnose_graph(self) -> DiagTree:
         diagnostics = {
-            "reachability": self._diagnose_reachability(),
-            "acyclicity": self._diagnose_cycles(),
-            "grandmaster": self._diagnose_grandmaster(),
+            "reachability": self.diagnose_reachability(),
+            "acyclicity": self.diagnose_cycles(),
+            "grandmaster": self.diagnose_grandmaster(),
         }
 
-        if self.reference_graph:
-            diagnostics["reference.clocks"] = self._diagnose_if_clocks_match_reference()
-            diagnostics["reference.links"] = self._diagnose_if_links_match_reference()
+        return to_diag_tree(diagnostics)
+
+    def diagnose_reference_adherence(self) -> DiagTree:
+        """
+        Diagnose whether the current graph adheres to its reference graph, if any.
+
+        Returns:
+            A diagnostics map consisting of:
+
+                - `"reference.clocks":` [diagnose_clock_reference_adherence][sync_graph.sync_graph.SyncGraph.diagnose_clock_reference_adherence]
+                - `"reference.links":` [diagnose_link_reference_adherence][sync_graph.sync_graph.SyncGraph.diagnose_link_reference_adherence]
+        """
+        diagnostics = {
+            "reference.clocks": self.diagnose_clock_reference_adherence(),
+            "reference.links": self.diagnose_link_reference_adherence(),
+        }
 
         return to_diag_tree(diagnostics)

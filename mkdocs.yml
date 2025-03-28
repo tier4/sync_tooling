@@ -14,6 +14,7 @@ plugins:
   - search
   - api-autonav:
       modules:
+        - sync_tooling_msgs/src/sync_tooling_msgs
         - diag_master/src/diag_master
         - diag_worker/src/diag_worker
         - sync_graph/src/sync_graph
