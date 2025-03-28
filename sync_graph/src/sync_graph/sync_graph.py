@@ -316,7 +316,8 @@ class SyncGraph:
     def get_links(
         self, src: ClockId, dst: ClockId
     ) -> list[
-        tuple[Literal["master", "measurement"], int]
+        tuple[Literal["master"], int]
+        | tuple[Literal["measurement"], int]
         | tuple[Literal["ptp_parent"], PortId]
         | tuple[Literal["phc2sys"], SlaveClockState]
     ]:
@@ -415,6 +416,15 @@ class SyncGraph:
         )
 
     def diagnose_reachability(self) -> DiagStatus:
+        """
+        Diagnose whether the graph is weakly connected.
+
+        A graph is weakly connected when ignoring edge direction, all nodes are reachable from each other.
+        This is a necessary but not sufficient condition for a well-formed sync graph.
+
+        Returns:
+            `Ok` if the graph is weakly connected, `Error` otherwise.
+        """
         if nx.is_weakly_connected(self._graph):
             return DiagStatus(ok=Ok())
         return DiagStatus(
@@ -424,11 +434,30 @@ class SyncGraph:
         )
 
     def diagnose_cycles(self) -> DiagStatus:
+        """
+        Diagnose whether the graph is free of directed cycles.
+
+        A directed graph without cycles is commonly called a directed acyclic graph, or DAG.
+        Acyclicity is a necessary but not sufficient condition for a well-formed sync graph.
+
+        Returns:
+            `Ok` if the graph is a DAG, `Error` otherwise.
+        """
         if nx.is_directed_acyclic_graph(self._graph):
             return DiagStatus(ok=Ok())
         return DiagStatus(error=Error(msg="There are loops in the graph"))
 
     def diagnose_grandmaster(self) -> DiagStatus:
+        """
+        Diagnoses whether there is exactly one clock acting as grandmaster.
+
+        A grandmaster is a clock with no incoming links from which all other clocks are reachable.
+        The existence of exactly one grandmaster is necessary but not sufficient for a well-formed sync graph.
+
+        Returns:
+            `Ok` if there is exactly one valid grandmaster, `Error` otherwise.
+        """
+
         grandmaster_candiates: list[ClockId] = [
             n for n, in_degree in self._graph.in_degree() if in_degree == 0
         ]
@@ -466,10 +495,10 @@ class SyncGraph:
 
         Resulting status:
 
-        - No reference given: Ok
-        - All reference clocks and no other clocks present: Ok
-        - All reference clocks and unexpected clocks present: Warning
-        - Not all reference clocks present: Error
+        - No reference given: `Ok`
+        - All reference clocks and no other clocks present: `Ok`
+        - All reference clocks and unexpected clocks present: `Warning`
+        - Not all reference clocks present: `Error`
 
         Returns:
             The result of the comparison
@@ -523,9 +552,10 @@ class SyncGraph:
 
 
         Resulting status:
-        - No reference given: Ok
-        - All non-grandmaster clocks have a link from their (indirect) parent: Ok
-        - Some clocks do not have a link from any of their (indirect) parents: Error
+
+        - No reference given: `Ok`
+        - All non-grandmaster clocks have a link from their (indirect) parent: `Ok`
+        - Some clocks do not have a link from any of their (indirect) parents: `Error`
 
         Returns:
             The result of the comparison
@@ -575,6 +605,27 @@ class SyncGraph:
         )
 
     def diagnose_graph(self) -> DiagTree:
+        """
+        Diagnose whether the structure of the sync graph is valid.
+
+        This diagnosis checks whether:
+
+        - the graph is [weakly connected](https://en.wikipedia.org/w/index.php?title=Connectivity_(graph_theory)#:~:text=weakly%20connected)
+        - the graph is a [directed acyclic graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph)
+        - there is exactly one grandmaster[^1]
+
+        These three conditions together[^2] are sufficient for the sync graph to be well-formed.
+
+        [^1]: A grandmaster is a clock with no incoming links from which all other clocks are reachable.
+        [^2]: Actually, `grandmaster` implies `reachability` but it is nice to have them both for troubleshooting.
+
+        Returns:
+            A diagnostics map consisting of:
+
+                - `"reachability":` [diagnose_reachability][sync_graph.sync_graph.SyncGraph.diagnose_reachability]
+                - `"acyclicity":` [diagnose_cycles][sync_graph.sync_graph.SyncGraph.diagnose_cycles]
+                - `"grandmaster":` [diagnose_grandmaster][sync_graph.sync_graph.SyncGraph.diagnose_grandmaster]
+        """
         diagnostics = {
             "reachability": self.diagnose_reachability(),
             "acyclicity": self.diagnose_cycles(),
