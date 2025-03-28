@@ -21,13 +21,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: "0.5.10"
+          version: 0.5.10
+          python-version: 3.10
           enable-cache: true
-          cache-dependency-glob: "uv.lock"
-      - name: "Set up Python"
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: "pyproject.toml"
+          cache-dependency-glob: uv.lock
       - name: Install dependencies
         run: |
           uv sync --all-extras --dev --all-packages
@@ -44,3 +41,6 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  docs:
+    runs-on: ubuntu-22.04
+    steps: []
