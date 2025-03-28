@@ -1,4 +1,3 @@
-import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Literal
@@ -393,7 +392,7 @@ class SyncGraph:
     def diagnose_link(self, src: ClockId, dst: ClockId) -> DiagTree:
         links = self.get_links(src, dst)
         diags = []
-        for key, metadata in links.items():
+        for key, metadata in links:
             match key, metadata:
                 case "ptp_parent", PortId() as port_id:
                     diags.append(self.diagnose_port(port_id))
@@ -404,7 +403,7 @@ class SyncGraph:
                 case "master", int() as master_offset_ns:
                     diags.append(diagnose_clock_diff(master_offset_ns))
                 case _:
-                    logging.error(f"{key}, {metadata}")
+                    raise AssertionError(f"Unexpected link metadata: {key}: {metadata}")
 
         return to_diag_tree(diags)
 
