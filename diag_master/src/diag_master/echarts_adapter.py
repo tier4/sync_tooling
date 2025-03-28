@@ -1,5 +1,3 @@
-import logging
-
 from sync_graph.sync_graph import SyncGraph
 from sync_tooling_msgs.clock_id import readable_clock_id, readable_clock_type
 from sync_tooling_msgs.clock_id_pb2 import ClockId
@@ -146,7 +144,7 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
 
     links = sg.get_links(src, dst)
 
-    for type, metadata in links.items():
+    for type, metadata in links:
         match type, metadata:
             case "ptp_parent", PortId() as port_id:
                 link_labels.append(f"PTP {port_id.ptp_domain}")
@@ -184,7 +182,7 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
                     f"PTP Master offset: {master_offset_ns / 1e3:.0f} µs"
                 )
             case _:
-                logging.error(f"{type} {metadata}")
+                raise AssertionError()
 
     diag = sg.diagnose_link(src, dst) or NOT_RECEIVED_DIAG
     status = aggregate(diag)
