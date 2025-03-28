@@ -138,7 +138,7 @@ class SyncGraph:
             update: The update to apply. The `update` field has to be set.
 
         Raises:
-            If the `update` field is unset or set to an unsupported update type.
+            ValueError: If the `update` field is unset or set to an unsupported update type.
         """
         match update.WhichOneof("update"):
             case "clock_alias_update":
