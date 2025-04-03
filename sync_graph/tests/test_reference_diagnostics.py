@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import networkx as nx
 import pytest
 
+from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.diag_tree import prettify
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 
@@ -79,3 +80,38 @@ def test_different_but_compliant_graph(sample_clock, nic_port, remote_clock):
     g = graph_after_updates(*us, reference=reference)
 
     assert aggregated_status_label(g.diagnose_reference_adherence()) == "ok"
+
+
+def test_swapped_parents(sample_clock, nic_clock, remote_clock):
+    reference = nx.DiGraph()
+    reference.add_edge(sample_clock, nic_clock)
+    reference.add_edge(nic_clock, remote_clock)
+
+    us = [
+        make_phc2sys_link(sample_clock, remote_clock, False),
+        make_phc2sys_link(remote_clock, nic_clock, False),
+    ]
+
+    g = graph_after_updates(*us, reference=reference)
+
+    assert aggregated_status_label(g.diagnose_reference_adherence()) == "error"
+
+
+def test_rogue_clock(two_links, sample_clock_aliases):
+    g = graph_after_updates(*two_links.updates, reference=two_links.reference)
+    g.update(
+        GraphUpdate(
+            clock_master_update=ClockMasterUpdate(
+                clock_id=sample_clock_aliases["sensor"]
+            )
+        )
+    )
+
+    assert aggregated_status_label(g.diagnose_reference_adherence()) == "warning"
+
+
+def test_missing_clock(two_links):
+    g = graph_after_updates(*two_links.updates, reference=two_links.reference)
+    g._graph.remove_node(next(iter(two_links.reference.nodes())))
+
+    assert aggregated_status_label(g.diagnose_reference_adherence()) == "error"
