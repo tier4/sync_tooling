@@ -11,21 +11,23 @@ from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 from .util import _gu, graph_after_updates
 
 
-def test_clock_creation(sample_clock_ids):
+def test_clock_creation(sample_clock):
     # A graph containing only a single clock without a master or parent
-    u = _gu(ClockMasterUpdate(clock_id=sample_clock_ids["system"]))
+    u = _gu(ClockMasterUpdate(clock_id=sample_clock))
     g = graph_after_updates(u)
 
     assert g._graph.number_of_nodes() == 1
     assert g._graph.number_of_edges() == 0
 
 
-def test_clock_aliases(sample_clock_ids):
+def test_clock_aliases(sample_clock_aliases):
     # A graph containing only a single clock without a master or parent, but two aliases
-    u1 = _gu(ClockMasterUpdate(clock_id=sample_clock_ids["system"]))
-    u2 = _gu(ClockMasterUpdate(clock_id=sample_clock_ids["ptp"]))
+    u1 = _gu(ClockMasterUpdate(clock_id=sample_clock_aliases["system"]))
+    u2 = _gu(ClockMasterUpdate(clock_id=sample_clock_aliases["ptp"]))
     u3 = _gu(
-        ClockAliasUpdate(aliases=[sample_clock_ids["ptp"], sample_clock_ids["system"]])
+        ClockAliasUpdate(
+            aliases=[sample_clock_aliases["ptp"], sample_clock_aliases["system"]]
+        )
     )
     g = graph_after_updates(u1, u2, u3)
 
@@ -33,20 +35,20 @@ def test_clock_aliases(sample_clock_ids):
     assert g._graph.number_of_edges() == 0
 
 
-def test_alias_precedence(sample_clock_ids):
+def test_alias_precedence(sample_clock_aliases):
     updates: list[GraphUpdate] = [
-        _gu(ClockMasterUpdate(clock_id=v)) for v in sample_clock_ids.values()
+        _gu(ClockMasterUpdate(clock_id=v)) for v in sample_clock_aliases.values()
     ]
-    updates.append(_gu(ClockAliasUpdate(aliases=list(sample_clock_ids.values()))))
+    updates.append(_gu(ClockAliasUpdate(aliases=list(sample_clock_aliases.values()))))
     g = graph_after_updates(*updates)
 
     assert g._graph.number_of_nodes() == 1
-    assert g._graph.has_node(sample_clock_ids["sensor"])
+    assert g._graph.has_node(sample_clock_aliases["sensor"])
 
 
-def test_ptp_link(sample_clock_ids, remote_clock_ids):
-    src = sample_clock_ids["system"]
-    dst = remote_clock_ids["ptp"]
+def test_ptp_link(sample_clock, remote_clock):
+    src = sample_clock
+    dst = remote_clock
 
     u = _gu(PtpParentUpdate(clock_id=dst, parent=PortId(clock_id=src, port_number=1)))
     g = graph_after_updates(u)
@@ -58,9 +60,9 @@ def test_ptp_link(sample_clock_ids, remote_clock_ids):
     assert g._graph.has_edge(src, dst)
 
 
-def test_phc2sys_link(sample_clock_ids, nic_clock_ids):
-    src = sample_clock_ids["system"]
-    dst = nic_clock_ids["device"]
+def test_phc2sys_link(sample_clock, nic_clock):
+    src = sample_clock
+    dst = nic_clock
     u = _gu(Phc2SysUpdate(src=src, dst=dst, clock_state=SlaveClockState()))
     g = graph_after_updates(u)
 
@@ -71,12 +73,12 @@ def test_phc2sys_link(sample_clock_ids, nic_clock_ids):
     assert g._graph.has_edge(src, dst)
 
 
-def test_alias_after_links(sample_clock_ids, nic_clock_ids, remote_clock_ids):
-    src1 = sample_clock_ids["system"]
-    dst1 = nic_clock_ids["device"]
+def test_alias_after_links(sample_clock_aliases, nic_clock, remote_clock):
+    src1 = sample_clock_aliases["system"]
+    dst1 = nic_clock
 
-    src2 = sample_clock_ids["ptp"]
-    dst2 = remote_clock_ids["ptp"]
+    src2 = sample_clock_aliases["ptp"]
+    dst2 = remote_clock
 
     updates = [
         _gu(Phc2SysUpdate(src=src1, dst=dst1, clock_state=SlaveClockState())),
@@ -97,22 +99,22 @@ def test_alias_after_links(sample_clock_ids, nic_clock_ids, remote_clock_ids):
 
 
 def test_clocks_referenced_in_updates_created(
-    sample_clock_ids, nic_clock_ids, nic_port_id
+    sample_clock_aliases, nic_clock, nic_port
 ):
     """
     Any clock referenced in a valid graph update shall be created if not existent in the graph.
     """
 
-    src = nic_clock_ids["device"]
-    src_port = nic_port_id
+    src = nic_clock
+    src_port = nic_port
 
-    dst = sample_clock_ids["sensor"]
+    dst = sample_clock_aliases["sensor"]
 
     u_clock_without_master = _gu(ClockMasterUpdate(clock_id=dst))
     u_clock_with_master = _gu(ClockMasterUpdate(clock_id=dst, master=src))
     u_parent_without_port = _gu(PtpParentUpdate(clock_id=dst))
     u_parent_with_port = _gu(PtpParentUpdate(clock_id=dst, parent=src_port))
-    u_alias = _gu(ClockAliasUpdate(aliases=sample_clock_ids.values()))
+    u_alias = _gu(ClockAliasUpdate(aliases=sample_clock_aliases.values()))
     u_port_state = _gu(
         PortStateUpdate(port_id=src_port, port_state=PortState.PS_MASTER)
     )

@@ -12,7 +12,7 @@ from sync_tooling_msgs.system_clock_id_pb2 import SystemClockId
 
 
 @pytest.fixture
-def sample_clock_ids() -> (
+def sample_clock_aliases() -> (
     dict[Literal["system", "ptp", "sensor", "iface", "device"], ClockId]
 ):
     return {
@@ -31,21 +31,24 @@ def sample_clock_ids() -> (
 
 
 @pytest.fixture
-def nic_clock_ids() -> dict[Literal["device"], ClockId]:
-    return {
-        "device": ClockId(
-            linux_clock_device_id=LinuxClockDeviceId(
-                hostname="sample", clock_device_number=3
-            )
+def sample_clock(sample_clock_aliases) -> ClockId:
+    return sample_clock_aliases["system"]
+
+
+@pytest.fixture
+def nic_clock():
+    return ClockId(
+        linux_clock_device_id=LinuxClockDeviceId(
+            hostname="sample", clock_device_number=3
         )
-    }
+    )
 
 
 @pytest.fixture
-def nic_port_id(nic_clock_ids):
-    return PortId(clock_id=nic_clock_ids["device"], port_number=1, ptp_domain=1)
+def nic_port(nic_clock):
+    return PortId(clock_id=nic_clock, port_number=1, ptp_domain=1)
 
 
 @pytest.fixture
-def remote_clock_ids() -> dict[Literal["ptp"], ClockId]:
-    return {"ptp": ClockId(ptp_clock_id=PtpClockId(id="010101.fffe.101010"))}
+def remote_clock():
+    return ClockId(ptp_clock_id=PtpClockId(id="010101.fffe.101010"))
