@@ -14,24 +14,20 @@ from .util import (
 
 
 @pytest.mark.parametrize("clock_setup", ["plain", "ok_port", "faulty_port"])
-def test_single_clock(nic_port_id, clock_setup):
+def test_single_clock(nic_port, clock_setup):
     """
     A single clock by itself shall always be `Ok`, even if it has faulty ports.
     """
 
-    clock_id = nic_port_id.clock_id
+    clock_id = nic_port.clock_id
 
     match clock_setup:
         case "plain":
             u = _gu(ClockMasterUpdate(clock_id=clock_id))
         case "ok_port":
-            u = _gu(
-                PortStateUpdate(port_id=nic_port_id, port_state=PortState.PS_MASTER)
-            )
+            u = _gu(PortStateUpdate(port_id=nic_port, port_state=PortState.PS_MASTER))
         case "faulty_port":
-            u = _gu(
-                PortStateUpdate(port_id=nic_port_id, port_state=PortState.PS_FAULTY)
-            )
+            u = _gu(PortStateUpdate(port_id=nic_port, port_state=PortState.PS_FAULTY))
         case _:
             raise AssertionError()
 
@@ -42,14 +38,14 @@ def test_single_clock(nic_port_id, clock_setup):
     assert aggregated_status_label(diag_tree) == "ok"
 
 
-def test_cycle(sample_clock_ids, remote_clock_ids, nic_clock_ids):
+def test_cycle(sample_clock, remote_clock, nic_clock):
     """
     All clocks in a cycle shall be diagnosed as `Error`, clocks not in the cycle shall be unaffected.
     """
 
-    cycle_clock_1 = sample_clock_ids["system"]
-    cycle_clock_2 = nic_clock_ids["device"]
-    unaffected_clock = remote_clock_ids["ptp"]
+    cycle_clock_1 = sample_clock
+    cycle_clock_2 = nic_clock
+    unaffected_clock = remote_clock
 
     us = [
         make_phc2sys_link(cycle_clock_1, cycle_clock_2, False),

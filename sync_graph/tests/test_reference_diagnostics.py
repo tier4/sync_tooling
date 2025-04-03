@@ -14,6 +14,7 @@ from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 from .util import (
     aggregated_status_label,
     graph_after_updates,
+    make_measurement,
     make_phc2sys_link,
     make_ptp_link,
 )
@@ -31,14 +32,14 @@ def empty():
 
 
 @pytest.fixture
-def two_links(sample_clock_ids, nic_port_id, remote_clock_ids):
+def two_links(sample_clock, nic_port, remote_clock):
     reference = nx.DiGraph()
-    reference.add_edge(sample_clock_ids["system"], nic_port_id.clock_id)
-    reference.add_edge(nic_port_id.clock_id, remote_clock_ids["ptp"])
+    reference.add_edge(sample_clock, nic_port.clock_id)
+    reference.add_edge(nic_port.clock_id, remote_clock)
 
     us = [
-        make_phc2sys_link(sample_clock_ids["system"], nic_port_id.clock_id, False),
-        *make_ptp_link(nic_port_id, remote_clock_ids["ptp"], False),
+        make_phc2sys_link(sample_clock, nic_port.clock_id, False),
+        *make_ptp_link(nic_port, remote_clock, False),
     ]
 
     return GraphArgs(us, reference)
@@ -63,3 +64,18 @@ def test_perfect_reference_match(graph_name, request):
     assert (
         aggregated_status_label(diag_tree) == "ok"
     ), f"with tree {prettify(diag_tree)}"
+
+
+def test_different_but_compliant_graph(sample_clock, nic_port, remote_clock):
+    reference = nx.DiGraph()
+    reference.add_edge(sample_clock, nic_port.clock_id)
+    reference.add_edge(nic_port.clock_id, remote_clock)
+
+    us = [
+        make_phc2sys_link(sample_clock, nic_port.clock_id, False),
+        make_measurement(sample_clock, remote_clock, False),
+    ]
+
+    g = graph_after_updates(*us, reference=reference)
+
+    assert aggregated_status_label(g.diagnose_reference_adherence()) == "ok"
