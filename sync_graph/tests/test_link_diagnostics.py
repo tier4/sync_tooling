@@ -13,7 +13,7 @@ from .util import (
 @pytest.mark.parametrize("is_faulty,expected_status", [(True, "error"), (False, "ok")])
 @pytest.mark.parametrize("link_type", ["phc2sys", "ptp", "master", "measurement"])
 def test_link_diagnostics(
-    nic_port_id, sample_clock_ids, is_faulty, expected_status, link_type
+    nic_port, sample_clock, is_faulty, expected_status, link_type
 ):
     """
     Test diagnostics for known-ok and known-faulty links.
@@ -24,9 +24,9 @@ def test_link_diagnostics(
     Here, the source ok is always okay, so the destination clock status shall be equal to the link status.
     """
 
-    src_port = nic_port_id
+    src_port = nic_port
     src = src_port.clock_id
-    dst = sample_clock_ids["system"]
+    dst = sample_clock
 
     match link_type:
         case "master":
