@@ -408,12 +408,40 @@ class SyncGraph:
 
         return to_diag_tree(diags)
 
-    def diagnose_clock(self, clock_id: ClockId) -> DiagTree:
-        ports = self.get_ports(clock_id)
+    def diagnose_clock(self, clock: ClockId) -> DiagTree:
+        """
+        Diagnose whether a clock has no upstream synchronization problems.
 
-        return DiagTree(
-            list=DiagTree.DiagList(list=[self.diagnose_port(p) for p in ports])
-        )
+        Upstream is defined here as all links in the tree of ancestors of the clock. If the clock is
+        part of a cycle, this is diagnosed as an error.
+
+        The severity of all upstream links, even if there are multiple different paths, is aggregated,
+        meaning that any issue in any upstream link will propagate to the clock's diagnostic status.
+
+        Args:
+            clock: The clock to diagnose
+
+        Returns:
+            `Ok` if all upstream links are `Ok`, `Warning` or `Error` otherwise.
+        """
+
+        try:
+            cycle = nx.find_cycle(self._graph, clock)
+            cycle_clocks: list[ClockId] = [src for src, *_ in cycle]
+            return to_diag_tree(
+                Error(
+                    msg=f"Clock is part of the cycle {' -> '.join(map(readable_clock_id, cycle_clocks))} -> (repeats)"
+                )
+            )
+        except nx.NetworkXNoCycle:
+            pass
+
+        ancestors = nx.ancestors(self._graph, clock)
+        ancestor_graph: nx.MultiDiGraph = nx.subgraph(self._graph, ancestors | {clock})  # type: ignore
+        ancestor_edges = ancestor_graph.edges()
+
+        diags = [self.diagnose_link(src, dst) for src, dst in ancestor_edges]
+        return to_diag_tree(diags)
 
     def diagnose_reachability(self) -> DiagStatus:
         """
