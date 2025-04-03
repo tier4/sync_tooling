@@ -607,7 +607,7 @@ class SyncGraph:
 
             # If none of the (indirect) parents in the reference have an edge to the clock in the
             # real graph, flag the edge as missing
-            if not any((a, clock_id) in self._graph.edges for a in ancestors):
+            if not any((a, clock_id) in self._graph.edges() for a in ancestors):
                 reference_parent: ClockId | None = next(
                     self.reference_graph.predecessors(n), None
                 )
