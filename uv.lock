@@ -2719,7 +2719,6 @@ dependencies = [
 dev = [
     { name = "ansible-dev-tools", version = "25.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "ansible-dev-tools", version = "26.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "ansible-lint" },
     { name = "mkdocs" },
     { name = "mkdocs-api-autonav" },
     { name = "mkdocs-autorefs" },
@@ -2740,8 +2739,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "ansible-dev-tools", specifier = ">=24.12.0" },
-    { name = "ansible-lint", specifier = ">=6.8.7" },
+    { name = "ansible-dev-tools", specifier = ">=25.4.0" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-api-autonav", specifier = ">=0.2.1" },
     { name = "mkdocs-autorefs", specifier = ">=1.4.1" },
