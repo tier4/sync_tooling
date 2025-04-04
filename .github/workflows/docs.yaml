@@ -32,4 +32,4 @@ jobs:
           uv sync --all-extras --dev --all-packages
       - name: Build docs
         run: |
-          uv run mkdocs gh-deploy --strict
+          uv run mkdocs gh-deploy --strict --force
