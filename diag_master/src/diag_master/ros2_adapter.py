@@ -57,6 +57,8 @@ def diag_status_to_ros_diag_status(diag_tree: DiagTree):
 
 
 class Ros2Adapter:
+    HARDWARE_ID = "SYNC.DIAG"
+
     def __init__(
         self, get_sync_graph: Callable[[], SyncGraph], ros_args: list[str]
     ) -> None:
@@ -95,17 +97,17 @@ class Ros2Adapter:
         canonical_id = sg.get_canonical_clock_id(clock_id)
 
         if canonical_id in sg._graph:
-            diag_tree = sg.diagnose_clock(clock_id)
+            diag_tree = sg.diagnose_clock(canonical_id)
             ros_status = diag_status_to_ros_diag_status(diag_tree)
         else:
             ros_status = DiagnosticStatus()
             ros_status.level = DiagnosticStatus.ERROR
             ros_status.message = "Clock not present"
 
+        ros_status.hardware_id = Ros2Adapter.HARDWARE_ID
         # Even if the canonical ID might be different, output diagnostics using the clock ID as
         # provided in the reference graph for easier understandability
-        ros_status.hardware_id = readable_clock_id(clock_id)
-        ros_status.name = "SYNC.DIAG clock synchronization status"
+        ros_status.name = readable_clock_id(clock_id)
 
         return ros_status
 
@@ -113,19 +115,21 @@ class Ros2Adapter:
         if sg.reference_graph is None:
             return []
 
-        clocks = nx.lexicographical_topological_sort(sg.reference_graph)
+        clocks = nx.lexicographical_topological_sort(
+            sg.reference_graph, key=readable_clock_id
+        )
         return [self._diagnose_clock(sg, clock_id) for clock_id in clocks]
 
     def diagnose_graph(self, sg: SyncGraph):
         diag_tree = sg.diagnose_graph()
         ros_status = diag_status_to_ros_diag_status(diag_tree)
-        ros_status.name = "SYNC.DIAG graph health"
-        ros_status.hardware_id = "none"
+        ros_status.name = "Graph health"
+        ros_status.hardware_id = Ros2Adapter.HARDWARE_ID
         return [ros_status]
 
     def diagnose_reference(self, sg: SyncGraph):
         diag_tree = sg.diagnose_reference_adherence()
         ros_status = diag_status_to_ros_diag_status(diag_tree)
-        ros_status.name = "SYNC.DIAG graph reference adherence"
-        ros_status.hardware_id = "none"
+        ros_status.name = "Graph reference adherence"
+        ros_status.hardware_id = Ros2Adapter.HARDWARE_ID
         return [ros_status]
