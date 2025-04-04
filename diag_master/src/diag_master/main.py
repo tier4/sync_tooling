@@ -107,13 +107,19 @@ def parse_reference_graph(reference_path: str):
 
 def initial_state_from_args(args: Args):
     reference_graph = parse_reference_graph(args.reference) if args.reference else None
+    update_expiry = timedelta(seconds=args.update_expiry_s)
+    app_state = AppState(reference_graph, None, update_expiry)
 
     ros_enabled: bool = args.ros or bool(args.ros_args)
-    ros2_adapter = Ros2Adapter(args.ros_args or []) if ros_enabled else None
+    if ros_enabled:
 
-    update_expiry = timedelta(seconds=args.update_expiry_s)
+        def get_sync_graph():
+            return app_state.sync_graph
 
-    return AppState(reference_graph, ros2_adapter, update_expiry)
+        ros2_adapter = Ros2Adapter(get_sync_graph, args.ros_args or [])
+        app_state._ros2_adapter = ros2_adapter
+
+    return app_state
 
 
 def main():
