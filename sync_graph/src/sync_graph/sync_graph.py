@@ -453,6 +453,8 @@ class SyncGraph:
         Returns:
             `Ok` if the graph is weakly connected, `Error` otherwise.
         """
+        if self._graph.number_of_nodes() == 0:
+            return DiagStatus(ok=Ok())
         if nx.is_weakly_connected(self._graph):
             return DiagStatus(ok=Ok())
         return DiagStatus(
