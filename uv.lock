@@ -22,6 +22,7 @@ members = [
     "journal-monitor",
     "linuxptp-monitor",
     "pmc-monitor",
+    "ros2-transport",
     "sync-graph",
     "sync-tooling",
     "sync-tooling-msgs",
@@ -1303,6 +1304,15 @@ wheels = [
 ]
 
 [[package]]
+name = "lark"
+version = "1.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/34/28fff3ab31ccff1fd4f6c7c7b0ceb2b6968d8ea4950663eadcb5720591a0/lark-1.3.1.tar.gz", hash = "sha256:b426a7a6d6d53189d318f2b6236ab5d6429eaf09259f1ca33eb716eed10d2905", size = 382732, upload-time = "2025-10-27T18:25:56.653Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/82/3d/14ce75ef66813643812f3093ab17e46d3a206942ce7376d31ec2d36229e7/lark-1.3.1-py3-none-any.whl", hash = "sha256:c629b661023a014c37da873b4ff58a817398d12635d3bbb2c5a03be7fe5d1e12", size = 113151, upload-time = "2025-10-27T18:25:54.882Z" },
+]
+
+[[package]]
 name = "linuxptp-monitor"
 version = "0.1.0"
 source = { editable = "linuxptp_monitor" }
@@ -2478,6 +2488,20 @@ wheels = [
 ]
 
 [[package]]
+name = "ros2-transport"
+version = "0.1.0"
+source = { editable = "ros2_transport" }
+dependencies = [
+    { name = "sync-tooling-msgs" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "sync-tooling-msgs", editable = "sync_tooling_msgs" }]
+
+[package.metadata.requires-dev]
+dev = []
+
+[[package]]
 name = "rpds-py"
 version = "0.30.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2719,6 +2743,7 @@ dependencies = [
 dev = [
     { name = "ansible-dev-tools", version = "25.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "ansible-dev-tools", version = "26.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "lark" },
     { name = "mkdocs" },
     { name = "mkdocs-api-autonav" },
     { name = "mkdocs-autorefs" },
@@ -2740,6 +2765,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "ansible-dev-tools", specifier = ">=25.4.0" },
+    { name = "lark", specifier = ">=1.2.2" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-api-autonav", specifier = ">=0.2.1" },
     { name = "mkdocs-autorefs", specifier = ">=1.4.1" },
