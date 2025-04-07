@@ -24,6 +24,4 @@ addopts = [
 ]
 
 [dependency-groups]
-dev = [
-    "lark>=1.2.2",
-]
+dev = []
