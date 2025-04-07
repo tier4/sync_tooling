@@ -179,6 +179,11 @@ class SyncGraph:
             return
 
         master_id = self.get_or_create_clock(u.master)
+
+        # Do not introduce self-loops
+        if master_id == clock_id:
+            return
+
         self._graph.add_edge(
             master_id, clock_id, L_MASTER, **{METADATA: u.master_offset_ns}
         )
@@ -215,6 +220,15 @@ class SyncGraph:
 
         relabelings = dict.fromkeys(all_aliases, canonical_id)
         self._graph = nx.relabel_nodes(self._graph, relabelings)
+
+        # Remove potential self-loops resulting from combining nodes
+        # edges(canonical_id) returns all edges connected to canonical_id, want to only remove the ones that are self-loops
+        edges_to_remove = [
+            (src, dst, key)
+            for src, dst, key in self._graph.edges(canonical_id, keys=True)
+            if src == canonical_id and dst == canonical_id
+        ]
+        self._graph.remove_edges_from(edges_to_remove)
 
         _set_node_attr(self._graph, canonical_id, C_PORT_IDS, combined_port_ids)
         _set_node_attr(self._graph, canonical_id, C_STATUS_MSG, combined_status_msg)
@@ -253,6 +267,10 @@ class SyncGraph:
 
         parent_port = self.get_or_create_port(u.parent)
         src_clock = self.get_or_create_clock(parent_port.clock_id)
+
+        # Do not introduce self-loops
+        if src_clock == dst_clock:
+            return
 
         updated_port_ids = {
             self.get_canonical_port_id(p)
@@ -293,6 +311,11 @@ class SyncGraph:
             return
 
         src = self.get_or_create_clock(u.src)
+
+        # Do not introduce self-loops
+        if src == dst:
+            return
+
         self._graph.add_edge(src, dst, L_PHC2SYS, **{METADATA: u.clock_state})
 
     def handle_ptp4l_port_status_message(self, m: Ptp4lPortStatusMessage):
@@ -310,6 +333,10 @@ class SyncGraph:
 
         src = self.get_or_create_clock(m.src)
         dst = self.get_or_create_clock(m.dst)
+
+        # Do not introduce self-loops
+        if src == dst:
+            return
 
         self._graph.add_edge(src, dst, L_MEASUREMENT, **{METADATA: m.diff_ns})
 

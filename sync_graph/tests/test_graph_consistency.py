@@ -1,3 +1,5 @@
+import pytest
+
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
@@ -8,7 +10,14 @@ from sync_tooling_msgs.port_state_update_pb2 import PortStateUpdate
 from sync_tooling_msgs.ptp_parent_update_pb2 import PtpParentUpdate
 from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 
-from .util import _gu, graph_after_updates
+from .util import (
+    _gu,
+    graph_after_updates,
+    make_master_link,
+    make_measurement,
+    make_phc2sys_link,
+    make_ptp_link,
+)
 
 
 def test_clock_creation(sample_clock):
@@ -96,6 +105,26 @@ def test_alias_after_links(sample_clock_aliases, nic_clock, remote_clock):
     # Alias system clock takes precedence over alias PTP, thus making src1 the replacement for src2
     assert g._graph.has_edge(src1, dst1)
     assert g._graph.has_edge(src1, dst2)
+
+
+@pytest.mark.parametrize("link_type", ["master", "measurement", "phc2sys", "ptp"])
+def test_no_self_loops(nic_clock, nic_port, link_type):
+    match link_type:
+        case "master":
+            us = [make_master_link(nic_clock, nic_clock, False)]
+        case "measurement":
+            us = [make_measurement(nic_clock, nic_clock, False)]
+        case "phc2sys":
+            us = [make_phc2sys_link(nic_clock, nic_clock, False)]
+        case "ptp":
+            us = make_ptp_link(nic_port, nic_clock, False)
+        case _:
+            raise AssertionError(f"Unexpected link type: {link_type}")
+
+    g = graph_after_updates(*us)
+
+    assert g._graph.number_of_nodes() == 1
+    assert g._graph.number_of_edges() == 0
 
 
 def test_clocks_referenced_in_updates_created(
