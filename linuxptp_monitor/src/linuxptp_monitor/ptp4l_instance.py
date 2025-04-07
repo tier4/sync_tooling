@@ -190,7 +190,8 @@ class Ptp4lRunningState(State):
         if not m:
             return GraphUpdate(
                 ptp4l_status_msg=Ptp4lStatusMessage(
-                    clock_id=self.config.clock, **status
+                    clock_id=self.config.clock,
+                    **status,  # type: ignore
                 )
             )  # type: ignore
         port_id = PortId(
@@ -199,7 +200,7 @@ class Ptp4lRunningState(State):
             ptp_domain=self.config.domain,
         )
         return GraphUpdate(
-            ptp4l_port_status_msg=Ptp4lPortStatusMessage(port_id=port_id, **status)
+            ptp4l_port_status_msg=Ptp4lPortStatusMessage(port_id=port_id, **status)  # type: ignore
         )  # type: ignore
 
     def parse(self, entry: JournalEntry):

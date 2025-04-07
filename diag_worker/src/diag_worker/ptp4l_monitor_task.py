@@ -42,6 +42,10 @@ class Ptp4lMonitorTask(MonitorTask):
 
         def ptp4l_state_factory():
             pid = get_unit_pid(unit_name)
+
+            if pid is None:
+                return None
+
             cmdline = get_command_line(pid)
             config = Ptp4lConfig(cmdline)
             self.ptp4l_clock_id = config.clock
