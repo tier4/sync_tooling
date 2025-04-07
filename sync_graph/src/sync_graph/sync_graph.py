@@ -161,7 +161,7 @@ class SyncGraph:
                 return self.handle_phc2sys_status_message(update.phc2sys_status_msg)
             case "phc2sys_update":
                 return self.update_phc2sys_link_state(update.phc2sys_update)
-        raise ValueError()
+        raise AssertionError(f"Unknown update type: {update.WhichOneof('update')}")
 
     def update_clock_master(self, u: ClockMasterUpdate):
         if not u.HasField("clock_id"):
