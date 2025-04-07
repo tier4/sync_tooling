@@ -521,16 +521,12 @@ class SyncGraph:
 
         match grandmaster_candiates:
             case []:
-                return DiagStatus(
-                    error=Error(msg="There are no clocks without a parent/master")
-                )
+                return DiagStatus(error=Error(msg="There is no grandmaster clock"))
             case [candidate]:
                 grandmaster = candidate
             case _:
                 return DiagStatus(
-                    error=Error(
-                        msg="There is more than one clock without a parent/master"
-                    )
+                    error=Error(msg="There is more than one grandmaster clock")
                 )
 
         reachable_from_grandmaster: set[ClockId] = nx.descendants(
@@ -538,9 +534,7 @@ class SyncGraph:
         )
 
         if len(reachable_from_grandmaster) == len(self._graph) - 1:
-            return DiagStatus(
-                ok=Ok(msg="There is exactly one grandmaster which all clocks sync to")
-            )
+            return DiagStatus(ok=Ok(msg="All clocks sync to the same grandmaster"))
 
         return DiagStatus(
             error=Error(msg="Not all clocks are reachable from the grandmaster")
