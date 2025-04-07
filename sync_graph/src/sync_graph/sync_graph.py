@@ -419,17 +419,19 @@ class SyncGraph:
 
     def diagnose_link(self, src: ClockId, dst: ClockId) -> DiagTree:
         links = self.get_links(src, dst)
-        diags = []
+        diags = {}
         for key, metadata in links:
             match key, metadata:
                 case "ptp_parent", PortId() as port_id:
-                    diags.append(self.diagnose_port(port_id))
+                    diags["parent_port"] = self.diagnose_port(port_id)
                 case "phc2sys", SlaveClockState() as state:
-                    diags.append(diagnose_servo_state(state.servo_state))
+                    diags["phc2sys"] = diagnose_servo_state(state.servo_state)
                 case "measurement", int() as time_diff_ns:
-                    diags.append(diagnose_clock_diff(time_diff_ns))
+                    diags[f"offset_from_{readable_clock_id(dst)}"] = (
+                        diagnose_clock_diff(time_diff_ns)
+                    )
                 case "master", int() as master_offset_ns:
-                    diags.append(diagnose_clock_diff(master_offset_ns))
+                    diags["offset_from_master"] = diagnose_clock_diff(master_offset_ns)
                 case _:
                     raise AssertionError(f"Unexpected link metadata: {key}: {metadata}")
 
@@ -467,6 +469,9 @@ class SyncGraph:
         ancestor_graph: nx.MultiDiGraph = nx.subgraph(self._graph, ancestors | {clock})  # type: ignore
         ancestor_edges = ancestor_graph.edges()
 
+        if not ancestor_edges:
+            return to_diag_tree(Ok(msg="Acts as a grandmaster"))
+
         diags = [self.diagnose_link(src, dst) for src, dst in ancestor_edges]
         return to_diag_tree(diags)
 
@@ -481,9 +486,9 @@ class SyncGraph:
             `Ok` if the graph is weakly connected, `Error` otherwise.
         """
         if self._graph.number_of_nodes() == 0:
-            return DiagStatus(ok=Ok())
+            return DiagStatus(ok=Ok(msg="No clocks present"))
         if nx.is_weakly_connected(self._graph):
-            return DiagStatus(ok=Ok())
+            return DiagStatus(ok=Ok(msg="There are no disconnected subgraphs"))
         return DiagStatus(
             error=Error(
                 msg=f"There are {nx.number_weakly_connected_components(self._graph)} mutually unreachable subgraphs"
@@ -501,8 +506,8 @@ class SyncGraph:
             `Ok` if the graph is a DAG, `Error` otherwise.
         """
         if nx.is_directed_acyclic_graph(self._graph):
-            return DiagStatus(ok=Ok())
-        return DiagStatus(error=Error(msg="There are loops in the graph"))
+            return DiagStatus(ok=Ok(msg="The are no cycles in the graph"))
+        return DiagStatus(error=Error(msg="There are cycles in the graph"))
 
     def diagnose_grandmaster(self) -> DiagStatus:
         """
@@ -651,7 +656,7 @@ class SyncGraph:
 
         return DiagStatus(
             ok=Ok(
-                msg=f"All {len(self.reference_graph.nodes)} have links compliant with reference"
+                msg=f"All {len(self.reference_graph.nodes)} clocks are synced in compliance with reference"
             )
         )
 
