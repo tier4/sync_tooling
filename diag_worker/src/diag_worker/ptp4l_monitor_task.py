@@ -30,7 +30,7 @@ class Ptp4lMonitorTask(MonitorTask):
 
         self.journal_monitor = (
             ConsolePollingJournalMonitor()
-            .only_current_boot()
+            .only_from_seconds_ago(5)
             .only_systemd_unit(unit_name)
         )
 
@@ -44,15 +44,20 @@ class Ptp4lMonitorTask(MonitorTask):
             pid = get_unit_pid(unit_name)
 
             if pid is None:
+                print(f"PTP4L unit {unit_name} is not running")
                 return None
 
             cmdline = get_command_line(pid)
             config = Ptp4lConfig(cmdline)
             self.ptp4l_clock_id = config.clock
             self._create_pmc_monitor(config)
+            print(
+                f"PTP4L unit {unit_name} is running with clock ID {self.ptp4l_clock_id}"
+            )
             return Ptp4lRunningState(config)
 
         def on_stopped(_):
+            print(f"PTP4L unit {unit_name} is stopped")
             self.ptp4l_clock_id = None
             self._reset_pmc_monitor()
 
