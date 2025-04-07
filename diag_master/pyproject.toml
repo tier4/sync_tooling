@@ -10,7 +10,6 @@ requires-python = ">=3.10"
 dependencies = [
     "flask-api>=3.1",
     "flask>=3.1.0",
-    "http-transport",
     "sync-graph",
     "sync-tooling-msgs",
     "pyyaml>=6.0.2",
@@ -28,6 +27,5 @@ build-backend = "hatchling.build"
 packages = ["src/diag_master"]
 
 [tool.uv.sources]
-http-transport = { workspace = true }
 sync-graph = { workspace = true }
 sync-tooling-msgs = { workspace = true }
