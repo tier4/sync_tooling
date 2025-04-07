@@ -195,11 +195,7 @@ class PmcMonitor:
                         self._logger.debug(
                             f"Got response for {resp.action} query for {payload.tlv_type} from {resp.source_port}"
                         )
-                        state_change = self._handle_management_tlv(
-                            mgmt_tlv, resp.source_port
-                        )
-                        if state_change is not None:
-                            return state_change
+                        self._handle_management_tlv(mgmt_tlv, resp.source_port)
                     case ManagementErrorStatusTlv():
                         self._logger.warning(
                             f"Got an error status for a {resp.action} query from {resp.source_port}"
