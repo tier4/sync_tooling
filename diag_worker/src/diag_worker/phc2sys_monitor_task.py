@@ -17,7 +17,7 @@ class Phc2SysMonitorTask(MonitorTask):
 
         self.journal_monitor = (
             ConsolePollingJournalMonitor()
-            .only_current_boot()
+            .only_from_seconds_ago(5)
             .only_systemd_unit(unit_name)
         )
 
@@ -27,15 +27,17 @@ class Phc2SysMonitorTask(MonitorTask):
         def phc2sys_factory():
             pid = get_unit_pid(unit_name)
             if pid is None:
+                print(f"PHC2SYS unit {unit_name} is not running")
                 return None
 
             cmdline = get_command_line(pid)
             config = Phc2SysConfig(cmdline)
+            print(f"PHC2SYS unit {unit_name} is running")
             return Phc2SysRunningState(config)
 
         def on_stopped(_):
             # No cleanup needs to be done for PHC2SYS
-            pass
+            print(f"PHC2SYS unit {unit_name} is stopped")
 
         self.state_machine = SystemdUnitStateMachine(
             phc2sys_factory, on_stopped, unit_name
