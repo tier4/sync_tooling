@@ -9,8 +9,8 @@ dependencies = [
     "aiostream>=0.6.4",
     "linuxptp_monitor",
     "pmc_monitor",
-    "http-transport",
     "sync-tooling-msgs",
+    "ros2-transport",
 ]
 
 [project.scripts]
@@ -24,5 +24,5 @@ build-backend = "hatchling.build"
 packages = ["src/diag_worker"]
 
 [tool.uv.sources]
-http-transport = { workspace = true }
 sync-tooling-msgs = { workspace = true }
+ros2-transport = { workspace = true }
