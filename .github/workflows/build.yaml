@@ -32,7 +32,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install dependencies
         run: |
-          . /opt/ros/humble/setup.bash && uv sync --all-extras --dev --all-packages
+          . /opt/ros/humble/setup.sh && uv sync --all-extras --dev --all-packages
       - name: Lint with Ruff
         run: |
           uvx ruff check --output-format=github .;
@@ -40,7 +40,7 @@ jobs:
       - name: Test with pytest
         if: success() || failure()
         run: |
-          . /opt/ros/humble/setup.bash && uv run pytest --cov --cov-report=xml --junit-xml=pytest-results.xml
+          . /opt/ros/humble/setup.sh && uv run pytest --cov --cov-report=xml --junit-xml=pytest-results.xml
       - name: SonarQube Scan
         if: success() || failure()
         uses: SonarSource/sonarqube-scan-action@v5
