@@ -48,7 +48,12 @@ class SystemdUnitStateMachine:
         self._factory = inner_state_factory
         self._on_unit_stopped = inner_state_on_exit
         self._unit_prefix = unit_name.removesuffix(".service")
-        self._uninitialize()
+        self._try_initialize()
+
+    def _try_initialize(self):
+        self.state = self._factory() or SystemdUnitStateMachine.Uninitialized(
+            self._factory
+        )
 
     def _uninitialize(self):
         if hasattr(self, "state") and not isinstance(
