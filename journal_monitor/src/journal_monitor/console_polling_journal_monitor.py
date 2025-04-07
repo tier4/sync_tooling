@@ -26,6 +26,7 @@ class ConsolePollingJournalMonitor(JournalMonitor):
     def __init__(self):
         super().__init__()
         self._flags: Set[str] = {"--output=json"}
+        self._startup_flags: Set[str] = set()
         self._previous_cursor: str | None = None
 
     def only_current_boot(self) -> JournalMonitor:
@@ -37,11 +38,17 @@ class ConsolePollingJournalMonitor(JournalMonitor):
         self._flags.add(f"--unit={unit_name}")
         return self
 
+    def only_from_seconds_ago(self, seconds: int) -> JournalMonitor:
+        self._startup_flags.add(f"--since=-{seconds}s")
+        return self
+
     def poll(self):
         args = ["journalctl"]
         args += self._flags
         if self._previous_cursor is not None:
             args.append(f"--after-cursor={self._previous_cursor}")
+        else:
+            args += self._startup_flags
         output = subprocess.check_output(args)
         output = output.decode()
         json_strings = output.splitlines()
