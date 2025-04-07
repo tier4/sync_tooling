@@ -930,18 +930,18 @@ version = "0.1.0"
 source = { editable = "diag_worker" }
 dependencies = [
     { name = "aiostream" },
-    { name = "http-transport" },
     { name = "linuxptp-monitor" },
     { name = "pmc-monitor" },
+    { name = "ros2-transport" },
     { name = "sync-tooling-msgs" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "aiostream", specifier = ">=0.6.4" },
-    { name = "http-transport", editable = "http_transport" },
     { name = "linuxptp-monitor", editable = "linuxptp_monitor" },
     { name = "pmc-monitor", editable = "pmc_monitor" },
+    { name = "ros2-transport", editable = "ros2_transport" },
     { name = "sync-tooling-msgs", editable = "sync_tooling_msgs" },
 ]
 

@@ -2,21 +2,21 @@ import asyncio
 import logging
 import socket
 import time
-from argparse import ArgumentParser
+from argparse import REMAINDER, ArgumentParser
 
+import rclpy
 from aiostream.stream import merge
 
 from diag_worker.monitor_task import MonitorTask
 from diag_worker.phc2sys_monitor_task import Phc2SysMonitorTask
 from diag_worker.ptp4l_monitor_task import Ptp4lMonitorTask
-from http_transport import HttpClient
+from ros2_transport.client import Ros2Client
 
 
 class DiagWorker:
     def __init__(
         self,
-        master_ip: str,
-        master_port: int,
+        topic: str,
         ptp4l_units: list[str],
         phc2sys_units: list[str],
     ) -> None:
@@ -24,7 +24,8 @@ class DiagWorker:
         if not hostname:
             raise RuntimeError("Could not determine hostname")
 
-        self.client_ = HttpClient(f"http://{master_ip}:{master_port}/update_graph")
+        self._node = rclpy.create_node(hostname, namespace="/sync_diag/workers")  # type: ignore
+        self._client = Ros2Client(topic, node=self._node)
 
         if not ptp4l_units and not phc2sys_units:
             raise ValueError(
@@ -47,22 +48,26 @@ class DiagWorker:
             count = 0
             async for event in events:
                 count += 1
-                self.client_.send(event)
+                self._client.send(event)
             print(f"published {count} graph updates")
 
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("master_ip")
-    parser.add_argument("--master_port", "-p", type=int, default=16161)
+    parser.add_argument("--topic", "-t", default="/sync_diag/graph_updates")
     parser.add_argument("--ptp4l-units", "-4", nargs="*")
     parser.add_argument("--phc2sys-units", "-2", nargs="*")
+    parser.add_argument(
+        "--ros-args",
+        nargs=REMAINDER,
+        help="Arguments passed along to ROS 2. See https://docs.ros.org/en/rolling/How-To-Guides/Node-arguments.html for details.",
+    )
     args = parser.parse_args()
 
+    rclpy.init(args=args.ros_args)
+
     while True:
-        diag_worker = DiagWorker(
-            args.master_ip, args.master_port, args.ptp4l_units, args.phc2sys_units
-        )
+        diag_worker = DiagWorker(args.topic, args.ptp4l_units, args.phc2sys_units)
 
         try:
             asyncio.run(diag_worker.run())
