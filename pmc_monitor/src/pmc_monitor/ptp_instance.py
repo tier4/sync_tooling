@@ -5,9 +5,6 @@ from pmc_monitor.pmc_protocol import (
     DefaultDataSet,
     ParentDataSet,
     PortDataSet,
-    PortStatsNp,
-    TimePropertiesDataSet,
-    TimeStatusNp,
 )
 
 
@@ -17,8 +14,11 @@ class Unsupported:
 
 @dataclass
 class PtpPort:
+    """
+    The current state of a PTP port as reported by PMC.
+    """
+
     port_ds: PortDataSet
-    port_stats: PortStatsNp | Unsupported | None = None
 
     def id(self):
         return self.port_ds.portIdentity
@@ -26,13 +26,20 @@ class PtpPort:
 
 @dataclass
 class PtpInstance:
+    """
+    The current state of a PTP instance as reported by PMC.
+    """
+
+    # Whether this instance is the PTP instance that PMC is running on
     is_local_instance: bool
-    default_ds: DefaultDataSet
+
+    # The clock identity of this PTP instance, e.g. `000000.fffe.000000`
+    identity: str
+
+    default_ds: DefaultDataSet | None = None
     current_ds: CurrentDataSet | Unsupported | None = None
     parent_ds: ParentDataSet | Unsupported | None = None
-    time_status_ds: TimeStatusNp | Unsupported | None = None
-    time_properties_ds: TimePropertiesDataSet | Unsupported | None = None
     ports: dict[int, PtpPort] = field(default_factory=dict)
 
     def id(self):
-        return self.default_ds.clockIdentity
+        return self.identity
