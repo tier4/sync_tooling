@@ -1,3 +1,8 @@
+from typing import Literal
+
+import networkx as nx
+from networkx import MultiDiGraph
+
 from sync_graph.sync_graph import SyncGraph
 from sync_tooling_msgs.clock_id import readable_clock_id, readable_clock_type
 from sync_tooling_msgs.clock_id_pb2 import ClockId
@@ -79,7 +84,9 @@ def _port_diags_to_description(sg: SyncGraph, clock: ClockId):
     return ports_html
 
 
-def _clock_to_echart_data(sg: SyncGraph, clock: ClockId):
+def _clock_to_echart_data(
+    sg: SyncGraph, clock: ClockId, position: tuple[float, float] = (0, 0)
+):
     extended_description = []
 
     master_description = _clock_master_to_echart_data(sg, clock)
@@ -97,8 +104,8 @@ def _clock_to_echart_data(sg: SyncGraph, clock: ClockId):
 
     return {
         "name": readable_clock_id(clock),
-        "x": 0,
-        "y": 0,
+        "x": position[0],
+        "y": position[1],
         "tooltip": {"formatter": "<br/>".join(extended_description)},
         "itemStyle": {"color": status_color},
     }
@@ -115,7 +122,6 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
         match type, metadata:
             case "ptp_parent", PortId() as port_id:
                 link_labels.append(f"PTP {port_id.ptp_domain}")
-                is_pseudo_link = False
                 extended_description.append(f"PTP domain: {port_id.ptp_domain}")
                 extended_description.append(
                     f"Parent port: {readable_port_id(port_id, False)}"
@@ -126,7 +132,6 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
                 )
             case "phc2sys", SlaveClockState() as state:
                 link_labels.append("PHC2SYS")
-                is_pseudo_link = False
                 servo_diag = diagnose_servo_state(state.servo_state)
                 extended_description.append(
                     f"Master offset: {state.offset_ns / 1e3:.0f} µs"
@@ -142,6 +147,7 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
                 )
             case "measurement", int() as time_diff_ns:
                 link_labels.append("Measurement")
+                is_pseudo_link = True
                 extended_description.append(f"Time offset: {time_diff_ns / 1e3:.0f} µs")
             case "master", int() as master_offset_ns:
                 link_labels.append("Master")
@@ -167,15 +173,37 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
     }
 
 
-def _sync_graph_to_echart_data_and_links(sg: SyncGraph) -> tuple[list, list]:
+def _get_clock_positions(g: MultiDiGraph) -> dict[ClockId, tuple[float, float]] | None:
+    h = nx.convert_node_labels_to_integers(g, label_attribute="node_label")
+    h_layout = nx.nx_pydot.pydot_layout(h, prog="dot")
+    g_layout: dict[ClockId, tuple[float, float]] = {
+        h.nodes[n]["node_label"]: (x, -y) for n, (x, y) in h_layout.items()
+    }
+
+    def position_transform(x: float, y: float):
+        return 2 * y, x
+
+    g_layout = {k: position_transform(*v) for k, v in g_layout.items()}
+    return g_layout
+
+
+def _sync_graph_to_echart_data_and_links(
+    sg: SyncGraph,
+) -> tuple[list, list, Literal["circular", "none"]]:
     data = []
     links = []
 
     g = sg._graph
 
-    for clock_id in g.nodes:
-        node = _clock_to_echart_data(sg, clock_id)
-        data.append(node)
+    positions = _get_clock_positions(g)
+    if positions is not None:
+        for clock_id, position in positions.items():
+            node = _clock_to_echart_data(sg, clock_id, position)
+            data.append(node)
+    else:
+        for clock_id in g.nodes:
+            node = _clock_to_echart_data(sg, clock_id)
+            data.append(node)
 
     for src, dst in set(g.edges()):
         src: ClockId
@@ -184,11 +212,11 @@ def _sync_graph_to_echart_data_and_links(sg: SyncGraph) -> tuple[list, list]:
         edge_link = _link_to_echart_link(sg, src, dst)
         links.append(edge_link)
 
-    return data, links
+    return data, links, "circular" if positions is None else "none"
 
 
 def sync_graph_to_echart_options(sg: SyncGraph):
-    data, links = _sync_graph_to_echart_data_and_links(sg)
+    data, links, layout = _sync_graph_to_echart_data_and_links(sg)
 
     option = {
         "title": {"text": "Synchronization Graph"},
@@ -196,7 +224,7 @@ def sync_graph_to_echart_options(sg: SyncGraph):
         "series": [
             {
                 "type": "graph",
-                "layout": "force",
+                "layout": layout,
                 "roam": True,
                 "label": {"show": True},
                 "symbolSize": 100,
