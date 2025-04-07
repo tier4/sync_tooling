@@ -39,5 +39,9 @@ class JournalMonitor(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    def only_from_seconds_ago(self, seconds: int) -> "JournalMonitor":
+        raise NotImplementedError()
+
+    @abstractmethod
     def poll(self) -> List[JournalEntry]:
         raise NotImplementedError()
