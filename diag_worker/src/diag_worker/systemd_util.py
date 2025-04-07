@@ -32,7 +32,7 @@ def get_unit_pid(unit_name: str) -> int | None:
     return pid
 
 
-def get_systemctl_():
+def _get_systemctl():
     systemctl = shutil.which("systemctl")
     if systemctl is None:
         raise RuntimeError("Could not find systemctl executable")
@@ -40,8 +40,21 @@ def get_systemctl_():
 
 
 def get_unit_property(unit_name: str, property_name: str) -> str:
+    """
+    Return the value of a property of a systemd unit.
+
+    Args:
+        unit_name: The name of the systemd unit to get the property of.
+        property_name: The name of the property to get the value of.
+
+    Raises:
+        KeyError: If the property is not found for the unit.
+
+    Returns:
+        The value of the property.
+    """
     result = subprocess.run(
-        [get_systemctl_(), "show", unit_name],
+        [_get_systemctl(), "show", unit_name],
         text=True,
         capture_output=True,
         check=True,
@@ -54,11 +67,20 @@ def get_unit_property(unit_name: str, property_name: str) -> str:
 
 
 def does_unit_exist(unit_name: str) -> bool:
+    """
+    Check if a systemd unit is defined and loaded. This does not check if the unit is running.
+
+    Args:
+        unit_name: The name of the systemd unit to check.
+
+    Returns:
+        True if the unit is defined and loaded, False otherwise.
+    """
     if not unit_name.endswith(".service"):
         unit_name = f"{unit_name}.service"
 
     result = subprocess.run(
-        [get_systemctl_(), "list-unit-files", unit_name], capture_output=True
+        [_get_systemctl(), "list-unit-files", unit_name], capture_output=True
     )
 
     return result.returncode == 0
