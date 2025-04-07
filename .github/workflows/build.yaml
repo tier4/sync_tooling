@@ -30,6 +30,9 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
           cache-dependency-glob: uv.lock
+      - name: Install basic tools
+        run: |
+          apt-get update && apt-get install -qq unzip curl
       - name: Install dependencies
         run: |
           . /opt/ros/humble/setup.sh && uv sync --all-extras --dev --all-packages
