@@ -651,7 +651,7 @@ class SyncGraph:
                 f"{readable_clock_id(parent)} -> {readable_clock_id(clock)}"
                 for clock, parent in missing_links
             ]
-            msg = f"The following links were not found: {', '.join(readable_links)}"
+            msg = f"The following {len(missing_links)} links were not found: {', '.join(readable_links)}"
             return DiagStatus(error=Error(msg=msg))
 
         return DiagStatus(
