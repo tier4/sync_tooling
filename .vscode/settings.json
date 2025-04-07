@@ -5,6 +5,7 @@
     "./pmc_monitor/src",
     "./diag_worker/src",
     "./http_transport/src",
+    "./ros2_transport/src",
     "./sync_graph/src",
     "./sync_tooling_msgs/src",
     "/opt/ros/humble/local/lib/python3.10/dist-packages",
