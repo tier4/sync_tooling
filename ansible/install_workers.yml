@@ -7,7 +7,7 @@
       args:
         chdir: "{{ lookup('env', 'PWD') }}"
       changed_when: true
-    
+
     - name: Test the project for issues
       ansible.builtin.shell:
         cmd: uvx ruff check && uv run pytest
@@ -27,7 +27,7 @@
       args:
         chdir: "{{ lookup('env', 'PWD') }}"
       changed_when: true
-    
+
     - name: Find the built wheel file
       ansible.builtin.find:
         paths: "{{ lookup('env', 'PWD') }}/dist"
@@ -50,7 +50,9 @@
     apt_requirements_file: apt-requirements.txt
     # Set the control node (node running the playbook) to be the proxy for nodes not connected to internet
     proxy: "http://{{ ansible_env.SSH_CONNECTION.split(' ')[0] }}:7171"
-    venv_path: "/opt/sync_diagnostics/.venv"
+    install_path: /opt/sync_diagnostics
+    venv_path: "{{ install_path }}/.venv"
+    run_script_path: "{{ install_path }}/run_with_sync_tooling_context.sh"
   environment:
     all_proxy: "{{ proxy }}"
     http_proxy: "{{ proxy }}"
@@ -61,7 +63,7 @@
         var: to_debug
       vars:
         to_debug:
-          proxy: "{{proxy}}"
+          proxy: "{{ proxy }}"
           connection: "{{ ansible_env.SSH_CONNECTION }}"
 
     - name: Copy the wheel file to target nodes
@@ -79,9 +81,8 @@
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: true
-        cache_valid_time: 7200  # 2 hours
       become: true
-    
+
     - name: Check if Python 3.10 is present
       ansible.builtin.command:
         cmd: python3.10 -m pip --version
@@ -94,8 +95,7 @@
       block:
         - name: Add PPA dependencies
           ansible.builtin.apt:
-            name: 
-              - software-properties-common
+            name: software-properties-common
             state: present
           become: true
 
@@ -112,13 +112,13 @@
 
         - name: Install Python 3.10
           ansible.builtin.apt:
-            name: 
-              - python3.10 
-              - python3.10-venv 
-              - python3.10-dev 
+            name:
+              - python3.10
+              - python3.10-venv
+              - python3.10-dev
               - python3-apt
             state: present
-            update_cache: yes
+            update_cache: true
           become: true
 
     - name: Install extra apt dependencies
@@ -128,12 +128,11 @@
       loop: "{{ lookup('file', lookup('env', 'PWD') + '/' + apt_requirements_file).splitlines() }}"
       when: apt_requirements_file is file
       become: true
-    
+
     - name: Install virtualenv
       ansible.builtin.apt:
         name: python3-virtualenv
       become: true
-
 
     - name: Configure venv
       block:
@@ -146,12 +145,98 @@
           ansible.builtin.command:
             cmd: virtualenv --python python3.10 "{{ venv_path }}"
           become: true
-        
+
         - name: Install pip
           ansible.builtin.shell:
             cmd: . {{ venv_path }}/bin/activate && (curl -sS https://bootstrap.pypa.io/get-pip.py | python)
           become: true
-    
+
+    - name: Configure to use existing ROS 2 Humble
+      when: python_check.rc == 0
+      ansible.builtin.set_fact:
+        ros_setup_path: "/opt/ros/humble/setup.bash"
+
+    - name: Install ROS 2 Humble
+      when: python_check.rc != 0
+      block:
+        - name: Install dependencies
+          ansible.builtin.apt:
+            name: software-properties-common
+            state: present
+          become: true
+
+        - name: Enable Ubuntu Universe
+          ansible.builtin.apt_repository:
+            repo: universe
+            state: present
+          become: true
+
+        - name: Add ROS 2 GPG key
+          ansible.builtin.command: sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+          become: true
+
+        - name: Add ROS2 repository
+          ansible.builtin.shell: 
+            cmd: echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+          become: true
+
+        - name: Update apt cache
+          ansible.builtin.apt:
+            update_cache: true
+          become: true
+
+        - name: Install ROS 2 build dependencies (apt)
+          ansible.builtin.apt:
+            name:
+              - python3-flake8-docstrings
+              - python3-pip
+              - python3-pytest-cov
+              - ros-dev-tools
+            state: present
+            update_cache: true
+          become: true
+
+        - name: Install ROS 2 build dependencies (pip)
+          ansible.builtin.shell:
+            cmd: |
+              . {{ venv_path }}/bin/activate && pip install -U \
+              flake8-blind-except \
+              flake8-builtins \
+              flake8-class-newline \
+              flake8-comprehensions \
+              flake8-deprecated \
+              flake8-import-order \
+              flake8-quotes \
+              "pytest>=5.3" \
+              pytest-repeat \
+              pytest-rerunfailures
+          become: true
+
+        - name: Clone ROS 2 Humble
+          ansible.builtin.shell:
+            cmd: |
+              mkdir -p {{ install_path }}/ros2_humble/src
+              cd {{ install_path }}/ros2_humble
+              vcs import --input https://raw.githubusercontent.com/ros2/ros2/humble/ros2.repos src
+          become: true
+
+        - name: Install ROS 2 build dependencies (rosdep)
+          ansible.builtin.shell:
+            cmd: |
+              sudo rosdep init
+              rosdep update
+              rosdep install --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext-dds-6.0.1 urdfdom_headers"
+          become: true
+
+        - name: Build ROS 2 Humble
+          ansible.builtin.shell:
+            cmd: |
+              . {{ venv_path }}/bin/activate && colcon build --symlink-install
+        
+        - name: Configure SYNC.TOOLING environment
+          ansible.builtin.set_fact:
+            ros_setup_path: "{{ install_path }}/ros2_humble/install/setup.bash"
+
     - name: Install sync tooling
       block:
         - name: Install wheel's requirements
@@ -163,7 +248,15 @@
           ansible.builtin.shell:
             cmd: . {{ venv_path }}/bin/activate && pip install --force-reinstall /tmp/{{ hostvars['localhost'].wheel_path | basename }}
           become: true
-    
+
+    - name: Configure run script
+      ansible.builtin.template:
+        src: templates/run_with_sync_tooling_context.sh.j2
+        dest: "{{ run_script_path }}"
+        group: root
+        owner: root
+        mode: 0755
+
     - name: Configure systemd services
       block:
         - name: Install Sync Diagnostcs Master
@@ -176,7 +269,7 @@
           when: sync_master is defined
           register: install_sync_master
           become: true
-        
+
         - name: Install Sync Diagnostcs Worker
           ansible.builtin.template:
             src: templates/sync_diag_worker.service.j2
@@ -187,13 +280,13 @@
           when: sync_worker is defined
           register: install_sync_worker
           become: true
-        
+
         - name: Reload systemd daemon
           ansible.builtin.systemd_service:
             daemon_reload: true
           when: (install_sync_worker is changed) or (install_sync_master is changed)
           become: true
-        
+
         - name: Enable and run master
           ansible.builtin.systemd_service:
             name: sync_diag_master

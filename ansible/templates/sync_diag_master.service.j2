@@ -1,10 +1,10 @@
 [Unit]
-Description="TIER IV Synchronization Diagnostics Tooling master"
+Description="TIER IV SYNC.TOOLING master"
 After=network.target
 
 [Service]
 Type=simple
-ExecStart={{ venv_path }}/bin/diag-master {{ sync_master.bind_ip }}
+ExecStart={{ run_script_path }} diag-master {{ sync_master.bind_ip }}
 Restart=on-failure
 RestartSec=60
 
