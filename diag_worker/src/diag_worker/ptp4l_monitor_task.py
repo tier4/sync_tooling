@@ -9,8 +9,9 @@ from linuxptp_monitor.state_machine import (
     SystemdUnitStateChange,
     SystemdUnitStateMachine,
 )
-from pmc_monitor.pmc_monitor import PmcMonitor, PmcStateChange
-from pmc_monitor.pmc_protocol import CurrentDataSet, ParentDataSet
+from pmc_monitor.pmc_monitor import PmcMonitor
+from pmc_monitor.pmc_protocol import CurrentDataSet, DefaultDataSet, ParentDataSet
+from pmc_monitor.ptp_instance import PtpInstance
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
@@ -85,14 +86,13 @@ class Ptp4lMonitorTask(MonitorTask):
         self.pmc_monitor = None
         self.domain_id = None
 
-    def pmc_to_graph_updates(self, state_change: PmcStateChange):
-        if state_change.new_state is None:
-            return
-
+    def pmc_to_graph_updates(self, inst: PtpInstance):
         if self.domain_id is None:
             raise AssertionError()
 
-        inst = state_change.new_state
+        if isinstance(inst.default_ds, DefaultDataSet):
+            assert inst.default_ds.domainNumber == self.domain_id
+
         clock_id: ClockId = ClockId(ptp_clock_id=PtpClockId(id=inst.id()))
 
         if inst.is_local_instance:
