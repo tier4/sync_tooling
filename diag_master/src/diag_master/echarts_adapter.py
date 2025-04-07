@@ -17,39 +17,6 @@ DIAG_PALETTE = {
     "error": "#e76f51",
 }
 
-HTML_TEMPLATE = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
-    </head>
-    <body style="overflow: hidden;">
-        <div id="chart" style="width: 100vw; height: 100vh;"></div>
-        <script>
-            var chart = echarts.init(document.getElementById('chart'));
-
-            window.onresize = function() {
-                chart.resize();
-            };
-
-            function fetchGraphData() {
-                fetch('/get_graph')
-                    .then(response => response.json())
-                    .then(data => {
-                        chart.setOption(data);
-                    });
-            }
-
-            // Fetch data every 1 second
-            setInterval(fetchGraphData, 1000);
-
-            // Initial fetch
-            fetchGraphData();
-        </script>
-    </body>
-    </html>
-    """
-
 NOT_RECEIVED_DIAG = to_diag_tree(Unknown(msg="Not received yet"))
 
 
