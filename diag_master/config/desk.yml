@@ -3,3 +3,4 @@ clock_tree:
     dpc2312003.ptp0:
     dpc2312003.ptp1:
     dpc2312003.ptp2:
+      OT128@192.168.1.201:
