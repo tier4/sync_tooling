@@ -26,11 +26,15 @@ class Phc2SysMonitorTask(MonitorTask):
 
         def phc2sys_factory():
             pid = get_unit_pid(unit_name)
+            if pid is None:
+                return None
+
             cmdline = get_command_line(pid)
             config = Phc2SysConfig(cmdline)
             return Phc2SysRunningState(config)
 
         def on_stopped(_):
+            # No cleanup needs to be done for PHC2SYS
             pass
 
         self.state_machine = SystemdUnitStateMachine(

@@ -12,11 +12,23 @@ def get_command_line(pid: int) -> list[str]:
     return args
 
 
-def get_unit_pid(unit_name: str) -> int:
+def get_unit_pid(unit_name: str) -> int | None:
+    """
+    For a running systemd unit, return the PID of the main process. Otherwise, return None.
+
+    Args:
+        unit_name: The name of the systemd unit to get the PID of.
+
+    Returns:
+        The PID of the main process of the unit, or None if the unit is not running.
+    """
     pid = get_unit_property(unit_name, "MainPID")
-    pid = int(pid)
+    try:
+        pid = int(pid)
+    except ValueError:
+        return None
     if pid == 0:
-        raise RuntimeError(f"Unit '{unit_name}' is not running")
+        return None
     return pid
 
 
