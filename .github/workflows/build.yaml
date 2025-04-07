@@ -17,6 +17,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    container: ros:humble-ros-base-jammy
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,7 +32,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install dependencies
         run: |
-          uv sync --all-extras --dev --all-packages
+          . /opt/ros/humble/setup.bash && uv sync --all-extras --dev --all-packages
       - name: Lint with Ruff
         run: |
           uvx ruff check --output-format=github .;
@@ -39,7 +40,7 @@ jobs:
       - name: Test with pytest
         if: success() || failure()
         run: |
-          uv run pytest --cov --cov-report=xml --junit-xml=pytest-results.xml
+          . /opt/ros/humble/setup.bash && uv run pytest --cov --cov-report=xml --junit-xml=pytest-results.xml
       - name: SonarQube Scan
         if: success() || failure()
         uses: SonarSource/sonarqube-scan-action@v5
