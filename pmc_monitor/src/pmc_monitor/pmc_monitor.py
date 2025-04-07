@@ -204,8 +204,8 @@ class PmcMonitor:
         Raises:
             RuntimeError: When the PMC process exits unexpectedly.
 
-        Yields:
-            PtpInstance: The current state of a PTP instance.
+        Yields(PtpInstance):
+            The current state of a PTP instance.
         """
         ptp_instances: dict[str, PtpInstance] = {}
 

@@ -22,7 +22,7 @@ plugins:
         - pmc_monitor/src/pmc_monitor
         - linuxptp_monitor/src/linuxptp_monitor
         - journal_monitor/src/journal_monitor
-        - http_transport/src/http_transport
+        - ros2_transport/src/ros2_transport
       nav_section_title: "API Reference"
       api_root_uri: "reference" 
       nav_item_prefix: "<code class='doc-symbol doc-symbol-nav doc-symbol-module'></code>"
