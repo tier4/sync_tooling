@@ -27,18 +27,21 @@ class SystemdUnitStateMachine:
 
     @dataclass(eq=False)
     class Uninitialized(State):
-        factory: Callable[[], State] = field(repr=False)
+        factory: Callable[[], State | None] = field(repr=False)
 
         def parse(self, entry: JournalEntry) -> Generator[Event, None, State]:
             inner_parser = self.factory()
-            return inner_parser.parse(entry)
+            if inner_parser is None:
+                return self
+            next_state = yield from inner_parser.parse(entry)
+            return next_state
 
         def __eq__(self, value: object) -> bool:
             return isinstance(value, SystemdUnitStateMachine.Uninitialized)
 
     def __init__(
         self,
-        inner_state_factory: Callable[[], State],
+        inner_state_factory: Callable[[], State | None],
         inner_state_on_exit: Callable[[State], None],
         unit_name: str,
     ):
