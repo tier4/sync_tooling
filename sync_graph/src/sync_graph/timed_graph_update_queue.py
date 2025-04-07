@@ -36,6 +36,7 @@ class TimedGraphUpdateQueue:
         )
 
     def push(self, u: GraphUpdate):
+        self._drop_expired_updates()
         update_stamped = GraphUpdateStamped(time.monotonic(), u)
         self._graph_updates.append(update_stamped)
 
