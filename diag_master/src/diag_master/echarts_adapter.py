@@ -1,7 +1,5 @@
-from typing import Literal
-
 import networkx as nx
-from networkx import MultiDiGraph
+from networkx import DiGraph
 
 from sync_graph.sync_graph import SyncGraph
 from sync_tooling_msgs.clock_id import readable_clock_id, readable_clock_type
@@ -85,30 +83,44 @@ def _port_diags_to_description(sg: SyncGraph, clock: ClockId):
 
 
 def _clock_to_echart_data(
-    sg: SyncGraph, clock: ClockId, position: tuple[float, float] = (0, 0)
+    sg: SyncGraph, clock: ClockId, position: tuple[float, float] | None = None
 ):
     extended_description = []
 
-    master_description = _clock_master_to_echart_data(sg, clock)
-    extended_description.append(master_description)
+    if clock in sg._graph:
+        master_description = _clock_master_to_echart_data(sg, clock)
+        extended_description.append(master_description)
 
-    aliases_description = _clock_aliases_to_description(sg, clock)
-    extended_description.append(aliases_description)
+        aliases_description = _clock_aliases_to_description(sg, clock)
+        extended_description.append(aliases_description)
 
-    ports_description = _port_diags_to_description(sg, clock)
-    extended_description.append(ports_description)
+        ports_description = _port_diags_to_description(sg, clock)
+        extended_description.append(ports_description)
 
-    diag = sg.diagnose_clock(clock)
-    status = aggregate(diag)
-    status_color = get_status_color(status)
+        diag = sg.diagnose_clock(clock)
+        status = aggregate(diag)
+        status_color = get_status_color(status)
+    else:
+        status_color = DIAG_PALETTE["error"]
+        extended_description.append("Clock not found in graph")
 
-    return {
+    node = {
         "name": readable_clock_id(clock),
-        "x": position[0],
-        "y": position[1],
         "tooltip": {"formatter": "<br/>".join(extended_description)},
         "itemStyle": {"color": status_color},
+        "label": {"show": True, "position": "right"},
     }
+
+    if position is not None:
+        node["x"] = position[0]
+        node["y"] = position[1]
+        node["fixed"] = True
+    else:
+        node["x"] = 0
+        node["y"] = 0
+        node["fixed"] = False
+
+    return node
 
 
 def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
@@ -173,29 +185,97 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
     }
 
 
-def _get_clock_positions(g: MultiDiGraph) -> dict[ClockId, tuple[float, float]] | None:
-    h = nx.convert_node_labels_to_integers(g, label_attribute="node_label")
-    h_layout = nx.nx_pydot.pydot_layout(h, prog="dot")
-    g_layout: dict[ClockId, tuple[float, float]] = {
-        h.nodes[n]["node_label"]: (x, -y) for n, (x, y) in h_layout.items()
+def _layout_tree(
+    g: DiGraph, pad_x: float, pad_y: float
+) -> dict[Unknown, tuple[float, float]]:
+    """
+    Lay out a tree-shaped graph from left to right.
+
+    The tree is laid out such that:
+    - the root is on the left at (0, 0)
+    - the leaves are spaced evenly in the vertical direction
+    - parents are vertically centered to their children
+    - the x position of a node is its index in the topological sort
+
+    Args:
+        g: The graph to lay out. Has to be a tree.
+
+    Returns:
+        A dictionary mapping each node to its (x, y) position.
+    """
+    # The reference graph is guaranteed to be a tree. Lay out the tree such that
+    # - the root is on the left at (0, 0)
+    # - the leaves are spaced evenly in the vertical direction
+    # - parents are vertically centered to their children
+    # - the x position of a node is its index in the topological sort
+    # - a child with more descendants is placed higher up
+
+    levels = list(nx.topological_generations(g))
+    assert len(levels) > 1, "Empty reference graph"
+    assert len(levels[0]) == 1, "Reference graph is not a tree"
+    root = levels[0][0]
+
+    layout = {}
+    current_y = 0
+
+    def layout_y(node: ClockId, current_x: float):
+        """
+        Traverse the reference tree in post-order. Increment the y position for each leaf, and
+        set the y position of each non-leaf node to the middle of the y positions of its children.
+        """
+
+        nonlocal current_y
+        match list(g.successors(node)):
+            case []:
+                layout[node] = (current_x, current_y)
+                current_y += pad_y
+            case [*children]:
+                children = sorted(children, key=lambda c: len(nx.descendants(g, c)))
+                for c in reversed(children):
+                    layout_y(c, current_x + pad_x)
+                node_y = (layout[children[0]][1] + layout[children[-1]][1]) / 2  # type: ignore
+                layout[node] = (current_x, node_y)
+
+    layout_y(root, 0)
+
+    # Shift the layout such that the root is at (0, 0)
+    offset = layout[root]
+    layout = {node: (x - offset[0], y - offset[1]) for node, (x, y) in layout.items()}
+
+    return layout
+
+
+def _get_clock_positions(
+    sg: SyncGraph,
+) -> dict[ClockId, tuple[float, float] | None] | None:
+    if sg.reference_graph is None:
+        return None
+
+    g = sg.reference_graph
+    layout = _layout_tree(g, 3, 0.75)  # type: ignore
+
+    layout: dict[ClockId, tuple[float, float] | None] = {
+        sg.get_canonical_clock_id(n): pos for n, pos in layout.items()
     }
 
-    def position_transform(x: float, y: float):
-        return 2 * y, x
+    for clock_id in sg._graph.nodes:
+        if clock_id in layout:
+            continue
 
-    g_layout = {k: position_transform(*v) for k, v in g_layout.items()}
-    return g_layout
+        layout[clock_id] = None
+
+    return layout
 
 
 def _sync_graph_to_echart_data_and_links(
     sg: SyncGraph,
-) -> tuple[list, list, Literal["circular", "none"]]:
+) -> tuple[list, list]:
     data = []
     links = []
 
     g = sg._graph
 
-    positions = _get_clock_positions(g)
+    positions = _get_clock_positions(sg)
     if positions is not None:
         for clock_id, position in positions.items():
             node = _clock_to_echart_data(sg, clock_id, position)
@@ -212,11 +292,11 @@ def _sync_graph_to_echart_data_and_links(
         edge_link = _link_to_echart_link(sg, src, dst)
         links.append(edge_link)
 
-    return data, links, "circular" if positions is None else "none"
+    return data, links
 
 
 def sync_graph_to_echart_options(sg: SyncGraph):
-    data, links, layout = _sync_graph_to_echart_data_and_links(sg)
+    data, links = _sync_graph_to_echart_data_and_links(sg)
 
     option = {
         "title": {"text": "Synchronization Graph"},
@@ -224,10 +304,15 @@ def sync_graph_to_echart_options(sg: SyncGraph):
         "series": [
             {
                 "type": "graph",
-                "layout": layout,
+                "layout": "force",
+                "force": {
+                    "repulsion": 1,
+                    "gravity": 0.2,
+                    "layoutAnimation": False,
+                },
                 "roam": True,
                 "label": {"show": True},
-                "symbolSize": 100,
+                "symbolSize": 20,
                 "itemStyle": {"color": "#264653"},
                 "edgeSymbol": [None, "arrow"],
                 "edgeSymbolSize": 20,
