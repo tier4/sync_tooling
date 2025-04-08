@@ -66,3 +66,7 @@ As for the actual diagnostics output, it is required that
 
 [^5]: The term "grandmaster" is defined in the PTP standard, but the usage here refers to the clock that all other clocks synchronize to,
   even through means other than PTP (such as PHC2SYS).
+
+## System Architecture
+
+![Diagnostics [Architecture]](img/sync_tooling.drawio)
