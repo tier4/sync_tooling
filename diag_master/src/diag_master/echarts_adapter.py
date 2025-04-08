@@ -230,9 +230,14 @@ def _layout_tree(
                 layout[node] = (current_x, current_y)
                 current_y += pad_y
             case [*children]:
-                children = sorted(children, key=lambda c: len(nx.descendants(g, c)))
-                for c in reversed(children):
+                children = sorted(children, key=readable_clock_id)
+                children = sorted(
+                    children, key=lambda c: len(nx.descendants(g, c)), reverse=True
+                )
+
+                for c in children:
                     layout_y(c, current_x + pad_x)
+
                 node_y = (layout[children[0]][1] + layout[children[-1]][1]) / 2  # type: ignore
                 layout[node] = (current_x, node_y)
 
@@ -245,14 +250,67 @@ def _layout_tree(
     return layout
 
 
+def _is_node_in_cycle(g: DiGraph, n: ClockId) -> bool:
+    try:
+        nx.find_cycle(g, source=n)
+        return True
+    except nx.NetworkXNoCycle:
+        return False
+
+
 def _get_clock_positions(
     sg: SyncGraph,
 ) -> dict[ClockId, tuple[float, float] | None] | None:
     if sg.reference_graph is None:
         return None
 
-    g = sg.reference_graph
-    layout = _layout_tree(g, 3, 0.75)  # type: ignore
+    g = sg._graph
+    r: DiGraph = sg.reference_graph.copy()  # type: ignore
+    assert nx.is_tree(r)
+    mapping = {n: sg.get_canonical_clock_id(n) for n in r.nodes}
+    r = nx.relabel_nodes(r, mapping)
+    r.remove_edges_from(nx.selfloop_edges(r))
+    assert nx.is_tree(r)
+
+    r_levels = list(nx.topological_generations(r))
+
+    # Compute the set of nodes that are not in the reference (rogue clocks) that still can be nicely
+    # laid out.
+    #
+    # A node can be laid out if:
+    # - it is not part of a cycle
+    # - there exists a relative (descendant or ancestor) that is in the reference
+    nodes_not_in_reference = set(g.nodes) - set(r.nodes)
+
+    edges_to_add = []
+    for n in nodes_not_in_reference:
+        if _is_node_in_cycle(g, n):
+            continue
+
+        relatives = nx.descendants(g, n) | nx.ancestors(g, n)
+        relatives = [n for n in relatives if r.has_node(n)]
+        if not relatives:
+            continue
+
+        # Find the relative furthest down the hierarchy
+        def get_level(n: ClockId) -> int:
+            for i, level in enumerate(r_levels):
+                if n in level:
+                    return i
+            raise AssertionError(
+                "Node in reference has to appear in its topological generations"
+            )
+
+        # Ensure stability across additions/removals by sorting by ID
+        relatives = sorted(relatives, key=readable_clock_id)
+        furthest_relative: ClockId = max(relatives, key=get_level)
+        # This edge is only for lay-outing purposes. It does not appear in the visualization.
+        edges_to_add.append((furthest_relative, n))
+
+    r.add_edges_from(edges_to_add)
+
+    # Run the tree layout algorithm
+    layout = _layout_tree(r, 3, 0.75)  # type: ignore
 
     layout: dict[ClockId, tuple[float, float] | None] = {
         sg.get_canonical_clock_id(n): pos for n, pos in layout.items()
@@ -316,7 +374,7 @@ def sync_graph_to_echart_options(sg: SyncGraph):
                 "itemStyle": {"color": "#264653"},
                 "edgeSymbol": [None, "arrow"],
                 "edgeSymbolSize": 20,
-                "autoCurveness": True,
+                "autoCurveness": False,
                 "data": data,
                 "links": links,
             }
