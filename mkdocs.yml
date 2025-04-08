@@ -2,6 +2,8 @@ site_name: SYNC.TOOLING
 repo_url: https://github.com/tier4/sync_tooling
 theme:
   name: material
+  features:
+    - navigation.instant
 nav:
   - Home: index.md
   - Design: design.md
@@ -14,6 +16,7 @@ markdown_extensions:
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 plugins: 
   - search
+  - drawio
   - api-autonav:
       modules:
         - sync_tooling_msgs/src/sync_tooling_msgs
@@ -59,3 +62,6 @@ plugins:
             show_if_no_docstring: false
             signature_crossrefs: true
             summary: true
+extra_javascript:
+  - https://viewer.diagrams.net/js/viewer-static.min.js
+  - js/drawio-reload.js
