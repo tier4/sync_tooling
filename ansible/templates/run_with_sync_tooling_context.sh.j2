@@ -4,7 +4,9 @@ install_path={{ install_path }}
 ros_setup_path={{ ros_setup_path }}
 venv_path={{ venv_path }}
 
+source /opt/autoware/services/set-autoware-env/setup.sh
+
 source "$venv_path/bin/activate"
 source "$ros_setup_path"
 
-exec "$@"
+HOME=/root "$@"

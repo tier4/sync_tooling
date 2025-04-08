@@ -57,6 +57,7 @@
     all_proxy: "{{ proxy }}"
     http_proxy: "{{ proxy }}"
     https_proxy: "{{ proxy }}"
+    ROS_PYTHON_VERSION: 3
   tasks:
     - name: Debug proxy
       ansible.builtin.debug:
@@ -151,91 +152,113 @@
             cmd: . {{ venv_path }}/bin/activate && (curl -sS https://bootstrap.pypa.io/get-pip.py | python)
           become: true
 
+    - name: Check if ROS 2 Humble is using Python 3.10
+      ansible.builtin.stat:
+        path: /opt/ros/humble/lib/python3.10
+      register: ros2_check
+
     - name: Configure to use existing ROS 2 Humble
-      when: python_check.rc == 0
+      when: python_check.rc == 0 and ros2_check.stat.exists
       ansible.builtin.set_fact:
         ros_setup_path: "/opt/ros/humble/setup.bash"
 
-    - name: Install ROS 2 Humble
-      when: python_check.rc != 0
-      block:
-        - name: Install dependencies
-          ansible.builtin.apt:
-            name: software-properties-common
-            state: present
-          become: true
+    # - name: Install ROS 2 Humble
+    #   when: python_check.rc != 0 or not ros2_check.stat.exists
+    #   block:
+    #     - name: Install dependencies
+    #       ansible.builtin.apt:
+    #         name: software-properties-common
+    #         state: present
+    #       become: true
 
-        - name: Enable Ubuntu Universe
-          ansible.builtin.apt_repository:
-            repo: universe
-            state: present
-          become: true
+    #     - name: Enable Ubuntu Universe
+    #       ansible.builtin.command: sudo add-apt-repository universe
+    #       become: true
 
-        - name: Add ROS 2 GPG key
-          ansible.builtin.command: sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
-          become: true
+    #     - name: Add ROS 2 GPG key
+    #       ansible.builtin.command: curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /tmp/ros-archive-keyring.gpg
 
-        - name: Add ROS2 repository
-          ansible.builtin.shell: 
-            cmd: echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
-          become: true
+    #     - name: Move ROS 2 GPG key
+    #       ansible.builtin.command: sudo mv /tmp/ros-archive-keyring.gpg /usr/share/keyrings
+    #       become: true
 
-        - name: Update apt cache
-          ansible.builtin.apt:
-            update_cache: true
-          become: true
+    #     - name: Add ROS2 repository
+    #       ansible.builtin.shell: 
+    #         cmd: echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+    #       become: true
 
-        - name: Install ROS 2 build dependencies (apt)
-          ansible.builtin.apt:
-            name:
-              - python3-flake8-docstrings
-              - python3-pip
-              - python3-pytest-cov
-              - ros-dev-tools
-            state: present
-            update_cache: true
-          become: true
+    #     - name: Update apt cache
+    #       ansible.builtin.apt:
+    #         update_cache: true
+    #       become: true
 
-        - name: Install ROS 2 build dependencies (pip)
-          ansible.builtin.shell:
-            cmd: |
-              . {{ venv_path }}/bin/activate && pip install -U \
-              flake8-blind-except \
-              flake8-builtins \
-              flake8-class-newline \
-              flake8-comprehensions \
-              flake8-deprecated \
-              flake8-import-order \
-              flake8-quotes \
-              "pytest>=5.3" \
-              pytest-repeat \
-              pytest-rerunfailures
-          become: true
+    #     - name: Install ROS 2 build dependencies (apt)
+    #       ansible.builtin.apt:
+    #         name:
+    #           - python3-flake8-docstrings
+    #           - python3-pip
+    #           - python3-pytest-cov
+    #           - ros-dev-tools
+    #         state: present
+    #         update_cache: true
+    #       become: true
 
-        - name: Clone ROS 2 Humble
-          ansible.builtin.shell:
-            cmd: |
-              mkdir -p {{ install_path }}/ros2_humble/src
-              cd {{ install_path }}/ros2_humble
-              vcs import --input https://raw.githubusercontent.com/ros2/ros2/humble/ros2.repos src
-          become: true
+    #     - name: Install ROS 2 build dependencies (pip)
+    #       ansible.builtin.shell:
+    #         cmd: |
+    #           . {{ venv_path }}/bin/activate && pip install -U \
+    #           flake8-blind-except \
+    #           flake8-builtins \
+    #           flake8-class-newline \
+    #           flake8-comprehensions \
+    #           flake8-deprecated \
+    #           flake8-import-order \
+    #           flake8-quotes \
+    #           "pytest>=5.3" \
+    #           pytest-repeat \
+    #           pytest-rerunfailures
+    #       become: true
 
-        - name: Install ROS 2 build dependencies (rosdep)
-          ansible.builtin.shell:
-            cmd: |
-              sudo rosdep init
-              rosdep update
-              rosdep install --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext-dds-6.0.1 urdfdom_headers"
-          become: true
+    #     - name: Clone ROS 2 Humble
+    #       ansible.builtin.shell:
+    #         cmd: |
+    #           mkdir -p {{ install_path }}/ros2_humble/src
+    #           cd {{ install_path }}/ros2_humble
+    #           vcs import --input https://raw.githubusercontent.com/ros2/ros2/humble/ros2.repos src
+    #       become: true
 
-        - name: Build ROS 2 Humble
-          ansible.builtin.shell:
-            cmd: |
-              . {{ venv_path }}/bin/activate && colcon build --symlink-install
-        
-        - name: Configure SYNC.TOOLING environment
-          ansible.builtin.set_fact:
-            ros_setup_path: "{{ install_path }}/ros2_humble/install/setup.bash"
+    #     - name: Upgrade Apt dependencies
+    #       ansible.builtin.apt:
+    #         upgrade: yes
+    #       become: true
+
+    #     - name: Initialize Rosdep
+    #       ansible.builtin.shell:
+    #         cmd: |
+    #           rm -rf /etc/ros/rosdep/sources.list.d
+    #           rosdep fix-permissions
+    #           rosdep init
+    #       become: true
+
+    #     - name: Update Rosdep
+    #       ansible.builtin.command: rosdep update
+
+    #     - name: Install ROS 2 build dependencies (rosdep)
+    #       ansible.builtin.shell: 
+    #         cmd: |
+    #           cd {{ install_path }}/ros2_humble
+    #           rosdep install --reinstall --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext-dds-6.0.1 urdfdom_headers"
+    #       become: true
+
+    #     - name: Build ROS 2 Humble
+    #       ansible.builtin.shell:
+    #         cmd: |
+    #           cd {{ install_path }}/ros2_humble
+    #           . {{ venv_path }}/bin/activate && colcon build --symlink-install
+
+    #     - name: Configure SYNC.TOOLING environment
+    #       ansible.builtin.set_fact:
+    #         ros_setup_path: "{{ install_path }}/ros2_humble/install/setup.bash"
 
     - name: Install sync tooling
       block:
@@ -256,9 +279,20 @@
         group: root
         owner: root
         mode: 0755
+      become: true
 
     - name: Configure systemd services
       block:
+        - name: Copy Reference Graph
+          ansible.builtin.copy:
+            src: "{{ sync_master.reference }}"
+            dest: /opt/sync_diagnostics/reference.yml
+            group: root
+            owner: root
+            mode: 0444
+          when: sync_master is defined and sync_master.reference is defined
+          become: true
+
         - name: Install Sync Diagnostcs Master
           ansible.builtin.template:
             src: templates/sync_diag_master.service.j2

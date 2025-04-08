@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart={{ run_script_path }} diag-master {{ sync_master.bind_ip }}
+ExecStart={{ run_script_path }} diag-master --reference "{{ install_path }}/reference.yml"
 Restart=on-failure
 RestartSec=60
 

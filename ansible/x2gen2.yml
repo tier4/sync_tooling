@@ -1,7 +1,6 @@
 all:
   vars:
     remote_user: autoware
-    sync_master_ip: 192.168.20.11
   hosts:
     main:
       ansible_host: 192.168.20.11
@@ -14,7 +13,7 @@ all:
           - phc2sys_sys_to_enp3s0
           - phc2sys_sys_to_enp5s0f0
       sync_master:
-        bind_ip: 192.168.20.11
+        reference: ../diag_master/config/x2gen2.yml
     sub:
       ansible_host: 192.168.20.21
       sync_worker:

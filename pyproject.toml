@@ -32,7 +32,7 @@ pmc_monitor = { workspace = true }
 diag_worker = { workspace = true }
 diag_master = { workspace = true }
 sync_graph = { workspace = true }
-http_transport = { workspace = true }
+ros2_transport = { workspace = true }
 sync_tooling_msgs = { workspace = true }
 
 [tool.uv.workspace]
@@ -44,7 +44,8 @@ members = [
     "diag_master",
     "sync_graph",
     "http_transport",
-    "sync_tooling_msgs", "ros2_transport",
+    "sync_tooling_msgs", 
+    "ros2_transport",
 ]
 
 [build-system]
@@ -59,7 +60,7 @@ packages = [
     "diag_worker/src/diag_worker",
     "diag_master/src/diag_master",
     "sync_graph/src/sync_graph",
-    "http_transport/src/http_transport",
+    "ros2_transport/src/ros2_transport",
     "sync_tooling_msgs/src/sync_tooling_msgs",
 ]
 
