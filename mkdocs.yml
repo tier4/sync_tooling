@@ -1,4 +1,5 @@
 site_name: SYNC.TOOLING
+repo_url: https://github.com/tier4/sync_tooling
 theme:
   name: material
 nav:
