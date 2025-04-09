@@ -91,4 +91,46 @@ all:
 11. Users can also be specified per-host.
 12. Although there are no units, this key must be present.
 
+Note that there can be up to one diag-master and up to one diag-worker per machine.
+It is thus also possible to have both on the same machine.
+
+!!! note
+    While it is possible to have multiple diag-masters across multiple machines, they will both
+    be publishing to the same ROS 2 `/diagnostics` topic. This can be dealt with by remapping
+    using the `--ros-args` argument of `diag-master` but there is currently no way to set this
+    argument from ansible.
+
+Once `distribute` has finished, a systemd service will have been created and started for each
+diag-master and diag-worker instance.
+
 [1]: https://github.com/tier4/sync_tooling/issues/1
+
+### building manually
+
+This project is built using [uv](https://docs.astral.sh/uv/), a modern Python package manager.
+It will already be installed on the machine if the `./setup` script was used.
+
+The build process is done in two steps:
+
+```shell
+uv sync --all-packages
+uv build --all-packages
+```
+
+This will generate a `dist` directory with the built packages, and the `sync_tooling-<...>.whl`
+can be installed using `pip`.
+
+```shell
+uv export > requirements.txt
+pip install -r requirements.txt
+pip install dist/sync_tooling-*.whl
+```
+
+Instead of installing the program globally, it can be easily run via
+
+```shell
+uv run diag-master --help
+uv run diag-worker --help
+```
+
+`uv` takes care of creating a virtual environment and installing the dependencies.
