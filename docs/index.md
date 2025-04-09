@@ -17,11 +17,15 @@ Try before you buy: validate your architecture from day one.
 Define your architecture as a simple YAML file, and let SYNC.SETUP generate PTP4L, PHC2SYS
 and sensor configurations. Any issues or incompatibilities are flagged right away.
 
+* [ ] This feature is not yet available.
+
 ## :material-stethoscope: SYNC.DOCTOR
 
 Troubleshoot at the scene or from your desk.
 
 Visualize the current and past states of the system and gain insights on where synchronization fails.
+
+* [x] This feature is fully supported.
 
 ## :material-heart-pulse: SYNC.DIAG
 
@@ -29,3 +33,5 @@ Know and react when something is off: ROS 2 diagnostics from clock to system lev
 
 SYNC.DIAG monitors every clock and synchronization link in your system for errors and immediately
 publishes diagnostics for affected devices.
+
+* [x] This feature is fully supported.
