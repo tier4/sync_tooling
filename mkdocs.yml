@@ -3,7 +3,6 @@ repo_url: https://github.com/tier4/sync_tooling
 theme:
   name: material
   features:
-    - navigation.instant
     - content.code.annotate
   palette:
     - scheme: default

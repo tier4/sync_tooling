@@ -11,19 +11,25 @@ function isPageDark() {
   return __md_get("__palette").index === 1;
 }
 
+function reloadGraph() {
+  console.debug("Reloading graph");
+  const has_graph_viewer = typeof GraphViewer !== "undefined";
+  has_graph_viewer && GraphViewer.processElements() || console.debug("GraphViewer not yet loaded");
+}
+
 document$.subscribe(({ body }) => {
   setDrawioDarkMode(isPageDark());
-  GraphViewer.processElements()
+  reloadGraph();
 })
 
 document.getElementById("__palette_0").addEventListener("change", () => {
   console.log('Switched to light mode');
   setDrawioDarkMode(false);
-  GraphViewer.processElements();
+  reloadGraph();
 });
 
 document.getElementById("__palette_1").addEventListener("change", () => {
   console.log('Switched to dark mode');
   setDrawioDarkMode(true);
-  GraphViewer.processElements();
+  reloadGraph();
 });
