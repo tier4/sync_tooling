@@ -17,8 +17,8 @@ theme:
         name: Switch to light mode
 nav:
   - Home: index.md
-  - Design: design.md
   - Getting Started: getting-started.md
+  - Design: design.md
 markdown_extensions:
   - attr_list
   - footnotes
