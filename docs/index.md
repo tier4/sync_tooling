@@ -2,7 +2,7 @@
 
 Takes the **pain** out of **p**recision time synchroniz**a**t**i**o**n**.
 
-* :simple-ansible: one-clock deployable on your vehicle
+* :simple-ansible: one-click deployable with Ansible
 * :material-graph: monitors the whole vehicle architecture
 * :octicons-sync-16: integrates with your existing LinuxPTP setup
 * :simple-ros: plug-and-play compatible with ROS 2 `/diagnostics`
