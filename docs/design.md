@@ -11,10 +11,12 @@ necessitating custom means of ensuring correct synchronization.
 
 SYNC.TOOLING is required to
 
-- provide online real-time[^3] diagnostics
-  - to ROS 2 (SYNC.DIAG) and
-  - via web interface (SYNC.DOCTOR)
-  - for pre-existing setups (e.g. vehicles set up before SYNC.TOOLING became available)
+- {{ label("req.realtime") }} provide online real-time[^3] diagnostics
+  - {{ label("req.ros") }} to ROS 2 (SYNC.DIAG) and
+  - {{ label("req.web") }} via web interface (SYNC.DOCTOR)
+  - {{ label("req.preexisting") }} for pre-existing setups (e.g. vehicles set up before
+      SYNC.TOOLING became available)
+- {{ label("req.replay") }} provide offline analysis of recorded data
 - be shippable as systemd services
 - be one-click installable for troubleshooting purposes
 - neither raise false positives (e.g. triggering MRM on a transient fault)
@@ -26,21 +28,24 @@ In designing this software suite, the following assumptions have been made:
 
 - the time synchronization mechanism is PTPv2[^1]
 - all ECUs that participate in PTP time synchronization
-  - are running `ptp4l` to synchronize with other network devices
-  - are running `phc2sys` to synchronize their internal clocks (if there are multiple)
-  - are running `ptp4l` and `phc2sys` instances as systemd units
-  - are not performing any other time synchronization, e.g. using `ptpd` or non-systemd units
+  - {{ label("asm.ptp4l") }} are running `ptp4l` to synchronize with other network devices
+  - {{ label("asm.phc2sys") }} are running `phc2sys` to synchronize their internal clocks (if
+      there are multiple)
+  - {{ label("asm.systemd") }} are running `ptp4l` and `phc2sys` instances as systemd units
+  - {{ label("asm.no-other") }} are not performing any other time synchronization, e.g.
+      using `ptpd` or non-systemd units
 - all sensors that participate in PTP provide a way to compare their clock with another one
   in the system
   - for example, sending timestamps in their packets, that can then be compared with the
-    receiving ECU's clock
+      receiving ECU's clock
+  - {{ label("asm.nebula") }} sensors without native PMC support are expected to be supported
+      through [Nebula][7]
 - not all devices that participate in time synchronization are fully observable
   - for example, some devices might not have any diagnostics interfaces
   - some devices might only report status information, but no info on their parent or master
-    PTP instances
+      PTP instances
 - in case of synchronization loss, clocks take multiple seconds[^2] to drift far enough apart
   to be problematic
-- `ptp4l` and `phc2sys`
 
 [^1]: Specifically
   [IEEE 1588v2 (PTPv2)](https://standards.ieee.org/ieee/1588/4355/),
@@ -51,6 +56,7 @@ In designing this software suite, the following assumptions have been made:
   defining this as `5s` here.
 
 [5]: https://www.autosar.org/fileadmin/standards/R21-11/CP/AUTOSAR_SWS_TimeSyncOverEthernet.pdf
+[7]: https://github.com/tier4/nebula
 
 ## Diagnostics Requirements
 
@@ -81,7 +87,23 @@ As for the actual diagnostics output, it is required that
 
 ## System Architecture
 
+Given the above requirements and assumptions, the following architecture has been designed:
+
 ![Diagnostics [Architecture]](img/sync_tooling.drawio)
+
+*SYNC.DOCTOR* satisfies {{ ref("req.web") }}, and *SYNC.DIAG* satisfies {{ ref("req.ros") }}.
+
+The *Sync Worker* instances are using the systemd journal according to {{ ref("asm.systemd") }}
+to query the status of the `ptp4l` and `phc2sys` instances according to {{ ref("asm.ptp4l") }}
+and {{ ref("asm.phc2sys") }}. This indirect communication satisfies {{ ref("req.preexisting") }}.
+Assumption {{ ref("asm.no-other") }} eliminates the need for additional monitoring for other
+possibly interfering services.
+
+Workers are publishing their updates via ROS 2 on a topic `/sync_diag/graph_updates`.
+Sensors that participate in PTP synchronization are integrated using Nebula according to
+{{ ref("asm.nebula") }}. Nebula too publishes its updates via the same topic. This communication
+mechanism satisfies {{ ref("req.replay") }} by making record/replay functionality available
+through `ros2 bag record` and `ros2 bag play`.
 
 ## Tech Stack
 
