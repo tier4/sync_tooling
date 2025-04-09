@@ -4,6 +4,17 @@ theme:
   name: material
   features:
     - navigation.instant
+  palette:
+    - scheme: default
+      primary: white
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - scheme: slate
+      primary: grey
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
 nav:
   - Home: index.md
   - Design: design.md
@@ -17,6 +28,7 @@ markdown_extensions:
 plugins: 
   - search
   - drawio
+  - autorefs
   - api-autonav:
       modules:
         - sync_tooling_msgs/src/sync_tooling_msgs
@@ -63,5 +75,4 @@ plugins:
             signature_crossrefs: true
             summary: true
 extra_javascript:
-  - https://viewer.diagrams.net/js/viewer-static.min.js
   - js/drawio-reload.js
