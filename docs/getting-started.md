@@ -127,10 +127,74 @@ pip install dist/sync_tooling-*.whl
 ```
 
 Instead of installing the program globally, it can be easily run via
+[`uv run`](https://docs.astral.sh/uv/reference/cli/#uv-run):
 
 ```shell
-uv run diag-master --help
-uv run diag-worker --help
+uv run diag-master <...>
+uv run diag-worker <...>
 ```
 
 `uv` takes care of creating a virtual environment and installing the dependencies.
+
+## Usage
+
+In case the software was installed via Ansible, the command lines of these programs have already
+been configured in the generated systemd service files.
+
+### `diag-worker` command
+
+See available command line arguments with
+
+```shell
+uv run diag-worker --help
+```
+
+By default, `diag-worker` will publish updates to the ROS 2 topic`/sync_diag/graph_updates`.
+The monitored `ptp4l` and `phc2sys` units have to be specified with the `--ptp4l-units` and
+`--phc2sys-units` arguments, respectively.
+
+### `diag-master` command
+
+See available command line arguments with
+
+```shell
+uv run diag-master --help
+```
+
+By default, `diag-master` will listen to updates from workers on the ROS 2 topic
+`/sync_diag/graph_updates` and publish diagnostics to `/diagnostics`.
+The web interface is launched on `0.0.0.0:5000`.
+
+By specifying a `--reference` graph, the master will use that graph for advanced diagnostics.
+
+### SYNC.DIAG
+
+The `diag-master` publishes diagnostics to the ROS 2 topic `/diagnostics`.
+We label this functionality as SYNC.DIAG.
+
+This functionality is only fully enabled if a `--reference` graph has been provided to the
+`diag-master`.
+
+### SYNC.DOCTOR
+
+The `diag-master` provides a web interface named SYNC.DOCTOR.
+This interface allows for live or offline viewing of the synchronization state of the system.
+
+### Offline Analysis
+
+To record synchronization state for later analysis, run:
+
+```shell
+ros2 bag record /sync_diag/graph_updates
+```
+
+The expected data rate is about `1 kB/s` per `ptp4l`, `phc2sys` or sensor instance.
+For an architecture like X2 gen2, this results in a data rate of about `14 kB/s`.
+
+The bag can be replayed at a later time on any machine with only a `diag-master` running:
+
+```shell
+ros2 bag play <path_to_bag>
+```
+
+Both SYNC.DIAG and SYNC.DOCTOR will respond live to the replay.
