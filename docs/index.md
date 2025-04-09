@@ -27,5 +27,5 @@ Visualize the current and past states of the system and gain insights on where s
 
 Know and react when something is off: ROS 2 diagnostics from clock to system level.
 
-SYNC.DIAG monitors every clock and synchronization link in your system for errors and immediately 
+SYNC.DIAG monitors every clock and synchronization link in your system for errors and immediately
 publishes diagnostics for affected devices.

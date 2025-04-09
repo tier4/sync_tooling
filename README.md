@@ -5,7 +5,6 @@
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=tier4_sync_tooling&metric=coverage&token=784a45ca7dc24a6bbde7badd4774612ccd458e82)](https://sonarcloud.io/summary/new_code?id=tier4_sync_tooling)
 ![Python Version](https://img.shields.io/badge/python->=3.10-blue)
 
-
 Tools for monitoring and diagnosing time synchronization in a distributed system.
 
 The tools currently handle monitoring
@@ -20,19 +19,21 @@ This tool can be installed on remote machines using Ansible.
 First, create an inventory file akin to `ansible/***REMOVED***.yml` for your network architecture.
 
 To set up dependencies on the host machine, run
+
 ```shell
 ./setup
 ```
 
 Then, to satisfy dependencies and install worker executables on the worker machines, run
+
 ```shell
 ./distribute path/to/inventory.yml
 ```
 
 > **Note:** If you have not set up SSH key-based authentication from the host to the inventory
 > machines, this script will generate and install SSH keys to all the inventory machines.
-
-> **:warning: Caution:** **Never use password-less SSH keys in any production system!** 
+>
+> **:warning: Caution:** **Never use password-less SSH keys in any production system!**
 
 Done :tada:!
 
@@ -42,7 +43,8 @@ This has to be done for every machine that sync tooling should run on.
 
 ### Prerequisites
 
-This project uses [uv](https://docs.astral.sh/uv/) as its package manager. You can install it via
+This project uses [uv](https://docs.astral.sh/uv/) as its package manager.
+You can install it via
 
 ```shell
 pip install uv
@@ -63,9 +65,11 @@ uv run pytest
 # In the `sync_tooling` folder checked out above
 uv run diag-master --reference diag_master/config/sample.yml
 
-# The diag-worker needs to run privileged so that it can communicate with local Unix domain sockets and read the journal of services running with elevated privileges
+# The diag-worker needs to run privileged so that it can communicate with local Unix domain 
+# sockets and read the journal of services running with elevated privileges
 # See notes below.
 sudo uv run diag-worker --ptp4l-units ptp4l@eno1 ptp4l@***REMOVED***
 ```
 
-> **Note:** To run `uv` privileged, it needs to be installed system-wide. If `sudo uv` does not work after a normal `pip install uv`, try `sudo pip install uv`.
+> **Note:** To run `uv` privileged, it needs to be installed system-wide. If `sudo uv` does not
+> work after a normal `pip install uv`, try `sudo pip install uv`.
