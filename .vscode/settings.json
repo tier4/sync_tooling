@@ -1,4 +1,5 @@
 {
+  "editor.rulers": [95],
   "python.analysis.extraPaths": [
     "./journal_monitor/src",
     "./linuxptp_monitor/src",
