@@ -4,6 +4,9 @@ ruff.json
 coverage.xml
 pytest-results.xml
 
+# Ansible
+.ansible/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
