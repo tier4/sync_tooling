@@ -45,8 +45,8 @@ This script does multiple things:
 
 - ensure the host has a usable SSH ID (currently only `id_rsa.pub` is recognized, see [#1][1])
 - copy that SSH ID to all remote machines in the inventory
-  - requires entering the password for each machine once
-  - unreachable machines, and those with the ID already present are skipped
+    - requires entering the password for each machine once
+    - unreachable machines, and those with the ID already present are skipped
 - open a temporary proxy for the remote machines to be able to use `apt`, `pip`, etc.
 - runs the playbook that installs SYNC.TOOLING
 

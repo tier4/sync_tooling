@@ -12,9 +12,9 @@ necessitating custom means of ensuring correct synchronization.
 SYNC.TOOLING is required to
 
 - {{ label("req.realtime") }} provide online real-time[^3] diagnostics
-  - {{ label("req.ros") }} to ROS 2 (SYNC.DIAG) and
-  - {{ label("req.web") }} via web interface (SYNC.DOCTOR)
-  - {{ label("req.preexisting") }} for pre-existing setups (e.g. vehicles set up before
+    - {{ label("req.ros") }} to ROS 2 (SYNC.DIAG) and
+    - {{ label("req.web") }} via web interface (SYNC.DOCTOR)
+    - {{ label("req.preexisting") }} for pre-existing setups (e.g. vehicles set up before
       SYNC.TOOLING became available)
 - {{ label("req.replay") }} provide offline analysis of recorded data
 - be shippable as systemd services
@@ -28,21 +28,21 @@ In designing this software suite, the following assumptions have been made:
 
 - the time synchronization mechanism is PTPv2[^1]
 - all ECUs that participate in PTP time synchronization
-  - {{ label("asm.ptp4l") }} are running `ptp4l` to synchronize with other network devices
-  - {{ label("asm.phc2sys") }} are running `phc2sys` to synchronize their internal clocks (if
+    - {{ label("asm.ptp4l") }} are running `ptp4l` to synchronize with other network devices
+    - {{ label("asm.phc2sys") }} are running `phc2sys` to synchronize their internal clocks (if
       there are multiple)
-  - {{ label("asm.systemd") }} are running `ptp4l` and `phc2sys` instances as systemd units
-  - {{ label("asm.no-other") }} are not performing any other time synchronization, e.g.
+    - {{ label("asm.systemd") }} are running `ptp4l` and `phc2sys` instances as systemd units
+    - {{ label("asm.no-other") }} are not performing any other time synchronization, e.g.
       using `ptpd` or non-systemd units
 - all sensors that participate in PTP provide a way to compare their clock with another one
   in the system
-  - for example, sending timestamps in their packets, that can then be compared with the
+    - for example, sending timestamps in their packets, that can then be compared with the
       receiving ECU's clock
-  - {{ label("asm.nebula") }} sensors without native PMC support are expected to be supported
+    - {{ label("asm.nebula") }} sensors without native PMC support are expected to be supported
       through [Nebula][7]
 - not all devices that participate in time synchronization are fully observable
-  - for example, some devices might not have any diagnostics interfaces
-  - some devices might only report status information, but no info on their parent or master
+    - for example, some devices might not have any diagnostics interfaces
+    - some devices might only report status information, but no info on their parent or master
       PTP instances
 - in case of synchronization loss, clocks take multiple seconds[^2] to drift far enough apart
   to be problematic
