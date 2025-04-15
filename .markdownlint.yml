@@ -1,5 +1,7 @@
 # See https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md for all rules.
 default: true
+MD007:
+  indent: 4
 MD013:
   line_length: 95
   tables: false
