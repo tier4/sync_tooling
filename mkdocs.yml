@@ -18,10 +18,14 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Integrators' Guide: 
+    - integrators-guide.md
+    - X2 gen2: integrators-guide/x2gen2.md
   - Design: design.md
 markdown_extensions:
   - attr_list
   - footnotes
+  - admonition
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
