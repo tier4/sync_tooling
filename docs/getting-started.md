@@ -153,6 +153,15 @@ By default, `diag-worker` will publish updates to the ROS 2 topic`/sync_diag/gra
 The monitored `ptp4l` and `phc2sys` units have to be specified with the `--ptp4l-units` and
 `--phc2sys-units` arguments, respectively.
 
+!!! warning
+    There can only be one `diag-worker` per machine.
+
+!!! warning
+    If there are multiple `ptp4l` units on the same machine, their `uds_address`es must be
+    unique. We recommend, that for unit `ptp4l@xyz` the `uds_address` is set to
+    `/var/run/ptp4l@xyz`. Set either via `ptp4l`'s `uds_address` config option or via its
+    `--uds_address` command line argument.
+
 ### `diag-master` command
 
 See available command line arguments with
@@ -166,6 +175,10 @@ By default, `diag-master` will listen to updates from workers on the ROS 2 topic
 The web interface is launched on `0.0.0.0:5000`.
 
 By specifying a `--reference` graph, the master will use that graph for advanced diagnostics.
+
+!!! warning
+    There can only be one `diag-master` per machine. In general, only one is needed per
+    distributed system (i.e. per vehicle).
 
 ### SYNC.DIAG
 
