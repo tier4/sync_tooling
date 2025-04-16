@@ -169,6 +169,10 @@ class SyncGraph:
                 return self.update_self_reported_clock_state(
                     update.self_reported_clock_state_update
                 )
+            case None:
+                # Invalid graph update, ignore
+                return
+
         raise AssertionError(f"Unknown update type: {update.WhichOneof('update')}")
 
     def update_clock_master(self, u: ClockMasterUpdate):
