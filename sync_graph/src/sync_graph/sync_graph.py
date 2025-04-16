@@ -347,12 +347,15 @@ class SyncGraph:
         self._graph.nodes[clock_id][C_SELF_REPORTED_STATE] = u.state
 
     def handle_ptp4l_port_status_message(self, m: Ptp4lPortStatusMessage):
+        # Possibly not needed, ignore for now
         pass
 
     def handle_ptp4l_status_message(self, m: Ptp4lStatusMessage):
+        # Possibly not needed, ignore for now
         pass
 
     def handle_phc2sys_status_message(self, m: Phc2SysStatusMessage):
+        # Possibly not needed, ignore for now
         pass
 
     def handle_clock_diff_measurement(self, m: ClockDiffMeasurement):
