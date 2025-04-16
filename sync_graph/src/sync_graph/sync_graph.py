@@ -53,10 +53,16 @@ def get_most_human_readable_alias(aliases: Iterable[ClockId]) -> ClockId:
 
 
 def diagnose_clock_diff(time_diff_ns: int):
-    threshold_us = 500
-    if abs(time_diff_ns) <= threshold_us * 1e3:
-        return to_diag_tree(Ok(msg=f"Within bounds of {threshold_us} µs"))
-    return to_diag_tree(Error(msg=f"Exceeds bounds of {threshold_us} µs"))
+    time_diff_us = time_diff_ns // 1000
+    warn_threshold_us = 500
+    error_threshold_us = 2_000
+
+    if time_diff_us > error_threshold_us:
+        return to_diag_tree(Error(msg=f"Exceeds bounds of {error_threshold_us} µs"))
+    if time_diff_us > warn_threshold_us:
+        return to_diag_tree(Warning(msg=f"Exceeds bounds of {warn_threshold_us} µs"))
+
+    return to_diag_tree(Ok(msg=f"Within bounds of {warn_threshold_us} µs"))
 
 
 C_STATUS_MSG = "status_msg"
