@@ -23,6 +23,10 @@ from sync_tooling_msgs.port_state_update_pb2 import PortStateUpdate
 from sync_tooling_msgs.ptp4l_port_status_message_pb2 import Ptp4lPortStatusMessage
 from sync_tooling_msgs.ptp4l_status_message_pb2 import Ptp4lStatusMessage
 from sync_tooling_msgs.ptp_parent_update_pb2 import PtpParentUpdate
+from sync_tooling_msgs.self_reported_clock_state import diagnose_clock_state
+from sync_tooling_msgs.self_reported_clock_state_update_pb2 import (
+    SelfReportedClockStateUpdate,
+)
 from sync_tooling_msgs.servo_state import diagnose_servo_state
 from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 from sync_tooling_msgs.unknown_pb2 import Unknown
@@ -57,7 +61,7 @@ def diagnose_clock_diff(time_diff_ns: int):
 
 C_STATUS_MSG = "status_msg"
 C_PORT_IDS = "port_ids"
-
+C_SELF_REPORTED_STATE = "self_reported_state"
 METADATA = "metadata"
 
 L_MASTER = "master"
@@ -124,7 +128,7 @@ class SyncGraph:
 
         return port_id
 
-    def update(self, update: GraphUpdate):
+    def update(self, update: GraphUpdate):  # noqa: C901
         """
         Apply `update` to the sync graph.
 
@@ -161,6 +165,10 @@ class SyncGraph:
                 return self.handle_phc2sys_status_message(update.phc2sys_status_msg)
             case "phc2sys_update":
                 return self.update_phc2sys_link_state(update.phc2sys_update)
+            case "self_reported_clock_state_update":
+                return self.update_self_reported_clock_state(
+                    update.self_reported_clock_state_update
+                )
         raise AssertionError(f"Unknown update type: {update.WhichOneof('update')}")
 
     def update_clock_master(self, u: ClockMasterUpdate):
@@ -318,6 +326,16 @@ class SyncGraph:
 
         self._graph.add_edge(src, dst, L_PHC2SYS, **{METADATA: u.clock_state})
 
+    def update_self_reported_clock_state(self, u: SelfReportedClockStateUpdate):
+        if not u.HasField("clock_id"):
+            return
+
+        if u.state == SelfReportedClockStateUpdate.State.INVALID:
+            return
+
+        clock_id = self.get_or_create_clock(u.clock_id)
+        self._graph.nodes[clock_id][C_SELF_REPORTED_STATE] = u.state
+
     def handle_ptp4l_port_status_message(self, m: Ptp4lPortStatusMessage):
         pass
 
@@ -439,7 +457,7 @@ class SyncGraph:
 
     def diagnose_clock(self, clock: ClockId) -> DiagTree:
         """
-        Diagnose whether a clock has no upstream synchronization problems.
+        Diagnose whether a clock has no self-reported or upstream synchronization problems.
 
         Upstream is defined here as all links in the tree of ancestors of the clock. If the clock is
         part of a cycle, this is diagnosed as an error.
@@ -451,7 +469,7 @@ class SyncGraph:
             clock: The clock to diagnose
 
         Returns:
-            `Ok` if all upstream links are `Ok`, `Warning` or `Error` otherwise.
+            The aggregated diagnostics of any self-reported clock state and upstream links.
         """
 
         try:
@@ -469,11 +487,23 @@ class SyncGraph:
         ancestor_graph: nx.MultiDiGraph = nx.subgraph(self._graph, ancestors | {clock})  # type: ignore
         ancestor_edges = ancestor_graph.edges()
 
-        if not ancestor_edges:
-            return to_diag_tree(Ok(msg="Acts as a grandmaster"))
+        link_diags = [self.diagnose_link(src, dst) for src, dst in ancestor_edges]
 
-        diags = [self.diagnose_link(src, dst) for src, dst in ancestor_edges]
-        return to_diag_tree(diags)
+        diag_map = {}
+
+        if C_SELF_REPORTED_STATE in self._graph.nodes[clock]:
+            diag_map["self_reported_state"] = diagnose_clock_state(
+                self._graph.nodes[clock][C_SELF_REPORTED_STATE]
+            )
+
+        if link_diags:
+            diag_map["upstream_links"] = link_diags
+        else:
+            diag_map["upstream_links"] = to_diag_tree(
+                Ok(msg="Syncs to no upstream clocks")
+            )
+
+        return to_diag_tree(diag_map)
 
     def diagnose_reachability(self) -> DiagStatus:
         """
