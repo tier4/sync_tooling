@@ -3,6 +3,9 @@ import pytest
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.port_state_pb2 import PortState
 from sync_tooling_msgs.port_state_update_pb2 import PortStateUpdate
+from sync_tooling_msgs.self_reported_clock_state_update_pb2 import (
+    SelfReportedClockStateUpdate as ClockStateUpdate,
+)
 
 from .util import (
     _gu,
@@ -14,28 +17,46 @@ from .util import (
 
 
 @pytest.mark.parametrize("clock_setup", ["plain", "ok_port", "faulty_port"])
-def test_single_clock(nic_port, clock_setup):
+@pytest.mark.parametrize(
+    "self_reported_state,expected_status",
+    [
+        (None, "ok"),
+        (ClockStateUpdate.State.LOCKED, "ok"),
+        (ClockStateUpdate.State.TRACKING, "warning"),
+        (ClockStateUpdate.State.UNSYNCHRONIZED, "error"),
+    ],
+)
+def test_single_clock(nic_port, clock_setup, self_reported_state, expected_status):
     """
     A single clock by itself shall always be `Ok`, even if it has faulty ports.
     """
 
     clock_id = nic_port.clock_id
 
+    us = []
+
     match clock_setup:
         case "plain":
-            u = _gu(ClockMasterUpdate(clock_id=clock_id))
+            us.append(_gu(ClockMasterUpdate(clock_id=clock_id)))
         case "ok_port":
-            u = _gu(PortStateUpdate(port_id=nic_port, port_state=PortState.PS_MASTER))
+            us.append(
+                _gu(PortStateUpdate(port_id=nic_port, port_state=PortState.PS_MASTER))
+            )
         case "faulty_port":
-            u = _gu(PortStateUpdate(port_id=nic_port, port_state=PortState.PS_FAULTY))
+            us.append(
+                _gu(PortStateUpdate(port_id=nic_port, port_state=PortState.PS_FAULTY))
+            )
         case _:
             raise AssertionError()
 
-    g = graph_after_updates(u)
+    if self_reported_state is not None:
+        us.append(_gu(ClockStateUpdate(clock_id=clock_id, state=self_reported_state)))
+
+    g = graph_after_updates(*us)
 
     assert clock_id in g._graph.nodes
     diag_tree = g.diagnose_clock(clock_id)
-    assert aggregated_status_label(diag_tree) == "ok"
+    assert aggregated_status_label(diag_tree) == expected_status
 
 
 def test_cycle(sample_clock, remote_clock, nic_clock):

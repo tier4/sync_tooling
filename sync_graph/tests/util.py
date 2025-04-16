@@ -16,6 +16,9 @@ from sync_tooling_msgs.port_state_update_pb2 import PortStateUpdate
 from sync_tooling_msgs.ptp4l_port_status_message_pb2 import Ptp4lPortStatusMessage
 from sync_tooling_msgs.ptp4l_status_message_pb2 import Ptp4lStatusMessage
 from sync_tooling_msgs.ptp_parent_update_pb2 import PtpParentUpdate
+from sync_tooling_msgs.self_reported_clock_state_update_pb2 import (
+    SelfReportedClockStateUpdate,
+)
 from sync_tooling_msgs.servo_state_pb2 import ServoState
 from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 
@@ -32,6 +35,7 @@ def _gu(u):
         Ptp4lPortStatusMessage: "ptp4l_port_status_msg",
         Ptp4lStatusMessage: "ptp4l_status_msg",
         Phc2SysStatusMessage: "phc2sys_status_msg",
+        SelfReportedClockStateUpdate: "self_reported_clock_state_update",
     }
 
     if type(u) in type_map:
