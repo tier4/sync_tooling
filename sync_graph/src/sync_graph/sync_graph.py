@@ -52,14 +52,71 @@ def get_most_human_readable_alias(aliases: Iterable[ClockId]) -> ClockId:
     return max(aliases, key=readability_score)
 
 
-def diagnose_clock_diff(time_diff_ns: int):
-    time_diff_us = time_diff_ns // 1000
-    warn_threshold_us = 500
-    error_threshold_us = 2_000
+def diagnose_measurement_diff(time_diff_ns: int):
+    """
+    Diagnose a measured offset between two clocks. Depending on the absolute value, this may be
+    an error or warning.
 
-    if time_diff_us > error_threshold_us:
+    Args:
+        time_diff_ns: The measured offset in nanoseconds.
+
+    Returns:
+        A diagnostic tree.
+    """
+
+    time_diff_ms = abs(time_diff_ns // 1_000_000)
+    warn_threshold_ms = 1
+    error_threshold_ms = 1000
+
+    if time_diff_ms > error_threshold_ms:
+        return to_diag_tree(Error(msg=f"Exceeds bounds of {error_threshold_ms} ms"))
+    if time_diff_ms > warn_threshold_ms:
+        return to_diag_tree(Warning(msg=f"Exceeds bounds of {warn_threshold_ms} ms"))
+
+    return to_diag_tree(Ok(msg=f"Within bounds of {warn_threshold_ms} ms"))
+
+
+def diagnose_master_diff(master_diff_ns: int):
+    """
+    Diagnose a master offset. Depending on the absolute value, this may be an error or warning.
+
+    Args:
+        master_diff_ns: The master offset in nanoseconds.
+
+    Returns:
+        A diagnostic tree.
+    """
+
+    master_diff_us = abs(master_diff_ns // 1_000)
+    warn_threshold_us = 100
+    error_threshold_us = 1000
+
+    if master_diff_us > error_threshold_us:
         return to_diag_tree(Error(msg=f"Exceeds bounds of {error_threshold_us} µs"))
-    if time_diff_us > warn_threshold_us:
+    if master_diff_us > warn_threshold_us:
+        return to_diag_tree(Warning(msg=f"Exceeds bounds of {warn_threshold_us} µs"))
+
+    return to_diag_tree(Ok(msg=f"Within bounds of {warn_threshold_us} µs"))
+
+
+def diagnose_phc2sys_diff(phc2sys_diff_ns: int):
+    """
+    Diagnose a PHC2SYS offset. Depending on the absolute value, this may be an error or warning.
+
+    Args:
+        phc2sys_diff_ns: The PHC2SYS offset in nanoseconds.
+
+    Returns:
+        A diagnostic tree.
+    """
+
+    phc2sys_diff_us = abs(phc2sys_diff_ns // 1_000)
+    warn_threshold_us = 100
+    error_threshold_us = 1000
+
+    if phc2sys_diff_us > error_threshold_us:
+        return to_diag_tree(Error(msg=f"Exceeds bounds of {error_threshold_us} µs"))
+    if phc2sys_diff_us > warn_threshold_us:
         return to_diag_tree(Warning(msg=f"Exceeds bounds of {warn_threshold_us} µs"))
 
     return to_diag_tree(Ok(msg=f"Within bounds of {warn_threshold_us} µs"))
@@ -448,6 +505,18 @@ class SyncGraph:
             return unknown
         return diagnose_port_state(port_state)
 
+    def diagnose_phc2sys_link(self, slave_state: SlaveClockState) -> DiagTree:
+        phc2sys_diff_ns = slave_state.delay_ns
+        if phc2sys_diff_ns is None:
+            return to_diag_tree(Unknown(msg="PTP parent delay unknown"))
+        servo_state_diag = diagnose_servo_state(slave_state.servo_state)
+        return to_diag_tree(
+            {
+                "servo_state": servo_state_diag,
+                "time_diff": diagnose_phc2sys_diff(phc2sys_diff_ns),
+            }
+        )
+
     def diagnose_link(self, src: ClockId, dst: ClockId) -> DiagTree:
         links = self.get_links(src, dst)
         diags = {}
@@ -456,13 +525,13 @@ class SyncGraph:
                 case "ptp_parent", PortId() as port_id:
                     diags["parent_port"] = self.diagnose_port(port_id)
                 case "phc2sys", SlaveClockState() as state:
-                    diags["phc2sys"] = diagnose_servo_state(state.servo_state)
+                    diags["phc2sys"] = self.diagnose_phc2sys_link(state)
                 case "measurement", int() as time_diff_ns:
                     diags[f"offset_from_{readable_clock_id(dst)}"] = (
-                        diagnose_clock_diff(time_diff_ns)
+                        diagnose_measurement_diff(time_diff_ns)
                     )
                 case "master", int() as master_offset_ns:
-                    diags["offset_from_master"] = diagnose_clock_diff(master_offset_ns)
+                    diags["offset_from_master"] = diagnose_master_diff(master_offset_ns)
                 case _:
                     raise AssertionError(f"Unexpected link metadata: {key}: {metadata}")
 
