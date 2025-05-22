@@ -66,7 +66,7 @@ def diagnose_measurement_diff(time_diff_ns: int):
 
     time_diff_ms = abs(time_diff_ns // 1_000_000)
     warn_threshold_ms = 1
-    error_threshold_ms = 1000
+    error_threshold_ms = 20
 
     if time_diff_ms > error_threshold_ms:
         return to_diag_tree(Error(msg=f"Exceeds bounds of {error_threshold_ms} ms"))
@@ -507,13 +507,18 @@ class SyncGraph:
 
     def diagnose_phc2sys_link(self, slave_state: SlaveClockState) -> DiagTree:
         phc2sys_diff_ns = slave_state.delay_ns
+
         if phc2sys_diff_ns is None:
-            return to_diag_tree(Unknown(msg="PTP parent delay unknown"))
+            time_diff_diag = to_diag_tree(Unknown(msg="PHC2SYS delay unknown"))
+        else:
+            time_diff_diag = diagnose_phc2sys_diff(phc2sys_diff_ns)
+
         servo_state_diag = diagnose_servo_state(slave_state.servo_state)
+
         return to_diag_tree(
             {
                 "servo_state": servo_state_diag,
-                "time_diff": diagnose_phc2sys_diff(phc2sys_diff_ns),
+                "time_diff": time_diff_diag,
             }
         )
 
