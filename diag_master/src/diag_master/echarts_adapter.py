@@ -185,69 +185,23 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
     }
 
 
-def _layout_tree(
-    g: DiGraph, pad_x: float, pad_y: float
-) -> dict[Unknown, tuple[float, float]]:
+def _layout_circular(g: DiGraph) -> dict[Unknown, tuple[float, float]]:
     """
-    Lay out a tree-shaped graph from left to right.
+    Lay out a tree-like graph in a concentric manner. A root node in the center is surrounded by
+    concentric rings roughly equivalent to the topological generations of the graph.
 
-    The tree is laid out such that:
-    - the root is on the left at (0, 0)
-    - the leaves are spaced evenly in the vertical direction
-    - parents are vertically centered to their children
-    - the x position of a node is its index in the topological sort
+    See https://graphviz.org/docs/layouts/twopi/ for more information.
 
     Args:
-        g: The graph to lay out. Has to be a tree.
+        g: The graph to layout.
 
     Returns:
-        A dictionary mapping each node to its (x, y) position.
+        A dictionary mapping each node to the layout position (x, y).
     """
-    # The reference graph is guaranteed to be a tree. Lay out the tree such that
-    # - the root is on the left at (0, 0)
-    # - the leaves are spaced evenly in the vertical direction
-    # - parents are vertically centered to their children
-    # - the x position of a node is its index in the topological sort
-    # - a child with more descendants is placed higher up
 
-    levels = list(nx.topological_generations(g))
-    assert len(levels) > 1, "Empty reference graph"
-    assert len(levels[0]) == 1, "Reference graph is not a tree"
-    root = levels[0][0]
-
-    layout = {}
-    current_y = 0
-
-    def layout_y(node: ClockId, current_x: float):
-        """
-        Traverse the reference tree in post-order. Increment the y position for each leaf, and
-        set the y position of each non-leaf node to the middle of the y positions of its children.
-        """
-
-        nonlocal current_y
-        match list(g.successors(node)):
-            case []:
-                layout[node] = (current_x, current_y)
-                current_y += pad_y
-            case [*children]:
-                children = sorted(children, key=readable_clock_id)
-                children = sorted(
-                    children, key=lambda c: len(nx.descendants(g, c)), reverse=True
-                )
-
-                for c in children:
-                    layout_y(c, current_x + pad_x)
-
-                node_y = (layout[children[0]][1] + layout[children[-1]][1]) / 2  # type: ignore
-                layout[node] = (current_x, node_y)
-
-    layout_y(root, 0)
-
-    # Shift the layout such that the root is at (0, 0)
-    offset = layout[root]
-    layout = {node: (x - offset[0], y - offset[1]) for node, (x, y) in layout.items()}
-
-    return layout
+    h = nx.convert_node_labels_to_integers(g, label_attribute="node_label")
+    layout = nx.nx_pydot.pydot_layout(h, prog="twopi")
+    return {h.nodes[n]["node_label"]: p for n, p in layout.items()}
 
 
 def _is_node_in_cycle(g: DiGraph, n: ClockId) -> bool:
@@ -310,7 +264,7 @@ def _get_clock_positions(
     r.add_edges_from(edges_to_add)
 
     # Run the tree layout algorithm
-    layout = _layout_tree(r, 3, 0.75)  # type: ignore
+    layout = _layout_circular(r)  # type: ignore
 
     layout: dict[ClockId, tuple[float, float] | None] = {
         sg.get_canonical_clock_id(n): pos for n, pos in layout.items()
