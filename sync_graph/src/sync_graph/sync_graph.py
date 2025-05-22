@@ -506,7 +506,7 @@ class SyncGraph:
         return diagnose_port_state(port_state)
 
     def diagnose_phc2sys_link(self, slave_state: SlaveClockState) -> DiagTree:
-        phc2sys_diff_ns = slave_state.delay_ns
+        phc2sys_diff_ns = slave_state.offset_ns
 
         if phc2sys_diff_ns is None:
             time_diff_diag = to_diag_tree(Unknown(msg="PHC2SYS delay unknown"))
