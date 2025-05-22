@@ -1,7 +1,7 @@
 import networkx as nx
 from networkx import DiGraph
 
-from sync_graph.sync_graph import SyncGraph
+from sync_graph.sync_graph import SyncGraph, diagnose_master_diff, diagnose_phc2sys_diff
 from sync_tooling_msgs.clock_id import readable_clock_id, readable_clock_type
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.diag_status_pb2 import DiagStatus
@@ -21,6 +21,7 @@ DIAG_PALETTE = {
 }
 
 NOT_RECEIVED_DIAG = to_diag_tree(Unknown(msg="Not received yet"))
+REFERENCE_ONLY_DIAG = to_diag_tree(Unknown(msg="Reference link only"))
 
 
 def get_status_color(status: DiagStatus):
@@ -126,13 +127,22 @@ def _clock_to_echart_data(
 def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
     extended_description = []
     link_labels = []
-    is_pseudo_link = False
+    is_pseudo_link = True
+    is_reference_link = (
+        sg.reference_graph is not None and (src, dst) in sg.reference_graph.edges()
+    )
+
+    if is_reference_link:
+        link_labels.append("Reference")
+        extended_description.append("Reference link")
 
     links = sg.get_links(src, dst)
+    is_real_link = len(links) > 0
 
     for type, metadata in links:
         match type, metadata:
             case "ptp_parent", PortId() as port_id:
+                is_pseudo_link = False
                 link_labels.append(f"PTP {port_id.ptp_domain}")
                 extended_description.append(f"PTP domain: {port_id.ptp_domain}")
                 extended_description.append(
@@ -140,13 +150,18 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
                 )
                 port_diag = sg.diagnose_port(port_id)
                 extended_description.append(
-                    f"Parent port state: {_pretty_diag_html(port_diag)}"
+                    f"Parent port status: {_pretty_diag_html(port_diag)}"
                 )
             case "phc2sys", SlaveClockState() as state:
+                is_pseudo_link = False
                 link_labels.append("PHC2SYS")
+                offset_diag = diagnose_phc2sys_diff(state.offset_ns)
                 servo_diag = diagnose_servo_state(state.servo_state)
                 extended_description.append(
-                    f"Master offset: {state.offset_ns / 1e3:.0f} µs"
+                    f"PHC2SYS offset: {state.offset_ns / 1e3:.0f} µs"
+                )
+                extended_description.append(
+                    f"PHC2SYS offset status: {_pretty_diag_html(offset_diag)}"
                 )
                 extended_description.append(
                     f"Sync delay: {state.delay_ns / 1e3:.0f} µs"
@@ -155,21 +170,33 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
                     f"Frequency offset: {state.frequency_offset_ppb} ppb"
                 )
                 extended_description.append(
-                    f"Servo state: {_pretty_diag_html(servo_diag)}"
+                    f"Servo status: {_pretty_diag_html(servo_diag)}"
                 )
             case "measurement", int() as time_diff_ns:
                 link_labels.append("Measurement")
-                is_pseudo_link = True
                 extended_description.append(f"Time offset: {time_diff_ns / 1e3:.0f} µs")
             case "master", int() as master_offset_ns:
                 link_labels.append("Master")
+                master_offset_diag = diagnose_master_diff(master_offset_ns)
                 extended_description.append(
                     f"PTP Master offset: {master_offset_ns / 1e3:.0f} µs"
+                )
+                extended_description.append(
+                    f"Master offset status: {_pretty_diag_html(master_offset_diag)}"
                 )
             case _:
                 raise AssertionError()
 
-    diag = sg.diagnose_link(src, dst) or NOT_RECEIVED_DIAG
+    if is_real_link:
+        diag = sg.diagnose_link(src, dst) or NOT_RECEIVED_DIAG
+    elif is_reference_link:
+        diag = REFERENCE_ONLY_DIAG
+    else:
+        raise AssertionError()
+
+    if "PHC2SYS" in link_labels:
+        print(prettify(diag, 2))
+
     status = aggregate(diag)
     status_color = get_status_color(status)
 
@@ -289,15 +316,21 @@ def _sync_graph_to_echart_data_and_links(
 
     positions = _get_clock_positions(sg)
     if positions is not None:
+        # Only clocks present in the reference graph are laid out in a fixed manner.
         for clock_id, position in positions.items():
             node = _clock_to_echart_data(sg, clock_id, position)
             data.append(node)
     else:
+        # All other clocks are laid out in a force-directed manner.
         for clock_id in g.nodes:
             node = _clock_to_echart_data(sg, clock_id)
             data.append(node)
 
-    for src, dst in set(g.edges()):
+    real_edges = set(g.edges())
+    reference_edges = (
+        set(sg.reference_graph.edges()) if sg.reference_graph is not None else set()
+    )
+    for src, dst in real_edges | reference_edges:
         src: ClockId
         dst: ClockId
 
