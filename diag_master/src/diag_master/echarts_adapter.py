@@ -194,9 +194,6 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
     else:
         raise AssertionError()
 
-    if "PHC2SYS" in link_labels:
-        print(prettify(diag, 2))
-
     status = aggregate(diag)
     status_color = get_status_color(status)
 
