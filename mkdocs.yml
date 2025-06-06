@@ -56,7 +56,6 @@ plugins:
       api_root_uri: "reference" 
       nav_item_prefix: "<code class='doc-symbol doc-symbol-nav doc-symbol-module'></code>"
       exclude_private: true
-      on_implicit_namespace_packge: "warn"
   - section-index
   - mkdocstrings:
       handlers:
