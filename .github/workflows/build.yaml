@@ -28,8 +28,6 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           python-version: ${{ env.PYTHON_VERSION }}
-          enable-cache: true
-          cache-dependency-glob: uv.lock
       - name: Install basic tools
         run: |
           apt-get update && apt-get install -qq unzip curl
@@ -49,3 +47,13 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: Build Package
+        if: success()
+        run: |
+          uv build
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: dist/*
