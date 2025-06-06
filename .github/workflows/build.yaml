@@ -51,9 +51,15 @@ jobs:
         if: success()
         run: |
           uv build
+      
+      - name: Export requirements.txt
+        run: |
+          uv export --frozen --no-hashes --no-emit-workspace --no-dev --all-packages | tee dist/requirements.txt
+      
       - name: Upload build artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: package
           path: dist/*
+      
