@@ -52,7 +52,7 @@ def get_most_human_readable_alias(aliases: Iterable[ClockId]) -> ClockId:
     return max(aliases, key=readability_score)
 
 
-def diagnose_measurement_diff(time_diff_ns: int):
+def diagnose_measurement_diff(time_diff_ns: int) -> DiagTree:
     """
     Diagnose a measured offset between two clocks. Depending on the absolute value, this may be
     an error or warning.
@@ -76,7 +76,7 @@ def diagnose_measurement_diff(time_diff_ns: int):
     return to_diag_tree(Ok(msg=f"Within bounds of {warn_threshold_ms} ms"))
 
 
-def diagnose_master_diff(master_diff_ns: int):
+def diagnose_master_diff(master_diff_ns: int) -> DiagTree:
     """
     Diagnose a master offset. Depending on the absolute value, this may be an error or warning.
 
@@ -99,7 +99,7 @@ def diagnose_master_diff(master_diff_ns: int):
     return to_diag_tree(Ok(msg=f"Within bounds of {warn_threshold_us} µs"))
 
 
-def diagnose_phc2sys_diff(phc2sys_diff_ns: int):
+def diagnose_phc2sys_diff(phc2sys_diff_ns: int) -> DiagTree:
     """
     Diagnose a PHC2SYS offset. Depending on the absolute value, this may be an error or warning.
 
