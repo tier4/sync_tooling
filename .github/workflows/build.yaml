@@ -56,6 +56,10 @@ jobs:
         run: |
           uv export --frozen --no-hashes --no-emit-workspace --no-dev --all-packages | tee dist/requirements.txt
       
+      - name: Copy APT requirements to dist
+        run: |
+          cp apt-requirements.txt dist/
+
       - name: Upload build artifacts
         if: success()
         uses: actions/upload-artifact@v4
