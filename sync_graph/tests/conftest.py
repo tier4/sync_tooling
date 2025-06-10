@@ -18,7 +18,7 @@ def sample_clock_aliases() -> (
     return {
         "system": ClockId(system_clock_id=SystemClockId(hostname="sample")),
         "ptp": ClockId(ptp_clock_id=PtpClockId(id="012345.fffe.6789ab")),
-        "sensor": ClockId(sensor_id=SensorId(name="my_sensor", ip="192.168.1.201")),
+        "sensor": ClockId(sensor_id=SensorId(frame_id="my_sensor")),
         "iface": ClockId(
             interface_id=InterfaceId(hostname="sample", interface_name="eno1")
         ),
