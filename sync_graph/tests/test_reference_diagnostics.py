@@ -9,7 +9,7 @@ import networkx as nx
 import pytest
 
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
-from sync_tooling_msgs.diag_tree import prettify
+from sync_tooling_msgs.diag_tree import prettify, to_diag_tree
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 
 from .util import (
@@ -61,10 +61,11 @@ def test_without_reference(graph_name, request):
 def test_perfect_reference_match(graph_name, request):
     graph_args: GraphArgs = request.getfixturevalue(graph_name)
     g = graph_after_updates(*graph_args.updates, reference=graph_args.reference)
-    diag_tree = g.diagnose_reference_adherence()
-    assert (
-        aggregated_status_label(diag_tree) == "ok"
-    ), f"with tree {prettify(diag_tree)}"
+    for clock in g._graph.nodes:
+        diag_tree = g.diagnose_single_clock_reference_adherence(clock)
+        assert (
+            aggregated_status_label(diag_tree) == "ok"
+        ), f"with tree {prettify(diag_tree)}"
 
 
 def test_different_but_compliant_graph(sample_clock, nic_port, remote_clock):
@@ -79,7 +80,11 @@ def test_different_but_compliant_graph(sample_clock, nic_port, remote_clock):
 
     g = graph_after_updates(*us, reference=reference)
 
-    assert aggregated_status_label(g.diagnose_reference_adherence()) == "ok"
+    for clock in g._graph.nodes:
+        assert (
+            aggregated_status_label(g.diagnose_single_clock_reference_adherence(clock))
+            == "ok"
+        )
 
 
 def test_swapped_parents(sample_clock, nic_clock, remote_clock):
@@ -94,7 +99,12 @@ def test_swapped_parents(sample_clock, nic_clock, remote_clock):
 
     g = graph_after_updates(*us, reference=reference)
 
-    assert aggregated_status_label(g.diagnose_reference_adherence()) == "error"
+    statuses = [
+        g.diagnose_single_clock_reference_adherence(clock) for clock in g._graph.nodes
+    ]
+
+    diag_tree = to_diag_tree(statuses)
+    assert aggregated_status_label(diag_tree) == "error"
 
 
 def test_rogue_clock(two_links, sample_clock_aliases):
