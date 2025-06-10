@@ -590,6 +590,11 @@ class SyncGraph:
                 Ok(msg="Syncs to no upstream clocks")
             )
 
+        if self.reference_graph:
+            diag_map["reference_adherence"] = (
+                self.diagnose_single_clock_reference_adherence(clock)
+            )
+
         return to_diag_tree(diag_map)
 
     def diagnose_reachability(self) -> DiagStatus:
@@ -703,9 +708,10 @@ class SyncGraph:
             ok=Ok(msg=f"All {len(self.reference_graph.nodes)} clocks are present")
         )
 
-    def diagnose_link_reference_adherence(self) -> DiagStatus:
+    def diagnose_single_clock_reference_adherence(self, clock_id: ClockId) -> DiagTree:
         """
-        Compare the links in the current graph to its reference graph (if any).
+        Check if the given clock (if in the reference graph) is syncing to the reference
+        grandmaster in a way that is compliant with the reference graph.
 
         Since some devices do not report their direct parent directly, this check also succeeds if
         transitive parents in the reference are reported to have a master / measurement link in the
@@ -721,60 +727,62 @@ class SyncGraph:
         A -(master)-> B
         A -(measurement)-> C
         ```
-        would result in a successful check.
-
+        would result in a successful check for all three clocks.
 
         Resulting status:
 
         - No reference given: `Ok`
-        - All non-grandmaster clocks have a link from their (indirect) parent: `Ok`
-        - Some clocks do not have a link from any of their (indirect) parents: `Error`
+        - The clock is the grandmaster: `Ok`
+        - The clock is not the grandmaster and has a link from its (indirect) parents: `Ok`
+        - The clock is not the grandmaster and does not have a link from its (indirect) parents: `Error`
 
         Returns:
-            The result of the comparison
+            The result of the reference graph comparison
         """
 
         if not self.reference_graph:
-            return DiagStatus(ok=Ok(msg="No reference graph present"))
+            return to_diag_tree(Ok(msg="No reference graph present"))
+
+        clock_id = self.get_canonical_clock_id(clock_id)
+
+        if clock_id not in self.reference_graph.nodes:
+            return to_diag_tree(Ok(msg=f"Clock {clock_id} not in reference graph"))
+
+        ancestors = nx.ancestors(self.reference_graph, clock_id)
+
+        # Reference graph is guaranteed to be a tree, so the only node without ancestors
+        # is the grandmaster (root node)
+        if not ancestors:
+            return to_diag_tree(Ok(msg=f"Clock {clock_id} is the grandmaster"))
+
+        ancestors = map(self.get_canonical_clock_id, ancestors)
 
         missing_links: list[tuple[ClockId, ClockId]] = []
-        for n in self.reference_graph.nodes:
-            ancestors = nx.ancestors(self.reference_graph, n)
 
-            # Reference graph is guaranteed to be a tree, so the only node without ancestors
-            # is the grandmaster (root node)
-            if not ancestors:
-                continue
-
-            ancestors = map(self.get_canonical_clock_id, ancestors)
-
-            clock_id = self.get_canonical_clock_id(n)
-
-            # If none of the (indirect) parents in the reference have an edge to the clock in the
-            # real graph, flag the edge as missing
-            if not any((a, clock_id) in self._graph.edges() for a in ancestors):
-                reference_parent: ClockId | None = next(
-                    self.reference_graph.predecessors(n), None
-                )
-                if reference_parent is None:
-                    raise AssertionError(
-                        "A non-root node in a tree has to have one parent"
-                    )
-                reference_parent = self.get_canonical_clock_id(reference_parent)
-                missing_links.append((n, reference_parent))
+        # If none of the (indirect) parents in the reference have an edge to the clock in the
+        # real graph, flag the edge as missing
+        if not any((a, clock_id) in self._graph.edges() for a in ancestors):
+            reference_parent: ClockId | None = next(
+                self.reference_graph.predecessors(clock_id), None
+            )
+            if reference_parent is None:
+                raise AssertionError("A non-root node in a tree has to have one parent")
+            reference_parent = self.get_canonical_clock_id(reference_parent)
+            missing_links.append((clock_id, reference_parent))
 
         if missing_links:
             readable_links = [
                 f"{readable_clock_id(parent)} -> {readable_clock_id(clock)}"
-                for clock, parent in missing_links
+                for parent, clock in missing_links
             ]
-            msg = f"The following {len(missing_links)} links were not found: {', '.join(readable_links)}"
-            return DiagStatus(error=Error(msg=msg))
-
-        return DiagStatus(
-            ok=Ok(
-                msg=f"All {len(self.reference_graph.nodes)} clocks are synced in compliance with reference"
+            return to_diag_tree(
+                Error(
+                    msg=f"Clock {clock_id} is not syncing to the reference grandmaster. Missing links: {', '.join(readable_links)}"
+                )
             )
+
+        return to_diag_tree(
+            Ok(msg=f"Clock {clock_id} is syncing to the reference grandmaster")
         )
 
     def diagnose_graph(self) -> DiagTree:
@@ -815,11 +823,9 @@ class SyncGraph:
             A diagnostics map consisting of:
 
                 - `"reference.clocks":` [diagnose_clock_reference_adherence][sync_graph.sync_graph.SyncGraph.diagnose_clock_reference_adherence]
-                - `"reference.links":` [diagnose_link_reference_adherence][sync_graph.sync_graph.SyncGraph.diagnose_link_reference_adherence]
         """
         diagnostics = {
             "reference.clocks": self.diagnose_clock_reference_adherence(),
-            "reference.links": self.diagnose_link_reference_adherence(),
         }
 
         return to_diag_tree(diagnostics)
