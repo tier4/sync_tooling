@@ -11,7 +11,7 @@ class Ros2Server:
     def __init__(self, topic: str, node: Node, callback: Callable[[GraphUpdate], None]):
         self._callback = callback
         self._subscriber = node.create_subscription(
-            UInt8MultiArray, topic, self._on_raw_message, 10
+            UInt8MultiArray, topic, self._on_raw_message, 1000
         )
 
     def _on_raw_message(self, msg: UInt8MultiArray):
