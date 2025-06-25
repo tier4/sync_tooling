@@ -91,8 +91,6 @@ Given the above requirements and assumptions, the following architecture has bee
 
 ![Diagnostics [Architecture]](img/sync_tooling.drawio)
 
-*SYNC.DOCTOR* satisfies {{ ref("req.web") }}, and *SYNC.DIAG* satisfies {{ ref("req.ros") }}.
-
 The *Sync Worker* instances are using the systemd journal according to {{ ref("asm.systemd") }}
 to query the status of the `ptp4l` and `phc2sys` instances according to {{ ref("asm.ptp4l") }}
 and {{ ref("asm.phc2sys") }}. This indirect communication satisfies {{ ref("req.preexisting") }}.
@@ -104,6 +102,55 @@ Sensors that participate in PTP synchronization are integrated using Nebula acco
 {{ ref("asm.nebula") }}. Nebula too publishes its updates via the same topic. This communication
 mechanism satisfies {{ ref("req.replay") }} by making record/replay functionality available
 through `ros2 bag record` and `ros2 bag play`.
+
+The *Sync Master* instance is subscribing to the above topic, and assembles all received
+information into a graph, which is subsequently used to diagnose the synchronization status of
+the system as a whole, as well as every clock within it. The Sync Master provides *SYNC.DOCTOR*,
+which satisfies {{ ref("req.web") }}, and *SYNC.DIAG*, which satisfies {{ ref("req.ros") }}.
+
+## Graph Structure
+
+The synchronization graph (sync graph) is a directed graph where
+
+- nodes represent clocks
+- edges represent real or virtual links between two clocks
+
+Each clock is a hardware clock device that can participate in PTP or PHC2SYS synchronization,
+such as the clock of a sensor or a network interface, or an ECU's system clock.
+
+A link between two clocks can be
+
+- (real) a PTP synchronization link
+- (real) a PHC2SYS synchronization link
+- (virtual) a measurement performed by means different from PTP or PHC2SYS
+
+The graph is constructed from [`GraphUpdate`][graph-update] messages, which provide pieces of
+information about the graph observable by individual workers.
+
+[graph-update]: /reference/sync_tooling_msgs/graph_update_pb2
+
+Clocks are identified by different names depending on the context:
+
+- PTP uses a MAC address based clock identifier
+- PTP4L and PHC2SYS use a PTP clock identifier, interface name or Linux clock device name
+- Nebula uses the sensor's frame ID
+
+Since it is not possible in general to observe all aliases of a clock from a single worker,
+these identifiers are related to each other by the [`ClockAliasUpdate`][clock-alias-update]
+update type.
+
+[clock-alias-update]: /reference/sync_tooling_msgs/clock_alias_update_pb2
+
+In the user-facing SYNC.DOCTOR and SYNC.DIAG, the most human-readable representation of each
+clock is shown in case of multiple aliases. See [get_most_human_readable_alias][readable-alias]
+for the specific ordering.
+
+[readable-alias]: /reference/sync_graph/sync_graph/#sync_graph.sync_graph.get_most_human_readable_alias
+
+SYNC.TOOLING is designed to be stateless. The main motivation behind this is to avoid having to
+read potentially tens of thousands of lines of the systemd journal in order to begin operations.
+Instead, the sync graph operates only on information received in the last `timeout` seconds,
+and the workers retransmit information at least once per second.
 
 ## Tech Stack
 
