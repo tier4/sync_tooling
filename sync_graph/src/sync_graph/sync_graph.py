@@ -166,7 +166,15 @@ def _set_node_attr(
 
 @dataclass
 class SyncGraph:
+    """
+    A directed graph modeling clocks and their synchronization relationships.
+    """
+
     reference_graph: nx.DiGraph | None = None
+    """
+    A known tree-shaped synchronization graph of the system. Each node is a clock, and each
+    edge is a direct synchronization link (e.g. PTP or PHC2SYS).
+    """
 
     _graph: nx.MultiDiGraph = field(default_factory=nx.MultiDiGraph)
     _known_aliases: dict[ClockId, set[ClockId]] = field(default_factory=dict)
