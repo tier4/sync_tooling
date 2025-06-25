@@ -49,6 +49,22 @@ def readability_score(clock_id: ClockId):
 
 
 def get_most_human_readable_alias(aliases: Iterable[ClockId]) -> ClockId:
+    """
+    Returns the most human-readable of a list of clock aliases.
+
+    The order of preference is:
+    * sensor_id
+    * system_clock_id
+    * interface_id
+    * linux_clock_device_id
+    * ptp_clock_id
+
+    Args:
+        aliases: A list of clock aliases.
+
+    Returns:
+        The most human-readable clock alias.
+    """
     return max(aliases, key=readability_score)
 
 
