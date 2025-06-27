@@ -174,11 +174,48 @@ By default, `diag-master` will listen to updates from workers on the ROS 2 topic
 `/sync_diag/graph_updates` and publish diagnostics to `/diagnostics`.
 The web interface is launched on `0.0.0.0:5000`.
 
-By specifying a `--reference` graph, the master will use that graph for advanced diagnostics.
-
 !!! warning
     There can only be one `diag-master` per machine. In general, only one is needed per
     distributed system (i.e. per vehicle).
+
+By specifying a `--reference` graph, the master will use that graph for advanced diagnostics.
+
+A reference graph is a tree of clocks, with each parent having a direct PTP or PHC2SYS link to
+each of its children. The reference graph is needed because not every part of the distributed
+system is observable, and SYNC.TOOLING has to make sure that all clocks are synchronized in the
+way the user intended.
+
+The reference graph is specified in YAML format. An example is given below:
+
+```yaml
+clock_tree: # (1)!
+  main_ecu.sys: # (2)!
+    main_ecu.ptp0: # (3)!
+      sensing_ecu.sys: # (4)!
+        lidar/left: # (5)!
+        lidar/right: # (6)!
+    main_ecu.ptp1:
+      radar/front:
+      radar/rear:
+```
+
+1. The root of the tree is the grandmaster clock of the system.
+2. The reference graph has to be located under the `clock_tree` key.
+3. The pattern `<hostname>.ptp<n>` is used to identify a hardware clock device of an ECU.
+4. The pattern `<hostname>.sys` is used to identify the system clock of an ECU.
+5. The pattern `<tf2/frame/id>` is used to identify a sensor.
+6. Even entries with no children need a `:` at the end.
+
+<!-- markdownlint-disable MD046 -->
+!!! warning
+    Special care needs to be taken to define hardware and software time stamping correctly:
+    If PTP4L is using software time stamping `-S`, the corresponding clock is the ECU's system
+    clock.
+
+    If hardware time stamping is used on a given `-i <interface>`, find the clock e.g.
+    using `ethtool -T <interface>`. E.g., if `ethtool -T eno1` prints 
+    `[...] PTP Hardware Clock: 0 [...]`, the clock is `ptp0`.
+<!-- markdownlint-enable MD046 -->
 
 ### SYNC.DIAG
 
