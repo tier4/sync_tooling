@@ -67,6 +67,10 @@ packages = [
     "sync_tooling_msgs/src/sync_tooling_msgs",
 ]
 
+[tool.pytest.ini_options]
+python_files = ["test_*.py", "*_test.py", "*_examples.py"]
+addopts = ["--import-mode=importlib"]
+
 [tool.ruff.lint]
 select = [
     "B",
