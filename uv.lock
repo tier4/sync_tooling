@@ -3024,6 +3024,7 @@ dev = [
     { name = "mkdocstrings", extra = ["python"] },
     { name = "pproxy" },
     { name = "pyinstrument" },
+    { name = "pymdown-extensions" },
     { name = "pytest-cov" },
 ]
 
@@ -3048,6 +3049,7 @@ dev = [
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.29.0" },
     { name = "pproxy", specifier = ">=2.7.9" },
     { name = "pyinstrument", specifier = ">=5.0.1" },
+    { name = "pymdown-extensions", specifier = ">=10.15" },
     { name = "pytest-cov", specifier = ">=6.0.0" },
 ]
 
