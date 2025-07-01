@@ -31,11 +31,18 @@ markdown_extensions:
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.snippets:
       check_paths: true
+      dedent_subsections: true
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.superfences
   - pymdownx.tasklist:
       custom_checkbox: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
 plugins: 
   - search
   - macros:
@@ -88,3 +95,5 @@ plugins:
             summary: true
 extra_javascript:
   - js/drawio-reload.js
+extra_css:
+  - css/mermaid-tweaks.css
