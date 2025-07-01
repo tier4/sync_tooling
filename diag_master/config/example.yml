@@ -1,0 +1,25 @@
+clock_tree:
+  main_ecu.sys:
+    main_ecu.ptp0:
+    main_ecu.ptp1:
+      other_ecu.sys:
+        radar/front:
+        radar/rear:
+    main_ecu.ptp2:
+      lidar/top:
+      lidar/left:
+      lidar/right:
+diagnostics:
+  diff_thresholds:
+    ptp_master:
+      warn: 100
+      error: 1000
+      unit: us
+    phc2sys:
+      warn: 100
+      error: 1000
+      unit: us
+    measurement:
+      warn: 1
+      error: 20
+      unit: ms
