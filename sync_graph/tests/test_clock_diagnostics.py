@@ -26,7 +26,9 @@ from .util import (
         (ClockStateUpdate.State.UNSYNCHRONIZED, "error"),
     ],
 )
-def test_single_clock(nic_port, clock_setup, self_reported_state, expected_status):
+def test_single_clock(
+    nic_port, clock_setup, self_reported_state, expected_status, config
+):
     """
     A single clock by itself shall always be `Ok`, even if it has faulty ports.
     """
@@ -52,14 +54,14 @@ def test_single_clock(nic_port, clock_setup, self_reported_state, expected_statu
     if self_reported_state is not None:
         us.append(_gu(ClockStateUpdate(clock_id=clock_id, state=self_reported_state)))
 
-    g = graph_after_updates(*us)
+    g = graph_after_updates(config, None, *us)
 
     assert clock_id in g._graph.nodes
     diag_tree = g.diagnose_clock(clock_id)
     assert aggregated_status_label(diag_tree) == expected_status
 
 
-def test_cycle(sample_clock, remote_clock, nic_clock):
+def test_cycle(sample_clock, remote_clock, nic_clock, config):
     """
     All clocks in a cycle shall be diagnosed as `Error`, clocks not in the cycle shall be unaffected.
     """
@@ -74,7 +76,7 @@ def test_cycle(sample_clock, remote_clock, nic_clock):
         make_measurement(cycle_clock_1, unaffected_clock, False),
     ]
 
-    g = graph_after_updates(*us)
+    g = graph_after_updates(config, None, *us)
 
     for cycle_clock in (cycle_clock_1, cycle_clock_2):
         assert aggregated_status_label(g.diagnose_clock(cycle_clock)) == "error"

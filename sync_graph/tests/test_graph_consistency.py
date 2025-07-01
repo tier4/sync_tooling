@@ -20,16 +20,16 @@ from .util import (
 )
 
 
-def test_clock_creation(sample_clock):
+def test_clock_creation(sample_clock, config):
     # A graph containing only a single clock without a master or parent
     u = _gu(ClockMasterUpdate(clock_id=sample_clock))
-    g = graph_after_updates(u)
+    g = graph_after_updates(config, None, u)
 
     assert g._graph.number_of_nodes() == 1
     assert g._graph.number_of_edges() == 0
 
 
-def test_clock_aliases(sample_clock_aliases):
+def test_clock_aliases(sample_clock_aliases, config):
     # A graph containing only a single clock without a master or parent, but two aliases
     u1 = _gu(ClockMasterUpdate(clock_id=sample_clock_aliases["system"]))
     u2 = _gu(ClockMasterUpdate(clock_id=sample_clock_aliases["ptp"]))
@@ -38,29 +38,29 @@ def test_clock_aliases(sample_clock_aliases):
             aliases=[sample_clock_aliases["ptp"], sample_clock_aliases["system"]]
         )
     )
-    g = graph_after_updates(u1, u2, u3)
+    g = graph_after_updates(config, None, u1, u2, u3)
 
     assert g._graph.number_of_nodes() == 1
     assert g._graph.number_of_edges() == 0
 
 
-def test_alias_precedence(sample_clock_aliases):
+def test_alias_precedence(sample_clock_aliases, config):
     updates: list[GraphUpdate] = [
         _gu(ClockMasterUpdate(clock_id=v)) for v in sample_clock_aliases.values()
     ]
     updates.append(_gu(ClockAliasUpdate(aliases=list(sample_clock_aliases.values()))))
-    g = graph_after_updates(*updates)
+    g = graph_after_updates(config, None, *updates)
 
     assert g._graph.number_of_nodes() == 1
     assert g._graph.has_node(sample_clock_aliases["sensor"])
 
 
-def test_ptp_link(sample_clock, remote_clock):
+def test_ptp_link(sample_clock, remote_clock, config):
     src = sample_clock
     dst = remote_clock
 
     u = _gu(PtpParentUpdate(clock_id=dst, parent=PortId(clock_id=src, port_number=1)))
-    g = graph_after_updates(u)
+    g = graph_after_updates(config, None, u)
 
     assert g._graph.number_of_nodes() == 2
     assert g._graph.number_of_edges() == 1
@@ -69,11 +69,11 @@ def test_ptp_link(sample_clock, remote_clock):
     assert g._graph.has_edge(src, dst)
 
 
-def test_phc2sys_link(sample_clock, nic_clock):
+def test_phc2sys_link(sample_clock, nic_clock, config):
     src = sample_clock
     dst = nic_clock
     u = _gu(Phc2SysUpdate(src=src, dst=dst, clock_state=SlaveClockState()))
-    g = graph_after_updates(u)
+    g = graph_after_updates(config, None, u)
 
     assert g._graph.number_of_nodes() == 2
     assert g._graph.number_of_edges() == 1
@@ -82,7 +82,7 @@ def test_phc2sys_link(sample_clock, nic_clock):
     assert g._graph.has_edge(src, dst)
 
 
-def test_alias_after_links(sample_clock_aliases, nic_clock, remote_clock):
+def test_alias_after_links(sample_clock_aliases, nic_clock, remote_clock, config):
     src1 = sample_clock_aliases["system"]
     dst1 = nic_clock
 
@@ -97,7 +97,7 @@ def test_alias_after_links(sample_clock_aliases, nic_clock, remote_clock):
         _gu(ClockAliasUpdate(aliases=[src1, src2])),
     ]
 
-    g = graph_after_updates(*updates)
+    g = graph_after_updates(config, None, *updates)
 
     assert g._graph.number_of_nodes() == 3
     assert g._graph.number_of_edges() == 2
@@ -108,7 +108,7 @@ def test_alias_after_links(sample_clock_aliases, nic_clock, remote_clock):
 
 
 @pytest.mark.parametrize("link_type", ["master", "measurement", "phc2sys", "ptp"])
-def test_no_self_loops(nic_clock, nic_port, link_type):
+def test_no_self_loops(nic_clock, nic_port, link_type, config):
     match link_type:
         case "master":
             us = [make_master_link(nic_clock, nic_clock, False)]
@@ -121,14 +121,14 @@ def test_no_self_loops(nic_clock, nic_port, link_type):
         case _:
             raise AssertionError(f"Unexpected link type: {link_type}")
 
-    g = graph_after_updates(*us)
+    g = graph_after_updates(config, None, *us)
 
     assert g._graph.number_of_nodes() == 1
     assert g._graph.number_of_edges() == 0
 
 
 def test_clocks_referenced_in_updates_created(
-    sample_clock_aliases, nic_clock, nic_port
+    sample_clock_aliases, nic_clock, nic_port, config
 ):
     """
     Any clock referenced in a valid graph update shall be created if not existent in the graph.
@@ -162,7 +162,7 @@ def test_clocks_referenced_in_updates_created(
     ]
 
     for update, expected_clocks in expectations:
-        g = graph_after_updates(update)
+        g = graph_after_updates(config, None, update)
         expected_clocks = set(expected_clocks)
         actual_clocks = set(g._graph.nodes)
 
