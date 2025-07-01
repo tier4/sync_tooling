@@ -2,6 +2,7 @@ from typing import Literal
 
 import pytest
 
+from sync_graph.sync_graph import Config, DiffThresholds
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.interface_id_pb2 import InterfaceId
 from sync_tooling_msgs.linux_clock_device_id_pb2 import LinuxClockDeviceId
@@ -52,3 +53,12 @@ def nic_port(nic_clock):
 @pytest.fixture
 def remote_clock():
     return ClockId(ptp_clock_id=PtpClockId(id="010101.fffe.101010"))
+
+
+@pytest.fixture
+def config():
+    return Config(
+        master_diff_thresholds=DiffThresholds(unit="us", warn=100, error=200),
+        phc2sys_diff_thresholds=DiffThresholds(unit="us", warn=100, error=200),
+        measurement_diff_thresholds=DiffThresholds(unit="us", warn=100, error=200),
+    )

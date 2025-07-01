@@ -1,28 +1,29 @@
 import socket
+import sys
 from argparse import REMAINDER, ArgumentParser
 from collections import namedtuple
 from datetime import timedelta
+from typing import Callable
 
 import rclpy
 import yaml
-from networkx import DiGraph
 
 from diag_master.ros2_diagnostics_adapter import Ros2DiagnosticsAdapter
 from diag_master.web_ui import WebUi
 from ros2_transport.server import Ros2Server
 from sync_graph.sync_graph import SyncGraph
 from sync_graph.timed_graph_update_queue import TimedGraphUpdateQueue
-from sync_graph.yaml import clock_tree_to_digraph
+from sync_graph.yaml import to_sync_graph_args
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 
-Args = namedtuple("Args", ["topic", "reference", "ros_args", "update_expiry_s"])
+Args = namedtuple("Args", ["topic", "config_files", "ros_args", "update_expiry_s"])
 
 
 class DiagMaster:
     def __init__(
         self,
         topic: str,
-        reference_graph: DiGraph | None,
+        sync_graph_factory: Callable[[], SyncGraph],
         update_expiry: timedelta,
         enable_ros2_diagnostics: bool,
         enable_web_ui: bool,
@@ -30,7 +31,7 @@ class DiagMaster:
         hostname = socket.gethostname()
         self._node = rclpy.create_node(hostname, namespace="/sync_diag/master")  # type: ignore
         self._ros2_server = Ros2Server(topic, self._node, self.on_graph_update)
-        self._reference_graph = reference_graph
+        self._sync_graph_factory = sync_graph_factory
         self._update_queue = TimedGraphUpdateQueue(update_expiry)
 
         self._diagnostic_timer = self._node.create_timer(1, self.on_diagnostic_timer)
@@ -56,7 +57,7 @@ class DiagMaster:
 
     @property
     def sync_graph(self):
-        sg = SyncGraph(self._reference_graph)
+        sg = self._sync_graph_factory()
         for u in self._update_queue.updates:
             sg.update(u)
         return sg
@@ -74,7 +75,12 @@ def parse_args() -> Args:
     )
     parser.add_argument("--instrument", action="store_true")
     parser.add_argument(
-        "--reference", "-r", help="Reference synchronization graph in YAML format."
+        "--config-files",
+        "-f",
+        nargs="+",
+        help="Configuration such as reference graph and measurement thresholds in YAML format. "
+        "If multiple files are given, they are merged. For keys that appear in multiple files, "
+        "the last file takes precedence.",
     )
     parser.add_argument(
         "--ros-args",
@@ -84,18 +90,37 @@ def parse_args() -> Args:
     return parser.parse_args()  # type: ignore
 
 
-def parse_reference_graph(reference_path: str):
-    with open(reference_path) as f:
-        yaml_data = yaml.safe_load(f)
+def read_configs_raw(config_paths: list[str]):
+    merged_config = {}
 
-    return clock_tree_to_digraph(yaml_data["clock_tree"])
+    for config_path in config_paths:
+        with open(config_path) as f:
+            yaml_data = yaml.safe_load(f)
+
+            # This does not recursively merge the data, but adds or overwrites the top-level
+            # entries in the order they are given.
+            merged_config.update(yaml_data)
+
+    return merged_config
 
 
 def initialize_master(args: Args):
-    reference_graph = parse_reference_graph(args.reference) if args.reference else None
+    config_raw = read_configs_raw(args.config_files)
+    if not config_raw:
+        print(
+            "At least one config file must be given. (Use -f to specify config files.)",
+            file=sys.stderr,
+        )
+        exit(1)
+
+    config, reference_graph = to_sync_graph_args(config_raw)
+
+    def sync_graph_factory():
+        return SyncGraph(config, reference_graph)
+
     update_expiry = timedelta(seconds=args.update_expiry_s)
 
-    diag_master = DiagMaster(args.topic, reference_graph, update_expiry, True, True)
+    diag_master = DiagMaster(args.topic, sync_graph_factory, update_expiry, True, True)
     return diag_master
 
 

@@ -13,7 +13,7 @@ from .util import (
 @pytest.mark.parametrize("is_faulty,expected_status", [(True, "error"), (False, "ok")])
 @pytest.mark.parametrize("link_type", ["phc2sys", "ptp", "master", "measurement"])
 def test_link_diagnostics(
-    nic_port, sample_clock, is_faulty, expected_status, link_type
+    nic_port, sample_clock, is_faulty, expected_status, link_type, config
 ):
     """
     Test diagnostics for known-ok and known-faulty links.
@@ -40,7 +40,7 @@ def test_link_diagnostics(
         case _:
             raise AssertionError()
 
-    g = graph_after_updates(*us)
+    g = graph_after_updates(config, None, *us)
     link_diag = g.diagnose_link(src, dst)
     assert aggregated_status_label(link_diag) == expected_status
     dst_diag = g.diagnose_clock(dst)

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import networkx as nx
 import pytest
 
+from sync_graph.sync_graph import Config
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.diag_tree import prettify, to_diag_tree
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
@@ -24,16 +25,17 @@ from .util import (
 @dataclass
 class GraphArgs:
     updates: list[GraphUpdate]
-    reference: nx.DiGraph | None
+    reference: nx.DiGraph
+    config: Config
 
 
 @pytest.fixture
-def empty():
-    return GraphArgs([], nx.DiGraph())
+def empty(config):
+    return GraphArgs([], nx.DiGraph(), config)
 
 
 @pytest.fixture
-def two_links(sample_clock, nic_port, remote_clock):
+def two_links(sample_clock, nic_port, remote_clock, config):
     reference = nx.DiGraph()
     reference.add_edge(sample_clock, nic_port.clock_id)
     reference.add_edge(nic_port.clock_id, remote_clock)
@@ -43,24 +45,15 @@ def two_links(sample_clock, nic_port, remote_clock):
         *make_ptp_link(nic_port, remote_clock, False),
     ]
 
-    return GraphArgs(us, reference)
-
-
-@pytest.mark.parametrize("graph_name", ["empty", "two_links"])
-def test_without_reference(graph_name, request):
-    """
-    A graph without a reference graph shall be diagnosed as `Ok`.
-    """
-
-    graph_args: GraphArgs = request.getfixturevalue(graph_name)
-    g = graph_after_updates(*graph_args.updates)
-    assert aggregated_status_label(g.diagnose_reference_adherence()) == "ok"
+    return GraphArgs(us, reference, config)
 
 
 @pytest.mark.parametrize("graph_name", ["empty", "two_links"])
 def test_perfect_reference_match(graph_name, request):
     graph_args: GraphArgs = request.getfixturevalue(graph_name)
-    g = graph_after_updates(*graph_args.updates, reference=graph_args.reference)
+    g = graph_after_updates(
+        graph_args.config, graph_args.reference, *graph_args.updates
+    )
     for clock in g._graph.nodes:
         diag_tree = g.diagnose_single_clock_reference_adherence(clock)
         assert (
@@ -68,7 +61,7 @@ def test_perfect_reference_match(graph_name, request):
         ), f"with tree {prettify(diag_tree)}"
 
 
-def test_different_but_compliant_graph(sample_clock, nic_port, remote_clock):
+def test_different_but_compliant_graph(sample_clock, nic_port, remote_clock, config):
     reference = nx.DiGraph()
     reference.add_edge(sample_clock, nic_port.clock_id)
     reference.add_edge(nic_port.clock_id, remote_clock)
@@ -78,7 +71,7 @@ def test_different_but_compliant_graph(sample_clock, nic_port, remote_clock):
         make_measurement(sample_clock, remote_clock, False),
     ]
 
-    g = graph_after_updates(*us, reference=reference)
+    g = graph_after_updates(config, reference, *us)
 
     for clock in g._graph.nodes:
         assert (
@@ -87,7 +80,7 @@ def test_different_but_compliant_graph(sample_clock, nic_port, remote_clock):
         )
 
 
-def test_swapped_parents(sample_clock, nic_clock, remote_clock):
+def test_swapped_parents(sample_clock, nic_clock, remote_clock, config):
     reference = nx.DiGraph()
     reference.add_edge(sample_clock, nic_clock)
     reference.add_edge(nic_clock, remote_clock)
@@ -97,7 +90,7 @@ def test_swapped_parents(sample_clock, nic_clock, remote_clock):
         make_phc2sys_link(remote_clock, nic_clock, False),
     ]
 
-    g = graph_after_updates(*us, reference=reference)
+    g = graph_after_updates(config, reference, *us)
 
     statuses = [
         g.diagnose_single_clock_reference_adherence(clock) for clock in g._graph.nodes
@@ -108,7 +101,7 @@ def test_swapped_parents(sample_clock, nic_clock, remote_clock):
 
 
 def test_rogue_clock(two_links, sample_clock_aliases):
-    g = graph_after_updates(*two_links.updates, reference=two_links.reference)
+    g = graph_after_updates(two_links.config, two_links.reference, *two_links.updates)
     g.update(
         GraphUpdate(
             clock_master_update=ClockMasterUpdate(
@@ -120,8 +113,8 @@ def test_rogue_clock(two_links, sample_clock_aliases):
     assert aggregated_status_label(g.diagnose_reference_adherence()) == "warning"
 
 
-def test_missing_clock(two_links):
-    g = graph_after_updates(*two_links.updates, reference=two_links.reference)
+def test_missing_clock(two_links, config):
+    g = graph_after_updates(config, two_links.reference, *two_links.updates)
     g._graph.remove_node(next(iter(two_links.reference.nodes())))
 
     assert aggregated_status_label(g.diagnose_reference_adherence()) == "error"
