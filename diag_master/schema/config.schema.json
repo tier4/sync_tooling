@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sync Diag Master Configuration Schema",
+  "description": "Schema for validating Sync Diag Master configuration",
+  "type": "object",
+  "properties": {
+    "clock_tree": {
+      "type": "object",
+      "description": "Hierarchical clock tree structure",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/definitions/clockNode"
+            }
+          },
+          {
+            "type": "object",
+            "maxProperties": 0
+          }
+        ]
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "description": "Diagnostics configuration settings",
+      "properties": {
+        "diff_thresholds": {
+          "$ref": "#/definitions/diagnosticThresholds"
+        }
+      },
+      "required": [
+        "diff_thresholds"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "clock_tree",
+    "diagnostics"
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "clockNode": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/clockNode"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "diagnosticThreshold": {
+      "type": "object",
+      "description": "Diagnostic threshold configuration",
+      "properties": {
+        "warn": {
+          "type": "number",
+          "description": "Warning threshold value in the given unit",
+          "minimum": 0
+        },
+        "error": {
+          "type": "number",
+          "description": "Error threshold value in the given unit",
+          "minimum": 0
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit of measurement for the threshold values",
+          "enum": [
+            "ns",
+            "us",
+            "ms"
+          ]
+        }
+      },
+      "required": [
+        "warn",
+        "error",
+        "unit"
+      ],
+      "additionalProperties": false
+    },
+    "diagnosticThresholds": {
+      "type": "object",
+      "description": "Diagnostic thresholds configuration",
+      "properties": {
+        "ptp_master": {
+          "$ref": "#/definitions/diagnosticThreshold"
+        },
+        "phc2sys": {
+          "$ref": "#/definitions/diagnosticThreshold"
+        },
+        "measurement": {
+          "$ref": "#/definitions/diagnosticThreshold"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "ptp_master",
+        "phc2sys",
+        "measurement"
+      ]
+    }
+  }
+}
