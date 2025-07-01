@@ -1,6 +1,6 @@
 from networkx import DiGraph
 
-from sync_graph.sync_graph import SyncGraph
+from sync_graph.sync_graph import Config, SyncGraph
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_diff_measurement_pb2 import ClockDiffMeasurement
 from sync_tooling_msgs.clock_id_pb2 import ClockId
@@ -43,8 +43,10 @@ def _gu(u):
     raise KeyError()
 
 
-def graph_after_updates(*updates: GraphUpdate, reference: DiGraph | None = None):
-    g = SyncGraph(reference_graph=reference)
+def graph_after_updates(
+    config: Config, reference: DiGraph | None = None, *updates: GraphUpdate
+):
+    g = SyncGraph(config, reference)
     for u in updates:
         g.update(u)
     return g

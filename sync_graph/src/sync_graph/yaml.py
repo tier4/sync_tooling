@@ -1,6 +1,17 @@
-import networkx as nx
+from typing import Literal
 
+import networkx as nx
+from networkx import DiGraph
+
+from sync_graph.sync_graph import Config, DiffThresholds
 from sync_tooling_msgs.clock_id import parse_clock_id
+
+
+def get_subtree(d: dict, key: str, typ: type, yaml_path: str = ""):
+    if key not in d:
+        prefix = f"{yaml_path}." if yaml_path else ""
+        raise ValueError(f"{prefix}{key} is required")
+    return typ(d[key])
 
 
 def clock_tree_to_digraph(clock_tree: dict) -> nx.DiGraph:
@@ -40,3 +51,39 @@ def clock_tree_to_digraph(clock_tree: dict) -> nx.DiGraph:
 
     digraph = nx.from_edgelist(edges, create_using=nx.DiGraph)
     return digraph
+
+
+def parse_unit(unit: str) -> Literal["ns", "us", "ms"]:
+    match unit:
+        case "ns" | "us" | "ms":
+            return unit
+        case _:
+            raise ValueError(f"Invalid unit: {unit}")
+
+
+def parse_diff_thresholds(diff_thresholds: dict) -> DiffThresholds:
+    return DiffThresholds(
+        unit=parse_unit(get_subtree(diff_thresholds, "unit", str)),
+        warn=get_subtree(diff_thresholds, "warn", int),
+        error=get_subtree(diff_thresholds, "error", int),
+    )
+
+
+def to_config(diagnostics: dict) -> Config:
+    return Config(
+        master_diff_thresholds=parse_diff_thresholds(
+            get_subtree(diagnostics, "master_diff_thresholds", dict)
+        ),
+        phc2sys_diff_thresholds=parse_diff_thresholds(
+            get_subtree(diagnostics, "phc2sys_diff_thresholds", dict)
+        ),
+        measurement_diff_thresholds=parse_diff_thresholds(
+            get_subtree(diagnostics, "measurement_diff_thresholds", dict)
+        ),
+    )
+
+
+def to_sync_graph_args(yaml_config: dict) -> tuple[Config, DiGraph]:
+    config = to_config(get_subtree(yaml_config, "diagnostics", dict))
+    clock_tree = clock_tree_to_digraph(get_subtree(yaml_config, "clock_tree", dict))
+    return config, clock_tree

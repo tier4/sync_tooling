@@ -33,6 +33,29 @@ from sync_tooling_msgs.unknown_pb2 import Unknown
 from sync_tooling_msgs.warning_pb2 import Warning
 
 
+@dataclass
+class DiffThresholds:
+    """
+    Warning and error thresholds for a difference between two clocks.
+
+    Args:
+        warn: The warning threshold in the given unit.
+        error: The error threshold in the given unit.
+        unit: The unit of the thresholds.
+    """
+
+    warn: int
+    error: int
+    unit: Literal["ms", "us", "ns"]
+
+
+@dataclass
+class Config:
+    master_diff_thresholds: DiffThresholds
+    phc2sys_diff_thresholds: DiffThresholds
+    measurement_diff_thresholds: DiffThresholds
+
+
 def readability_score(clock_id: ClockId):
     match clock_id.WhichOneof("id"):
         case "sensor_id":
@@ -68,74 +91,39 @@ def get_most_human_readable_alias(aliases: Iterable[ClockId]) -> ClockId:
     return max(aliases, key=readability_score)
 
 
-def diagnose_measurement_diff(time_diff_ns: int) -> DiagTree:
+def diagnose_diff(diff_ns: int, thresholds: DiffThresholds) -> DiagTree:
     """
-    Diagnose a measured offset between two clocks. Depending on the absolute value, this may be
+    Diagnose a difference between two clocks. Depending on the absolute value, this may be
     an error or warning.
 
     Args:
-        time_diff_ns: The measured offset in nanoseconds.
+        diff_ns: The difference in nanoseconds.
+        thresholds: The warn/error thresholds for the difference.
 
     Returns:
         A diagnostic tree.
     """
 
-    time_diff_ms = abs(time_diff_ns // 1_000_000)
-    warn_threshold_ms = 1
-    error_threshold_ms = 20
+    match thresholds.unit:
+        case "ms":
+            unit_multiplier = 1_000_000
+        case "us":
+            unit_multiplier = 1_000
+        case "ns":
+            unit_multiplier = 1
 
-    if time_diff_ms > error_threshold_ms:
-        return to_diag_tree(Error(msg=f"Exceeds bounds of {error_threshold_ms} ms"))
-    if time_diff_ms > warn_threshold_ms:
-        return to_diag_tree(Warning(msg=f"Exceeds bounds of {warn_threshold_ms} ms"))
+    abs_diff = abs(diff_ns // unit_multiplier)
 
-    return to_diag_tree(Ok(msg=f"Within bounds of {warn_threshold_ms} ms"))
+    if abs_diff > thresholds.error:
+        return to_diag_tree(
+            Error(msg=f"Exceeds bounds of {thresholds.error} {thresholds.unit}")
+        )
+    if abs_diff > thresholds.warn:
+        return to_diag_tree(
+            Warning(msg=f"Exceeds bounds of {thresholds.warn} {thresholds.unit}")
+        )
 
-
-def diagnose_master_diff(master_diff_ns: int) -> DiagTree:
-    """
-    Diagnose a master offset. Depending on the absolute value, this may be an error or warning.
-
-    Args:
-        master_diff_ns: The master offset in nanoseconds.
-
-    Returns:
-        A diagnostic tree.
-    """
-
-    master_diff_us = abs(master_diff_ns // 1_000)
-    warn_threshold_us = 100
-    error_threshold_us = 1000
-
-    if master_diff_us > error_threshold_us:
-        return to_diag_tree(Error(msg=f"Exceeds bounds of {error_threshold_us} µs"))
-    if master_diff_us > warn_threshold_us:
-        return to_diag_tree(Warning(msg=f"Exceeds bounds of {warn_threshold_us} µs"))
-
-    return to_diag_tree(Ok(msg=f"Within bounds of {warn_threshold_us} µs"))
-
-
-def diagnose_phc2sys_diff(phc2sys_diff_ns: int) -> DiagTree:
-    """
-    Diagnose a PHC2SYS offset. Depending on the absolute value, this may be an error or warning.
-
-    Args:
-        phc2sys_diff_ns: The PHC2SYS offset in nanoseconds.
-
-    Returns:
-        A diagnostic tree.
-    """
-
-    phc2sys_diff_us = abs(phc2sys_diff_ns // 1_000)
-    warn_threshold_us = 100
-    error_threshold_us = 1000
-
-    if phc2sys_diff_us > error_threshold_us:
-        return to_diag_tree(Error(msg=f"Exceeds bounds of {error_threshold_us} µs"))
-    if phc2sys_diff_us > warn_threshold_us:
-        return to_diag_tree(Warning(msg=f"Exceeds bounds of {warn_threshold_us} µs"))
-
-    return to_diag_tree(Ok(msg=f"Within bounds of {warn_threshold_us} µs"))
+    return to_diag_tree(Ok(msg=f"Within bounds of {thresholds.warn} {thresholds.unit}"))
 
 
 C_STATUS_MSG = "status_msg"
@@ -168,6 +156,11 @@ def _set_node_attr(
 class SyncGraph:
     """
     A directed graph modeling clocks and their synchronization relationships.
+    """
+
+    config: Config
+    """
+    Configuration for the sync graph.
     """
 
     reference_graph: nx.DiGraph | None = None
@@ -535,7 +528,9 @@ class SyncGraph:
         if phc2sys_diff_ns is None:
             time_diff_diag = to_diag_tree(Unknown(msg="PHC2SYS delay unknown"))
         else:
-            time_diff_diag = diagnose_phc2sys_diff(phc2sys_diff_ns)
+            time_diff_diag = diagnose_diff(
+                phc2sys_diff_ns, self.config.phc2sys_diff_thresholds
+            )
 
         servo_state_diag = diagnose_servo_state(slave_state.servo_state)
 
@@ -556,11 +551,13 @@ class SyncGraph:
                 case "phc2sys", SlaveClockState() as state:
                     diags["phc2sys"] = self.diagnose_phc2sys_link(state)
                 case "measurement", int() as time_diff_ns:
-                    diags[f"offset_from_{readable_clock_id(dst)}"] = (
-                        diagnose_measurement_diff(time_diff_ns)
+                    diags[f"offset_from_{readable_clock_id(dst)}"] = diagnose_diff(
+                        time_diff_ns, self.config.measurement_diff_thresholds
                     )
                 case "master", int() as master_offset_ns:
-                    diags["offset_from_master"] = diagnose_master_diff(master_offset_ns)
+                    diags["offset_from_master"] = diagnose_diff(
+                        master_offset_ns, self.config.master_diff_thresholds
+                    )
                 case _:
                     raise AssertionError(f"Unexpected link metadata: {key}: {metadata}")
 
