@@ -22,6 +22,10 @@
   "ansible.ansible.path": "${workspaceFolder}/.venv/bin/ansible",
   "yaml.customTags": [
     "tag:yaml.org,2002:python/name:material.extensions.emoji.twemoji",
-    "tag:yaml.org,2002:python/name:material.extensions.emoji.to_svg"
-  ]
+    "tag:yaml.org,2002:python/name:material.extensions.emoji.to_svg",
+    "tag:yaml.org,2002:python/name:pymdownx.superfences.fence_code_format"
+  ],
+  "yaml.schemas": {
+    "diag_master/schema/config.schema.json": "diag_master/config/*.yml"
+  }
 }
