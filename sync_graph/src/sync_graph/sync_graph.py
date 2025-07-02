@@ -755,11 +755,13 @@ class SyncGraph:
         statuses = []
 
         if missing_clocks:
-            msg = f"{len(missing_clocks)} clocks are not present: {', '.join(map(readable_clock_id, missing_clocks))}"
+            pluralized = "clocks are" if len(missing_clocks) > 1 else "clock is"
+            msg = f"{len(missing_clocks)} {pluralized} not present: {', '.join(map(readable_clock_id, missing_clocks))}"
             statuses.append(DiagStatus(error=Error(msg=msg)))
 
         if rogue_clocks:
-            msg = f"{len(rogue_clocks)} unexpected clocks found: {', '.join(map(readable_clock_id, rogue_clocks))}"
+            pluralized = "clocks" if len(rogue_clocks) > 1 else "clock"
+            msg = f"{len(rogue_clocks)} unexpected {pluralized} found: {', '.join(map(readable_clock_id, rogue_clocks))}"
             statuses.append(DiagStatus(warning=Warning(msg=msg)))
 
         if statuses:
