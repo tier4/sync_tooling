@@ -101,9 +101,11 @@ def _clock_to_echart_data(
         diag = sg.diagnose_clock(clock)
         status = aggregate(diag)
         status_color = get_status_color(status)
+        is_reference_only = False
     else:
         status_color = DIAG_PALETTE["error"]
         extended_description.append("Clock not found in graph")
+        is_reference_only = True
 
     node = {
         "name": readable_clock_id(clock),
@@ -111,6 +113,13 @@ def _clock_to_echart_data(
         "itemStyle": {"color": status_color},
         "label": {"show": True, "position": "right"},
     }
+
+    # Add dashed border and no filling for reference-only clocks
+    if is_reference_only:
+        node["itemStyle"]["borderColor"] = status_color
+        node["itemStyle"]["borderWidth"] = 2
+        node["itemStyle"]["borderType"] = "dashed"
+        node["itemStyle"]["color"] = "transparent"
 
     if position is not None:
         node["x"] = position[0]
