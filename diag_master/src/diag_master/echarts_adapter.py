@@ -46,8 +46,10 @@ def _pretty_diag_html(diag: DiagTree):
             items = [f"<li>{_pretty_diag_html(t)}</li>" for t in diag.list.list]
             return "<ul>" + "".join(items) + "</ul>"
         case "map":
-            items = [f"{k}: {_pretty_diag_html(v)}" for k, v in diag.map.map.items()]
-            return "<p>" + "<br/>".join(items) + "</p>"
+            items = [
+                f"<li>{k}: {_pretty_diag_html(v)}</li>" for k, v in diag.map.map.items()
+            ]
+            return "<ul>" + "".join(items) + "</ul>"
         case _:
             raise AssertionError("Got an invalid diagnostic tree")
 
@@ -103,6 +105,7 @@ def _clock_to_echart_data(
         extended_description.append(ports_description)
 
         diag = sg.diagnose_clock(clock)
+        extended_description.append("Diagnostics:")
         extended_description.append(_pretty_diag_html(diag))
 
         status = aggregate(diag)
@@ -176,6 +179,7 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
     else:
         raise AssertionError()
 
+    extended_description.append("Diagnostics:")
     extended_description.append(_pretty_diag_html(diag))
 
     status = aggregate(diag)
