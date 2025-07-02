@@ -10,7 +10,7 @@ from sync_tooling_msgs.clock_id import readable_clock_id
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.diag_status_pb2 import DiagStatus
-from sync_tooling_msgs.diag_tree import aggregate, to_diag_tree
+from sync_tooling_msgs.diag_tree import to_diag_tree
 from sync_tooling_msgs.diag_tree_pb2 import DiagTree
 from sync_tooling_msgs.error_pb2 import Error
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
@@ -729,11 +729,11 @@ class SyncGraph:
             )
         )
 
-    def diagnose_clock_reference_adherence(self) -> DiagStatus:
+    def diagnose_clock_reference_adherence(self) -> DiagTree:
         """
         Compare the current graph to its reference graph (if any).
 
-        Resulting status:
+        Resulting (aggregated) status:
 
         - No reference given: `Ok`
         - All reference clocks and no other clocks present: `Ok`
@@ -741,11 +741,16 @@ class SyncGraph:
         - Not all reference clocks present: `Error`
 
         Returns:
-            The result of the comparison
+            A diagnostic status if the aggregated status above is `Ok`,
+            otherwise a diagnostics map with the following keys:
+
+                - `missing_clocks`: If any reference clocks are not present in the current graph
+                - `rogue_clocks`: If any clocks are present in the current graph that are not in
+                the reference graph
         """
 
         if not self.reference_graph:
-            return DiagStatus(ok=Ok(msg="No reference graph present"))
+            return to_diag_tree(Ok(msg="No reference graph present"))
 
         expected_clocks: set[ClockId] = set(self.reference_graph.nodes)
         found_clocks: set[ClockId] = set(self._graph.nodes)
@@ -753,23 +758,23 @@ class SyncGraph:
         missing_clocks = expected_clocks - found_clocks
         rogue_clocks = found_clocks - expected_clocks
 
-        statuses = []
+        statuses = {}
 
         if missing_clocks:
             pluralized = "clocks are" if len(missing_clocks) > 1 else "clock is"
             msg = f"{len(missing_clocks)} {pluralized} not present: {', '.join(map(readable_clock_id, missing_clocks))}"
-            statuses.append(DiagStatus(error=Error(msg=msg)))
+            statuses["missing_clocks"] = DiagStatus(error=Error(msg=msg))
 
         if rogue_clocks:
             pluralized = "clocks" if len(rogue_clocks) > 1 else "clock"
             msg = f"{len(rogue_clocks)} unexpected {pluralized} found: {', '.join(map(readable_clock_id, rogue_clocks))}"
-            statuses.append(DiagStatus(warning=Warning(msg=msg)))
+            statuses["rogue_clocks"] = DiagStatus(warning=Warning(msg=msg))
 
         if statuses:
-            return aggregate(to_diag_tree(statuses))
+            return to_diag_tree(statuses)
 
-        return DiagStatus(
-            ok=Ok(msg=f"All {len(self.reference_graph.nodes)} clocks are present")
+        return to_diag_tree(
+            Ok(msg=f"All {len(self.reference_graph.nodes)} clocks are present")
         )
 
     def diagnose_single_clock_reference_adherence(self, clock_id: ClockId) -> DiagTree:
@@ -887,10 +892,10 @@ class SyncGraph:
         Returns:
             A diagnostics map consisting of:
 
-                - `"reference.clocks":` [diagnose_clock_reference_adherence][sync_graph.sync_graph.SyncGraph.diagnose_clock_reference_adherence]
+                - `"clocks":` [diagnose_clock_reference_adherence][sync_graph.sync_graph.SyncGraph.diagnose_clock_reference_adherence]
         """
         diagnostics = {
-            "reference.clocks": self.diagnose_clock_reference_adherence(),
+            "clocks": self.diagnose_clock_reference_adherence(),
         }
 
         return to_diag_tree(diagnostics)
