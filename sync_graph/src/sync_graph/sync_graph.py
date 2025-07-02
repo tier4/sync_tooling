@@ -698,9 +698,10 @@ class SyncGraph:
             case [candidate]:
                 grandmaster = candidate
             case _:
+                readable_candidates = ", ".join([str(c) for c in grandmaster_candiates])
                 return DiagStatus(
                     error=Error(
-                        msg=f"There is more than one grandmaster clock: {grandmaster_candiates}"
+                        msg=f"There is more than one grandmaster clock: {readable_candidates}"
                     )
                 )
 
@@ -831,7 +832,7 @@ class SyncGraph:
             if reference_parent is None:
                 raise AssertionError("A non-root node in a tree has to have one parent")
             reference_parent = self.get_canonical_clock_id(reference_parent)
-            missing_links.append((clock_id, reference_parent))
+            missing_links.append((reference_parent, clock_id))
 
         if missing_links:
             readable_links = [f"{parent} -> {clock}" for parent, clock in missing_links]
