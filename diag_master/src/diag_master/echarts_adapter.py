@@ -30,7 +30,12 @@ def get_status_color(status: DiagStatus):
 
 def _pretty_status_html(status: DiagStatus):
     status_color = get_status_color(status)
-    return f'<span style="color: {status_color}">{status}</span>'
+    status_type = status.WhichOneof("status")
+    if status_type is None:
+        raise AssertionError("Got an empty status")
+
+    msg = getattr(status, status_type).msg
+    return f'<span style="color: {status_color}">{msg}</span>'
 
 
 def _pretty_diag_html(diag: DiagTree):
@@ -44,7 +49,7 @@ def _pretty_diag_html(diag: DiagTree):
             items = [f"{k}: {_pretty_diag_html(v)}" for k, v in diag.map.map.items()]
             return "<p>" + "<br/>".join(items) + "</p>"
         case _:
-            raise AssertionError()
+            raise AssertionError("Got an invalid diagnostic tree")
 
 
 def _clock_aliases_to_description(sg: SyncGraph, clock: ClockId):
