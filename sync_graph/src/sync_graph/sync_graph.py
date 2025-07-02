@@ -572,17 +572,21 @@ class SyncGraph:
         for key, metadata in links:
             match key, metadata:
                 case "ptp_parent", PortId() as port_id:
-                    diags["parent_port"] = self.diagnose_port(port_id)
+                    diags["ptp_parent"] = {"parent_port": self.diagnose_port(port_id)}
                 case "phc2sys", SlaveClockState() as state:
                     diags["phc2sys"] = self.diagnose_phc2sys_link(state)
                 case "measurement", int() as time_diff_ns:
-                    diags[f"offset_from_{readable_clock_id(src)}"] = diagnose_diff(
-                        time_diff_ns, self.config.measurement_diff_thresholds
-                    )
+                    diags["measurement"] = {
+                        f"offset_from_{readable_clock_id(src)}": diagnose_diff(
+                            time_diff_ns, self.config.measurement_diff_thresholds
+                        )
+                    }
                 case "master", int() as master_offset_ns:
-                    diags["offset_from_master"] = diagnose_diff(
-                        master_offset_ns, self.config.master_diff_thresholds
-                    )
+                    diags["ptp_master"] = {
+                        "offset_from_master": diagnose_diff(
+                            master_offset_ns, self.config.master_diff_thresholds
+                        )
+                    }
                 case _:
                     raise AssertionError(f"Unexpected link metadata: {key}: {metadata}")
 
@@ -618,9 +622,13 @@ class SyncGraph:
 
         ancestors = nx.ancestors(self._graph, clock)
         ancestor_graph: nx.MultiDiGraph = nx.subgraph(self._graph, ancestors | {clock})  # type: ignore
-        ancestor_edges = ancestor_graph.edges()
+        # The graph is a multi-graph, we need to deduplicate the edges
+        ancestor_edges = set(ancestor_graph.edges())
 
-        link_diags = [self.diagnose_link(src, dst) for src, dst in ancestor_edges]
+        link_diags = {
+            f"{src} -> {dst}": self.diagnose_link(src, dst)
+            for src, dst in ancestor_edges
+        }
 
         diag_map = {}
 
