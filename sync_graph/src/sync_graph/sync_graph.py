@@ -112,18 +112,28 @@ def diagnose_diff(diff_ns: int, thresholds: DiffThresholds) -> DiagTree:
         case "ns":
             unit_multiplier = 1
 
-    abs_diff = abs(diff_ns // unit_multiplier)
+    abs_diff = abs(diff_ns / unit_multiplier)
+
+    diags: dict[str, Ok | Warning | Error | str] = {
+        f"warn_threshold [{thresholds.unit}]": f"{thresholds.warn}",
+        f"error_threshold [{thresholds.unit}]": f"{thresholds.error}",
+        f"diff [{thresholds.unit}]": f"{abs_diff:.3f}",
+    }
 
     if abs_diff > thresholds.error:
-        return to_diag_tree(
-            Error(msg=f"Exceeds bounds of {thresholds.error} {thresholds.unit}")
+        diags["status"] = Error(
+            msg=f"Exceeds bounds of {thresholds.error} {thresholds.unit}"
         )
-    if abs_diff > thresholds.warn:
-        return to_diag_tree(
-            Warning(msg=f"Exceeds bounds of {thresholds.warn} {thresholds.unit}")
+    elif abs_diff > thresholds.warn:
+        diags["status"] = Warning(
+            msg=f"Exceeds bounds of {thresholds.warn} {thresholds.unit}"
+        )
+    else:
+        diags["status"] = Ok(
+            msg=f"Within bounds of {thresholds.warn} {thresholds.unit}"
         )
 
-    return to_diag_tree(Ok(msg=f"Within bounds of {thresholds.warn} {thresholds.unit}"))
+    return to_diag_tree(diags)
 
 
 C_STATUS_MSG = "status_msg"

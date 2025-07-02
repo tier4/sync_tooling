@@ -11,7 +11,10 @@ from sync_tooling_msgs.diag_tree_pb2 import DiagTree
 from sync_tooling_msgs.ok_pb2 import Ok
 
 
-def _get_message(diag_status: DiagStatus) -> str | None:
+def _get_message(diag_status: DiagStatus | str) -> str:
+    if isinstance(diag_status, str):
+        return diag_status
+
     match diag_status.WhichOneof("status"):
         case "error":
             status = diag_status.error

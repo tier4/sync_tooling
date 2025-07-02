@@ -50,6 +50,8 @@ def _pretty_diag_html(diag: DiagTree):
                 f"<li>{k}: {_pretty_diag_html(v)}</li>" for k, v in diag.map.map.items()
             ]
             return "<ul>" + "".join(items) + "</ul>"
+        case "comment":
+            return f"<span>{diag.comment}</span>"
         case _:
             raise AssertionError("Got an invalid diagnostic tree")
 
