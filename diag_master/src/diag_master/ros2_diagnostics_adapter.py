@@ -8,6 +8,7 @@ from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.diag_status_pb2 import DiagStatus
 from sync_tooling_msgs.diag_tree import aggregate, flatten
 from sync_tooling_msgs.diag_tree_pb2 import DiagTree
+from sync_tooling_msgs.ok_pb2 import Ok
 
 
 def _get_message(diag_status: DiagStatus) -> str | None:
@@ -29,7 +30,8 @@ def _get_message(diag_status: DiagStatus) -> str | None:
 def _diag_status_to_ros_diag_status(diag_tree: DiagTree):
     ros_status = DiagnosticStatus()
 
-    diag_status = aggregate(diag_tree)
+    default_status = DiagStatus(ok=Ok(msg="OK"))
+    diag_status = aggregate(diag_tree, default_status)
     match diag_status.WhichOneof("status"):
         case "error":
             ros_status.level = DiagnosticStatus.ERROR
