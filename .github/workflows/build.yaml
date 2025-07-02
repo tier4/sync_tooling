@@ -38,10 +38,16 @@ jobs:
         run: |
           uvx ruff check --output-format=github .;
           uvx ruff check --output-file=ruff.json --output-format=json .
+      - name: Type check with ty
+        run: |
+          uvx ty check \
+            --extra-search-path /opt/ros/humble/lib/python3.10/site-packages \
+            --extra-search-path /opt/ros/humble/local/lib/python3.10/dist-packages
       - name: Test with pytest
         if: success() || failure()
         run: |
-          . /opt/ros/humble/setup.sh && uv run pytest --cov --cov-report=xml --junit-xml=pytest-results.xml
+          . /opt/ros/humble/setup.sh \
+            && uv run pytest --cov --cov-report=xml --junit-xml=pytest-results.xml
       - name: SonarQube Scan
         if: success() || failure()
         uses: SonarSource/sonarqube-scan-action@v5
@@ -54,7 +60,8 @@ jobs:
       
       - name: Export requirements.txt
         run: |
-          uv export --frozen --no-hashes --no-emit-workspace --no-dev --all-packages | tee dist/requirements.txt
+          uv export --frozen --no-hashes --no-emit-workspace --no-dev --all-packages \
+            | tee dist/requirements.txt
       
       - name: Copy APT requirements to dist
         run: |
