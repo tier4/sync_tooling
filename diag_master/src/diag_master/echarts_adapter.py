@@ -1,7 +1,7 @@
 import networkx as nx
 from networkx import DiGraph
 
-from sync_graph.sync_graph import SyncGraph, diagnose_master_diff, diagnose_phc2sys_diff
+from sync_graph.sync_graph import SyncGraph, diagnose_diff
 from sync_tooling_msgs.clock_id import readable_clock_id, readable_clock_type
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.diag_status_pb2 import DiagStatus
@@ -155,7 +155,9 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
             case "phc2sys", SlaveClockState() as state:
                 is_pseudo_link = False
                 link_labels.append("PHC2SYS")
-                offset_diag = diagnose_phc2sys_diff(state.offset_ns)
+                offset_diag = diagnose_diff(
+                    state.offset_ns, sg.config.phc2sys_diff_thresholds
+                )
                 servo_diag = diagnose_servo_state(state.servo_state)
                 extended_description.append(
                     f"PHC2SYS offset: {state.offset_ns / 1e3:.0f} µs"
@@ -177,7 +179,9 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
                 extended_description.append(f"Time offset: {time_diff_ns / 1e3:.0f} µs")
             case "master", int() as master_offset_ns:
                 link_labels.append("Master")
-                master_offset_diag = diagnose_master_diff(master_offset_ns)
+                master_offset_diag = diagnose_diff(
+                    master_offset_ns, sg.config.master_diff_thresholds
+                )
                 extended_description.append(
                     f"PTP Master offset: {master_offset_ns / 1e3:.0f} µs"
                 )
@@ -209,7 +213,7 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
     }
 
 
-def _layout_circular(g: DiGraph) -> dict[Unknown, tuple[float, float]]:
+def _layout_circular(g: DiGraph) -> dict[ClockId, tuple[float, float]]:
     """
     Lay out a tree-like graph in a concentric manner. A root node in the center is surrounded by
     concentric rings roughly equivalent to the topological generations of the graph.
