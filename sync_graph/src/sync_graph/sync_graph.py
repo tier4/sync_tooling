@@ -576,7 +576,7 @@ class SyncGraph:
                 case "phc2sys", SlaveClockState() as state:
                     diags["phc2sys"] = self.diagnose_phc2sys_link(state)
                 case "measurement", int() as time_diff_ns:
-                    diags[f"offset_from_{readable_clock_id(dst)}"] = diagnose_diff(
+                    diags[f"offset_from_{readable_clock_id(src)}"] = diagnose_diff(
                         time_diff_ns, self.config.measurement_diff_thresholds
                     )
                 case "master", int() as master_offset_ns:
