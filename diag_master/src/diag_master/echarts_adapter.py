@@ -1,15 +1,13 @@
 import networkx as nx
 from networkx import DiGraph
 
-from sync_graph.sync_graph import SyncGraph, diagnose_diff
+from sync_graph.sync_graph import SyncGraph
 from sync_tooling_msgs.clock_id import readable_clock_id, readable_clock_type
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.diag_status_pb2 import DiagStatus
-from sync_tooling_msgs.diag_tree import aggregate, prettify, to_diag_tree
+from sync_tooling_msgs.diag_tree import aggregate, to_diag_tree
 from sync_tooling_msgs.diag_tree_pb2 import DiagTree
-from sync_tooling_msgs.port_id import readable_port_id
 from sync_tooling_msgs.port_id_pb2 import PortId
-from sync_tooling_msgs.servo_state import diagnose_servo_state
 from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 from sync_tooling_msgs.unknown_pb2 import Unknown
 
@@ -30,21 +28,23 @@ def get_status_color(status: DiagStatus):
     return DIAG_PALETTE["unknown"]
 
 
-def _pretty_diag_html(diag: DiagTree):
-    status = aggregate(diag)
+def _pretty_status_html(status: DiagStatus):
     status_color = get_status_color(status)
-    return f'<span style="color: {status_color}">{prettify(diag)}</span>'
+    return f'<span style="color: {status_color}">{status}</span>'
 
 
-def _clock_master_to_echart_data(sg: SyncGraph, clock: ClockId):
-    master = sg.get_master(clock)
-
-    if master is None:
-        return "No master"
-    elif master == clock:
-        return "Grandmaster"
-    else:
-        return f"Master: {readable_clock_id(master)}"
+def _pretty_diag_html(diag: DiagTree):
+    match diag.WhichOneof("tree"):
+        case "status":
+            return _pretty_status_html(diag.status)
+        case "list":
+            items = [f"<li>{_pretty_diag_html(t)}</li>" for t in diag.list.list]
+            return "<ul>" + "".join(items) + "</ul>"
+        case "map":
+            items = [f"{k}: {_pretty_diag_html(v)}" for k, v in diag.map.map.items()]
+            return "<p>" + "<br/>".join(items) + "</p>"
+        case _:
+            raise AssertionError()
 
 
 def _clock_aliases_to_description(sg: SyncGraph, clock: ClockId):
@@ -77,7 +77,9 @@ def _port_diags_to_description(sg: SyncGraph, clock: ClockId):
         ports_html += f"<li>Domain {domain}:<ul>"
         for port in ports:
             diag = sg.diagnose_port(port) or NOT_RECEIVED_DIAG
-            ports_html += f"<li>{port.port_number}: {_pretty_diag_html(diag)}</li>"
+            ports_html += (
+                f"<li>{port.port_number}: {_pretty_status_html(aggregate(diag))}</li>"
+            )
         ports_html += "</ul></li>"
     ports_html += "</ul>"
     return ports_html
@@ -89,9 +91,6 @@ def _clock_to_echart_data(
     extended_description = []
 
     if clock in sg._graph:
-        master_description = _clock_master_to_echart_data(sg, clock)
-        extended_description.append(master_description)
-
         aliases_description = _clock_aliases_to_description(sg, clock)
         extended_description.append(aliases_description)
 
@@ -99,6 +98,8 @@ def _clock_to_echart_data(
         extended_description.append(ports_description)
 
         diag = sg.diagnose_clock(clock)
+        extended_description.append(_pretty_diag_html(diag))
+
         status = aggregate(diag)
         status_color = get_status_color(status)
         is_reference_only = False
@@ -153,50 +154,13 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
             case "ptp_parent", PortId() as port_id:
                 is_pseudo_link = False
                 link_labels.append(f"PTP {port_id.ptp_domain}")
-                extended_description.append(f"PTP domain: {port_id.ptp_domain}")
-                extended_description.append(
-                    f"Parent port: {readable_port_id(port_id, False)}"
-                )
-                port_diag = sg.diagnose_port(port_id)
-                extended_description.append(
-                    f"Parent port status: {_pretty_diag_html(port_diag)}"
-                )
-            case "phc2sys", SlaveClockState() as state:
+            case "phc2sys", SlaveClockState():
                 is_pseudo_link = False
                 link_labels.append("PHC2SYS")
-                offset_diag = diagnose_diff(
-                    state.offset_ns, sg.config.phc2sys_diff_thresholds
-                )
-                servo_diag = diagnose_servo_state(state.servo_state)
-                extended_description.append(
-                    f"PHC2SYS offset: {state.offset_ns / 1e3:.0f} µs"
-                )
-                extended_description.append(
-                    f"PHC2SYS offset status: {_pretty_diag_html(offset_diag)}"
-                )
-                extended_description.append(
-                    f"Sync delay: {state.delay_ns / 1e3:.0f} µs"
-                )
-                extended_description.append(
-                    f"Frequency offset: {state.frequency_offset_ppb} ppb"
-                )
-                extended_description.append(
-                    f"Servo status: {_pretty_diag_html(servo_diag)}"
-                )
-            case "measurement", int() as time_diff_ns:
+            case "measurement", int():
                 link_labels.append("Measurement")
-                extended_description.append(f"Time offset: {time_diff_ns / 1e3:.0f} µs")
-            case "master", int() as master_offset_ns:
+            case "master", int():
                 link_labels.append("Master")
-                master_offset_diag = diagnose_diff(
-                    master_offset_ns, sg.config.master_diff_thresholds
-                )
-                extended_description.append(
-                    f"PTP Master offset: {master_offset_ns / 1e3:.0f} µs"
-                )
-                extended_description.append(
-                    f"Master offset status: {_pretty_diag_html(master_offset_diag)}"
-                )
             case _:
                 raise AssertionError()
 
@@ -206,6 +170,8 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
         diag = REFERENCE_ONLY_DIAG
     else:
         raise AssertionError()
+
+    extended_description.append(_pretty_diag_html(diag))
 
     status = aggregate(diag)
     status_color = get_status_color(status)
