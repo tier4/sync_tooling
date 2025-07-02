@@ -69,21 +69,24 @@ def parse_diff_thresholds(diff_thresholds: dict) -> DiffThresholds:
     )
 
 
-def to_config(diagnostics: dict) -> Config:
+def to_config(thresholds: dict) -> Config:
     return Config(
         master_diff_thresholds=parse_diff_thresholds(
-            get_subtree(diagnostics, "master_diff_thresholds", dict)
+            get_subtree(thresholds, "ptp_master", dict)
         ),
         phc2sys_diff_thresholds=parse_diff_thresholds(
-            get_subtree(diagnostics, "phc2sys_diff_thresholds", dict)
+            get_subtree(thresholds, "phc2sys", dict)
         ),
         measurement_diff_thresholds=parse_diff_thresholds(
-            get_subtree(diagnostics, "measurement_diff_thresholds", dict)
+            get_subtree(thresholds, "measurement", dict)
         ),
     )
 
 
 def to_sync_graph_args(yaml_config: dict) -> tuple[Config, DiGraph]:
-    config = to_config(get_subtree(yaml_config, "diagnostics", dict))
+    diagnostics = get_subtree(yaml_config, "diagnostics", dict)
+    thresholds = get_subtree(diagnostics, "diff_thresholds", dict)
+    config = to_config(thresholds)
+
     clock_tree = clock_tree_to_digraph(get_subtree(yaml_config, "clock_tree", dict))
     return config, clock_tree

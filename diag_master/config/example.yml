@@ -3,12 +3,12 @@ clock_tree:
     main_ecu.ptp0:
     main_ecu.ptp1:
       other_ecu.sys:
-        radar/front:
-        radar/rear:
+        sensor@radar/front:
+        sensor@radar/rear:
     main_ecu.ptp2:
-      lidar/top:
-      lidar/left:
-      lidar/right:
+      sensor@lidar/top:
+      sensor@lidar/left:
+      sensor@lidar/right:
 diagnostics:
   diff_thresholds:
     ptp_master:
