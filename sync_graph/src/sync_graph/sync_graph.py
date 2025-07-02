@@ -480,6 +480,31 @@ class SyncGraph:
         all_edges = [(key, attrs.get(METADATA)) for key, attrs in all_edges.items()]
         return all_edges
 
+    def get_grandmaster(self) -> ClockId | None:
+        """
+        Retrieve the grandmaster of the reference graph, if any.
+
+        Returns:
+            The canonical grandmaster clock ID if the reference graph exists and is not empty,
+            otherwise `None`.
+        """
+        if not self.reference_graph or not self.reference_graph.nodes:
+            return None
+
+        root_clock = next(
+            (
+                n
+                for n in self.reference_graph.nodes
+                if self.reference_graph.in_degree(n) == 0
+            ),
+            None,
+        )
+
+        if root_clock is None:
+            return None
+
+        return self.get_canonical_clock_id(root_clock)
+
     def get_master(self, clock_id: ClockId) -> ClockId | None:
         """
         Retrieve the master of `clock_id`, if any.
@@ -674,18 +699,33 @@ class SyncGraph:
                 grandmaster = candidate
             case _:
                 return DiagStatus(
-                    error=Error(msg="There is more than one grandmaster clock")
+                    error=Error(
+                        msg=f"There is more than one grandmaster clock: {grandmaster_candiates}"
+                    )
                 )
 
         reachable_from_grandmaster: set[ClockId] = nx.descendants(
             self._graph, grandmaster
         )
 
+        if self.reference_graph:
+            reference_grandmaster = self.get_grandmaster()
+            if reference_grandmaster != grandmaster:
+                return DiagStatus(
+                    error=Error(
+                        msg=f"The found grandmaster {grandmaster} is not the reference grandmaster {reference_grandmaster}"
+                    )
+                )
+
         if len(reachable_from_grandmaster) == len(self._graph) - 1:
-            return DiagStatus(ok=Ok(msg="All clocks sync to the same grandmaster"))
+            return DiagStatus(
+                ok=Ok(msg=f"All clocks sync to the same grandmaster {grandmaster}")
+            )
 
         return DiagStatus(
-            error=Error(msg="Not all clocks are reachable from the grandmaster")
+            error=Error(
+                msg=f"Not all clocks are reachable from the grandmaster {grandmaster}"
+            )
         )
 
     def diagnose_clock_reference_adherence(self) -> DiagStatus:
@@ -767,14 +807,14 @@ class SyncGraph:
         clock_id = self.get_canonical_clock_id(clock_id)
 
         if clock_id not in self.reference_graph.nodes:
-            return to_diag_tree(Ok(msg=f"Clock {clock_id} not in reference graph"))
+            return to_diag_tree(Ok(msg="Clock not in reference graph"))
 
         ancestors = nx.ancestors(self.reference_graph, clock_id)
 
         # Reference graph is guaranteed to be a tree, so the only node without ancestors
         # is the grandmaster (root node)
         if not ancestors:
-            return to_diag_tree(Ok(msg=f"Clock {clock_id} is the grandmaster"))
+            return to_diag_tree(Ok(msg="Clock is the grandmaster"))
 
         ancestors = map(self.get_canonical_clock_id, ancestors)
 
@@ -792,18 +832,19 @@ class SyncGraph:
             missing_links.append((clock_id, reference_parent))
 
         if missing_links:
-            readable_links = [
-                f"{readable_clock_id(parent)} -> {readable_clock_id(clock)}"
-                for parent, clock in missing_links
-            ]
+            readable_links = [f"{parent} -> {clock}" for parent, clock in missing_links]
             return to_diag_tree(
                 Error(
-                    msg=f"Clock {clock_id} is not syncing to the reference grandmaster. Missing links: {', '.join(readable_links)}"
+                    msg=f"Clock is not syncing to the reference grandmaster. Missing links: {', '.join(readable_links)}"
                 )
             )
 
+        grandmaster = self.get_grandmaster()
+        if grandmaster is None:
+            raise AssertionError("The reference graph is empty")
+
         return to_diag_tree(
-            Ok(msg=f"Clock {clock_id} is syncing to the reference grandmaster")
+            Ok(msg=f"Clock is syncing to the reference grandmaster {grandmaster}")
         )
 
     def diagnose_graph(self) -> DiagTree:
