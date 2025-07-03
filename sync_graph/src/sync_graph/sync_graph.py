@@ -849,6 +849,13 @@ class SyncGraph:
 
         ancestors = map(self.get_canonical_clock_id, ancestors)
 
+        if grandmaster not in self._graph.nodes:
+            return to_diag_tree(
+                Error(
+                    msg=f"Reference grandmaster {grandmaster} not found in current graph"
+                )
+            )
+
         if not nx.has_path(self._graph, grandmaster, clock_id):
             return to_diag_tree(
                 Error(
