@@ -835,39 +835,26 @@ class SyncGraph:
         if clock_id not in self.reference_graph.nodes:
             return to_diag_tree(Ok(msg="Clock not in reference graph"))
 
+        grandmaster = self.get_grandmaster()
+        if grandmaster is None:
+            raise AssertionError("The reference graph is empty")
+
         ancestors = nx.ancestors(self.reference_graph, clock_id)
 
         # Reference graph is guaranteed to be a tree, so the only node without ancestors
         # is the grandmaster (root node)
         if not ancestors:
+            assert clock_id == grandmaster
             return to_diag_tree(Ok(msg="Clock is the grandmaster"))
 
         ancestors = map(self.get_canonical_clock_id, ancestors)
 
-        missing_links: list[tuple[ClockId, ClockId]] = []
-
-        # If none of the (indirect) parents in the reference have an edge to the clock in the
-        # real graph, flag the edge as missing
-        if not any((a, clock_id) in self._graph.edges() for a in ancestors):
-            reference_parent: ClockId | None = next(
-                self.reference_graph.predecessors(clock_id), None
-            )
-            if reference_parent is None:
-                raise AssertionError("A non-root node in a tree has to have one parent")
-            reference_parent = self.get_canonical_clock_id(reference_parent)
-            missing_links.append((reference_parent, clock_id))
-
-        if missing_links:
-            readable_links = [f"{parent} -> {clock}" for parent, clock in missing_links]
+        if not nx.has_path(self._graph, grandmaster, clock_id):
             return to_diag_tree(
                 Error(
-                    msg=f"Clock is not syncing to the reference grandmaster. Missing links: {', '.join(readable_links)}"
+                    msg=f"Clock is not syncing to the reference grandmaster {grandmaster}"
                 )
             )
-
-        grandmaster = self.get_grandmaster()
-        if grandmaster is None:
-            raise AssertionError("The reference graph is empty")
 
         return to_diag_tree(
             Ok(msg=f"Clock is syncing to the reference grandmaster {grandmaster}")
