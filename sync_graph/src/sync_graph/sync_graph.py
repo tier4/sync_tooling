@@ -323,6 +323,9 @@ class SyncGraph:
         relabelings = dict.fromkeys(all_aliases, canonical_id)
         self._graph = nx.relabel_nodes(self._graph, relabelings)
 
+        if self.reference_graph:
+            self.reference_graph = nx.relabel_nodes(self.reference_graph, relabelings)
+
         # Remove potential self-loops resulting from combining nodes
         # edges(canonical_id) returns all edges connected to canonical_id, want to only remove the ones that are self-loops
         edges_to_remove = [
@@ -795,6 +798,47 @@ class SyncGraph:
             Ok(msg=f"All {len(self.reference_graph.nodes)} clocks are present")
         )
 
+    def _is_path_adherent_to_reference(
+        self, path: list[ClockId], reference_path: list[ClockId]
+    ) -> bool:
+        """
+        Check if the given path is adherent to the reference path.
+        A path is adherent to the reference path if al of the following hold:
+
+        - none of the two paths are empty
+        - the source and destination clocks are the same as in the reference path
+        - no clocks not in the reference path are present in the path
+        - the clocks in the path are in the same order as in the reference path
+
+        Even if some clocks from the reference path are not present in the current graph,
+        the path is still considered adherent if the above conditions hold.
+
+        Args:
+            path: The path to check
+            reference_path: The reference path to check against
+
+        Returns:
+            `True` if the path is adherent to the reference path, `False` otherwise
+        """
+
+        # None of the paths are empty (considered a precondition)
+        assert len(path) > 0
+        assert len(reference_path) > 0
+
+        # The source and destination clocks are the same as in the reference path
+        if path[0] != reference_path[0] or path[-1] != reference_path[-1]:
+            return False
+
+        # No clocks not in the reference path are present in the path
+        if any(c not in reference_path for c in path):
+            return False
+
+        filtered_path = [c for c in path if c in reference_path]
+        filtered_reference_path = [c for c in reference_path if c in path]
+
+        # The clocks in the path are in the same order as in the reference path
+        return filtered_path == filtered_reference_path
+
     def diagnose_single_clock_reference_adherence(self, clock_id: ClockId) -> DiagTree:
         """
         Check if the given clock (if in the reference graph) is syncing to the reference
@@ -827,6 +871,10 @@ class SyncGraph:
             The result of the reference graph comparison
         """
 
+        assert (
+            clock_id in self._graph.nodes
+        ), f"Clock {clock_id} not found in current graph"
+
         if not self.reference_graph:
             return to_diag_tree(Ok(msg="No reference graph present"))
 
@@ -839,16 +887,6 @@ class SyncGraph:
         if grandmaster is None:
             raise AssertionError("The reference graph is empty")
 
-        ancestors = nx.ancestors(self.reference_graph, clock_id)
-
-        # Reference graph is guaranteed to be a tree, so the only node without ancestors
-        # is the grandmaster (root node)
-        if not ancestors:
-            assert clock_id == grandmaster
-            return to_diag_tree(Ok(msg="Clock is the grandmaster"))
-
-        ancestors = map(self.get_canonical_clock_id, ancestors)
-
         if grandmaster not in self._graph.nodes:
             return to_diag_tree(
                 Error(
@@ -856,10 +894,31 @@ class SyncGraph:
                 )
             )
 
-        if not nx.has_path(self._graph, grandmaster, clock_id):
+        # It is guaranteed from here that both the grandmaster and the clock are in the
+        # reference graph and in the current graph.
+
+        try:
+            reference_path: list[ClockId] = nx.shortest_path(
+                self.reference_graph, grandmaster, clock_id
+            )  # type: ignore
+        except nx.NetworkXNoPath as e:
+            raise AssertionError(
+                f"By definition, there has to be a reference path {grandmaster} -> {clock_id}"
+            ) from e
+
+        if clock_id == grandmaster:
+            assert len(reference_path) == 1
+            return to_diag_tree(Ok(msg="Clock is the grandmaster"))
+
+        graph_paths = nx.all_simple_paths(self._graph, grandmaster, clock_id)
+
+        if not any(
+            self._is_path_adherent_to_reference(path, reference_path)
+            for path in graph_paths
+        ):
             return to_diag_tree(
                 Error(
-                    msg=f"Clock is not syncing to the reference grandmaster {grandmaster}"
+                    msg=f"Clock {clock_id} is not syncing to the reference grandmaster {grandmaster}"
                 )
             )
 
