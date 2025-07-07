@@ -21,5 +21,5 @@ class WebUi:
         self._web_socket.emit("update_event", echart_options)
 
     def run(self):
-        self._thread = Thread(target=self._app.run, args=("0.0.0.0", 5000))
+        self._thread = Thread(target=self._app.run, args=("0.0.0.0", 5000), daemon=True)
         self._thread.start()
