@@ -689,7 +689,7 @@ wheels = [
 
 [[package]]
 name = "diag-master"
-version = "0.2.1"
+version = "0.2.2"
 source = { editable = "diag_master" }
 dependencies = [
     { name = "flask" },
@@ -714,7 +714,7 @@ requires-dist = [
 
 [[package]]
 name = "diag-worker"
-version = "0.2.1"
+version = "0.2.2"
 source = { editable = "diag_worker" }
 dependencies = [
     { name = "aiostream" },
@@ -1060,7 +1060,7 @@ wheels = [
 
 [[package]]
 name = "journal-monitor"
-version = "0.2.1"
+version = "0.2.2"
 source = { editable = "journal_monitor" }
 dependencies = [
     { name = "python-dateutil" },
@@ -1107,7 +1107,7 @@ wheels = [
 
 [[package]]
 name = "linuxptp-monitor"
-version = "0.2.1"
+version = "0.2.2"
 source = { editable = "linuxptp_monitor" }
 dependencies = [
     { name = "journal-monitor" },
@@ -1776,7 +1776,7 @@ wheels = [
 
 [[package]]
 name = "pmc-monitor"
-version = "0.2.1"
+version = "0.2.2"
 source = { editable = "pmc_monitor" }
 dependencies = [
     { name = "pandas" },
@@ -2180,7 +2180,7 @@ wheels = [
 
 [[package]]
 name = "ros2-transport"
-version = "0.2.1"
+version = "0.2.2"
 source = { editable = "ros2_transport" }
 dependencies = [
     { name = "sync-tooling-msgs" },
@@ -2409,7 +2409,7 @@ wheels = [
 
 [[package]]
 name = "sync-graph"
-version = "0.2.1"
+version = "0.2.2"
 source = { editable = "sync_graph" }
 dependencies = [
     { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -2421,7 +2421,7 @@ requires-dist = [{ name = "networkx", specifier = ">=3.4.2" }]
 
 [[package]]
 name = "sync-tooling"
-version = "0.2.1"
+version = "0.2.2"
 source = { editable = "." }
 dependencies = [
     { name = "bottleneck" },
@@ -2474,7 +2474,7 @@ dev = [
 
 [[package]]
 name = "sync-tooling-msgs"
-version = "0.2.1"
+version = "0.2.2"
 source = { editable = "sync_tooling_msgs" }
 dependencies = [
     { name = "bidict" },
