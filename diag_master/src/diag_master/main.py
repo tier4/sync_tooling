@@ -1,3 +1,4 @@
+import signal
 import socket
 import sys
 from argparse import REMAINDER, ArgumentParser
@@ -54,6 +55,10 @@ class DiagMaster:
 
         if self._web_ui:
             self._web_ui.update(sg)
+
+    def shutdown(self):
+        self._diagnostic_timer.cancel()
+        self._node.destroy_node()
 
     @property
     def sync_graph(self):
@@ -128,5 +133,15 @@ def main():
     args = parse_args()
     rclpy.init(args=args.ros_args)
     diag_master = initialize_master(args)
+
+    def shutdown(signum, frame):
+        print(f"Shutting down DiagMaster on {signal.Signals(signum).name}...")
+        diag_master.shutdown()
+        rclpy.shutdown()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, shutdown)
+    signal.signal(signal.SIGTERM, shutdown)
+
     rclpy.spin(diag_master._node)
     rclpy.shutdown()
