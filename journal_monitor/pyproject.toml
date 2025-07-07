@@ -1,6 +1,6 @@
 [project]
 name = "journal_monitor"
-version = "0.2.2"
+version = "0.2.3"
 description = "A package for retrieving logs from the systemd journal."
 authors = [{ name = "Max Schmeller", email = "max.schmeller@tier4.jp" }]
 dependencies = [

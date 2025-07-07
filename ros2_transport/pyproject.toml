@@ -1,6 +1,6 @@
 [project]
 name = "ros2-transport"
-version = "0.2.2"
+version = "0.2.3"
 description = "A transport layer using ROS 2 pub/sub"
 authors = [{ name = "Max SCHMELLER", email = "max.schmeller@tier4.jp" }]
 requires-python = ">=3.10"
