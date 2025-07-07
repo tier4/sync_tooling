@@ -11,6 +11,7 @@ import yaml
 
 from diag_master.ros2_diagnostics_adapter import Ros2DiagnosticsAdapter
 from diag_master.web_ui import WebUi
+from linuxptp_monitor.util import hostname_to_node_name
 from ros2_transport.server import Ros2Server
 from sync_graph.sync_graph import SyncGraph
 from sync_graph.timed_graph_update_queue import TimedGraphUpdateQueue
@@ -30,7 +31,9 @@ class DiagMaster:
         enable_web_ui: bool,
     ) -> None:
         hostname = socket.gethostname()
-        self._node = rclpy.create_node(hostname, namespace="/sync_diag/master")  # type: ignore
+
+        node_name = hostname_to_node_name(hostname)
+        self._node = rclpy.create_node(node_name, namespace="/sync_diag/master")  # type: ignore
         self._ros2_server = Ros2Server(topic, self._node, self.on_graph_update)
         self._sync_graph_factory = sync_graph_factory
         self._update_queue = TimedGraphUpdateQueue(update_expiry)
