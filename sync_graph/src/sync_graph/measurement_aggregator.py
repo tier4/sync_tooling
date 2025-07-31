@@ -17,10 +17,12 @@ def aggregate_clock_diff_measurements(
     aggregated one.
 
     Args:
-        updates: An iterable of GraphUpdate messages
+        updates: An iterable of GraphUpdate messages (not limited to ClockDiffMeasurements).
 
     Returns:
-        A list of GraphUpdate messages with ClockDiffMeasurements aggregated by (src, dst)
+        The `updates` iterable with all ClockDiffMeasurements grouped by (src, dst) and replaced
+        with a single aggregated measurement for each group.
+        Non-measurement updates are preserved as-is.
     """
     # Group measurements by (src, dst) pairs
     measurement_groups = defaultdict(list)
