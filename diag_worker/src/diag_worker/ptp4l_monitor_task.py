@@ -99,10 +99,13 @@ class Ptp4lMonitorTask(MonitorTask):
         if self.domain_id is None:
             raise AssertionError()
 
-        if isinstance(inst.default_ds, DefaultDataSet):
-            assert inst.default_ds.domainNumber == self.domain_id
+        if not isinstance(inst.default_ds, DefaultDataSet):
+            return
 
-        clock_id: ClockId = ClockId(ptp_clock_id=PtpClockId(id=inst.id()))
+        assert inst.default_ds.domainNumber == self.domain_id
+        clock_id: ClockId = ClockId(
+            ptp_clock_id=PtpClockId(id=inst.id(), domain=self.domain_id)
+        )
 
         if inst.is_local_instance:
             assert self.ptp4l_clock_id is not None
@@ -122,7 +125,9 @@ class Ptp4lMonitorTask(MonitorTask):
                     clock_master_update=ClockMasterUpdate(
                         clock_id=clock_id,
                         master=ClockId(
-                            ptp_clock_id=PtpClockId(id=pds.grandmasterIdentity)
+                            ptp_clock_id=PtpClockId(
+                                id=pds.grandmasterIdentity, domain=self.domain_id
+                            ),
                         ),
                         master_offset_ns=int(inst.current_ds.offsetFromMaster),
                     )
@@ -131,7 +136,9 @@ class Ptp4lMonitorTask(MonitorTask):
             parent_clock_id = pds.parentPortIdentity.clock_id
             parent_port_num = pds.parentPortIdentity.port_number
             parent_port_id = PortId(
-                clock_id=ClockId(ptp_clock_id=PtpClockId(id=parent_clock_id)),
+                clock_id=ClockId(
+                    ptp_clock_id=PtpClockId(id=parent_clock_id, domain=self.domain_id)
+                ),
                 port_number=parent_port_num,
                 ptp_domain=self.domain_id,
             )

@@ -18,7 +18,7 @@ def sample_clock_aliases() -> (
 ):
     return {
         "system": ClockId(system_clock_id=SystemClockId(hostname="sample")),
-        "ptp": ClockId(ptp_clock_id=PtpClockId(id="012345.fffe.6789ab")),
+        "ptp": ClockId(ptp_clock_id=PtpClockId(id="012345.fffe.6789ab", domain=0)),
         "sensor": ClockId(sensor_id=SensorId(frame_id="my_sensor")),
         "iface": ClockId(
             interface_id=InterfaceId(hostname="sample", interface_name="eno1")
@@ -52,7 +52,7 @@ def nic_port(nic_clock):
 
 @pytest.fixture
 def remote_clock():
-    return ClockId(ptp_clock_id=PtpClockId(id="010101.fffe.101010"))
+    return ClockId(ptp_clock_id=PtpClockId(id="010101.fffe.101010", domain=0))
 
 
 @pytest.fixture
