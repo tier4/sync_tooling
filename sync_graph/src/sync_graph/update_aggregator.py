@@ -1,3 +1,12 @@
+"""
+Some update types might be high-frequency, or might be noisy.
+This module provides functions to aggregate such updates, e.g. by computing the median
+of multiple measurements between the same clocks.
+
+This effectively reduces update frequency and noise, at the cost of delayed reaction time
+to diagnostic state changes.
+"""
+
 import statistics
 from collections import defaultdict
 from typing import Iterable

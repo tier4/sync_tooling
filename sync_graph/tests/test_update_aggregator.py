@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Simple test script for the measurement aggregator function."""
 
-from sync_graph.measurement_aggregator import aggregate_clock_diff_measurements
+from sync_graph.update_aggregator import aggregate_clock_diff_measurements
 from sync_tooling_msgs.clock_diff_measurement_pb2 import ClockDiffMeasurement
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 
