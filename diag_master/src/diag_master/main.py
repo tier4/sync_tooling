@@ -15,6 +15,7 @@ from linuxptp_monitor.util import hostname_to_node_name
 from ros2_transport.server import Ros2Server
 from sync_graph.sync_graph import SyncGraph
 from sync_graph.timed_graph_update_queue import TimedGraphUpdateQueue
+from sync_graph.update_aggregator import aggregate_clock_diff_measurements
 from sync_graph.yaml import to_sync_graph_args
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 
@@ -79,7 +80,9 @@ class DiagMaster:
     @property
     def sync_graph(self):
         sg = self._sync_graph_factory()
-        for u in self._update_queue.updates:
+        updates = self._update_queue.updates
+        aggregated_updates = aggregate_clock_diff_measurements(updates)
+        for u in aggregated_updates:
             sg.update(u)
         return sg
 
