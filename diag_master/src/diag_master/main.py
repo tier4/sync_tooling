@@ -18,7 +18,16 @@ from sync_graph.timed_graph_update_queue import TimedGraphUpdateQueue
 from sync_graph.yaml import to_sync_graph_args
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 
-Args = namedtuple("Args", ["topic", "config_files", "ros_args", "update_expiry_s"])
+Args = namedtuple(
+    "Args",
+    [
+        "topic",
+        "config_files",
+        "ros_args",
+        "update_expiry_s",
+        "enable_web_ui",
+    ],
+)
 
 
 class DiagMaster:
@@ -42,10 +51,14 @@ class DiagMaster:
 
         if enable_ros2_diagnostics:
             self._diagnostics_adapter = Ros2DiagnosticsAdapter(self._node)
+        else:
+            self._diagnostics_adapter = None
 
         if enable_web_ui:
             self._web_ui = WebUi()
             self._web_ui.run()
+        else:
+            self._web_ui = None
 
     def on_graph_update(self, u: GraphUpdate):
         self._update_queue.push(u)
@@ -91,6 +104,9 @@ def parse_args() -> Args:
         "the last file takes precedence.",
     )
     parser.add_argument(
+        "--web-ui", action="store_true", dest="enable_web_ui", default=False
+    )
+    parser.add_argument(
         "--ros-args",
         nargs=REMAINDER,
         help="Arguments passed along to ROS 2. See https://docs.ros.org/en/rolling/How-To-Guides/Node-arguments.html for details.",
@@ -128,7 +144,13 @@ def initialize_master(args: Args):
 
     update_expiry = timedelta(seconds=args.update_expiry_s)
 
-    diag_master = DiagMaster(args.topic, sync_graph_factory, update_expiry, True, True)
+    diag_master = DiagMaster(
+        args.topic,
+        sync_graph_factory,
+        update_expiry,
+        True,
+        args.enable_web_ui,
+    )
     return diag_master
 
 
