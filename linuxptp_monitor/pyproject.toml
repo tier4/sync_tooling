@@ -1,6 +1,6 @@
 [project]
 name = "linuxptp_monitor"
-version = "0.2.3"
+version = "0.2.4"
 description = "A package for interpreting LinuxPTP (PTP4L and PHC2SYS) journal output."
 authors = [{ name = "Max Schmeller", email = "max.schmeller@tier4.jp" }]
 dependencies = ["journal_monitor", "sync-tooling-msgs"]
