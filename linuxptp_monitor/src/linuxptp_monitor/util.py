@@ -1,5 +1,8 @@
+import os
 import re
 import socket
+
+from sync_tooling_msgs.linux_clock_device_id_pb2 import LinuxClockDeviceId
 
 
 def get_hostname() -> str:
@@ -24,3 +27,15 @@ def hostname_to_node_name(hostname: str) -> str:
 
     assert re.match(r"^[A-z][A-z0-9_]*$", node_name)
     return node_name
+
+
+def linux_clock_device_id_to_path(linux_clock_device_id: LinuxClockDeviceId) -> str:
+    path = f"/dev/ptp{linux_clock_device_id.clock_device_number}"
+
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"Linux clock device {path} does not exist. "
+            "Please check the clock device number."
+        )
+
+    return path
