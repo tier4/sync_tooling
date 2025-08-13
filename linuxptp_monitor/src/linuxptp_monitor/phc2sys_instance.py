@@ -51,6 +51,9 @@ class Phc2SysConfig(LinuxPtpConfig):
     def override_app_specific(self, args: Namespace, config: ConfigParser) -> list[str]:
         return ["do_auto_conf", "source_clock", "dst_clocks", "pps_source"]
 
+    def get_participating_clocks(self) -> set[ClockId]:
+        return {self.source_clock, *self.dst_clocks}  # type: ignore
+
 
 @dataclass
 class Phc2SysRunningState(State):

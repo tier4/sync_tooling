@@ -132,6 +132,9 @@ class Ptp4lConfig(LinuxPtpConfig):
         )
         self.domain = int(config["global"].get("domainNumber", "0"), base=0)
 
+    def get_participating_clocks(self) -> set[ClockId]:
+        return {self.clock}  # type: ignore
+
 
 @dataclass
 class Ptp4lRunningState(State):

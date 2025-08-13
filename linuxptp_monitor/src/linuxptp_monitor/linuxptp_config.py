@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 from configparser import ConfigParser
 from dataclasses import dataclass, field
 
+from sync_tooling_msgs.clock_id_pb2 import ClockId
+
 
 @dataclass(init=False)
 class LinuxPtpConfig(ABC):
@@ -13,6 +15,10 @@ class LinuxPtpConfig(ABC):
 
     @abstractmethod
     def add_args_app_specific(self, parser: argparse.ArgumentParser) -> None:
+        pass
+
+    @abstractmethod
+    def get_participating_clocks(self) -> set[ClockId]:
         pass
 
     def validate_args_app_specific(self, args: argparse.Namespace) -> None:
