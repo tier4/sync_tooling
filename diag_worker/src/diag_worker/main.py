@@ -8,6 +8,7 @@ import rclpy
 from aiostream.stream import merge
 
 from diag_worker.monitor_task import MonitorTask
+from diag_worker.participating_clocks_monitor_task import ParticipatingClocksMonitorTask
 from diag_worker.phc2sys_monitor_task import Phc2SysMonitorTask
 from diag_worker.ptp4l_monitor_task import Ptp4lMonitorTask
 from linuxptp_monitor.util import hostname_to_node_name
@@ -34,15 +35,21 @@ class DiagWorker:
                 "No PTP4L or PHC2SYS units given. At least one is required."
             )
 
-        self.monitors_: list[MonitorTask] = []
+        ptp4l_monitors = [
+            Ptp4lMonitorTask(unit_name, hostname) for unit_name in ptp4l_units
+        ]
 
-        if ptp4l_units:
-            for unit_name in ptp4l_units:
-                self.monitors_.append(Ptp4lMonitorTask(unit_name, hostname))
+        phc2sys_monitors = [
+            Phc2SysMonitorTask(unit_name, hostname) for unit_name in phc2sys_units
+        ]
 
-        if phc2sys_units:
-            for unit_name in phc2sys_units:
-                self.monitors_.append(Phc2SysMonitorTask(unit_name, hostname))
+        clock_monitor = ParticipatingClocksMonitorTask(ptp4l_monitors, phc2sys_monitors)
+
+        self.monitors_: list[MonitorTask] = [
+            *ptp4l_monitors,
+            *phc2sys_monitors,
+            clock_monitor,
+        ]
 
     async def run(self):
         combined = merge(*[m.run_loop(1) for m in self.monitors_])
