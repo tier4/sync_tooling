@@ -64,7 +64,6 @@ class Phc2SysMonitorTask(MonitorTask):
                         )
                     )
             case _:
-                # TODO(mojomex): add feature to remove links from sync graph
                 pass
 
     async def poll(self):
