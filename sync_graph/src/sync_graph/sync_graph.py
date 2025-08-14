@@ -259,6 +259,8 @@ class SyncGraph:
                 return self.update_self_reported_clock_state(
                     update.self_reported_clock_state_update
                 )
+            case "clock_time_snapshot":
+                return
             case None:
                 # Invalid graph update, ignore
                 return
