@@ -31,7 +31,7 @@ def _get_phc_time_ns(clock_name: str) -> int:
         msg = f"Error while querying PHC time: {result.stderr.strip()}"
         raise RuntimeError(msg)
 
-    time_re = rf"clock time is (?P<time_s>\d+)\.(?P<time_ns>\d{9})"
+    time_re = r"clock time is (?P<time_s>\d+)\.(?P<time_ns>\d{9})"
 
     match = re.search(time_re, result.stdout)
     if not match:
