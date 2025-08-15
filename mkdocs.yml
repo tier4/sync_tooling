@@ -18,9 +18,7 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
-  - Integrators' Guide: 
-    - integrators-guide.md
-    - X2 gen2: integrators-guide/x2gen2.md
+  - Integrators' Guide: integrators-guide.md
   - Design: design.md
 markdown_extensions:
   - attr_list
