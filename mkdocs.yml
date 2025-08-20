@@ -4,6 +4,7 @@ theme:
   name: material
   features:
     - content.code.annotate
+    - content.tabs.link
   palette:
     - scheme: default
       primary: white
@@ -22,8 +23,14 @@ nav:
   - Design: design.md
 markdown_extensions:
   - attr_list
+  - md_in_html
   - footnotes
   - admonition
+  - pymdownx.tabbed:
+      alternate_style: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
@@ -32,7 +39,6 @@ markdown_extensions:
       dedent_subsections: true
   - pymdownx.highlight:
       anchor_linenums: true
-  - pymdownx.superfences
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.superfences:

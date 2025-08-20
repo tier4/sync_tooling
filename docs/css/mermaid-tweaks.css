@@ -2,3 +2,8 @@
   display: flex;
   justify-content: center;
 }
+
+.center-contents {
+  display: flex;
+  justify-content: center;
+}
