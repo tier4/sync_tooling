@@ -10,7 +10,11 @@ Takes the **pain** out of **p**recision time synchroniz**a**t**i**o**n**.
 * :simple-ros: plug-and-play compatible with ROS 2 `/diagnostics`
 * :octicons-browser-16: confirm system state live in the browser
 
-Set up SYNC.TOOLING for your system: [Getting Started](getting-started.md).
+Set up SYNC.TOOLING for a Pilot.Auto based system: [Integrators' Guide](integrators-guide.md)
+Set up SYNC.TOOLING manually: [Manual Installation Guide](installation.md)
+Configure SYNC.TOOLING: [Usage Guide](usage.md)
+
+Learn more about setting up a PTP architecture: [PTP Architecture Guide](ptp-architecture-guide.md)
 
 ## :material-tools: SYNC.SETUP
 
