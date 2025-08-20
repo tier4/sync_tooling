@@ -18,11 +18,11 @@ theme:
         name: Switch to light mode
 nav:
   - Home: index.md
-  - Manual Installation: installation.md
+  - Design: design.md
+  - Installation: installation.md
   - Usage: usage.md
   - PTP Architecture Guide: ptp-architecture-guide.md
   - Integrators' Guide: integrators-guide.md
-  - Design: design.md
 markdown_extensions:
   - attr_list
   - md_in_html
