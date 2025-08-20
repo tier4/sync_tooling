@@ -5,11 +5,15 @@ software components necessary:
 - `diag-worker` which runs on every machine running LinuxPTP and provides updates to
    `diag-master`
 
+!!! tip
+    If you are an integrator, or using Pilot.Auto, please refer to the
+    [Integrators Guide](integrators-guide.md) for automated setup instructions.
+
 ## System Requirements
 
 - Ubuntu 22.04
 - ROS 2 Humble with Python3.10 (the default version on Ubuntu 22.04)
-- All machines are in the same IP subnet and can communicate via ROS 2 pub/sub
+- All machines can communicate via ROS 2 pub/sub
 - `pip` must be available
 
 ## Installation

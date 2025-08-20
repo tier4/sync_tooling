@@ -18,7 +18,9 @@ theme:
         name: Switch to light mode
 nav:
   - Home: index.md
-  - Getting Started: getting-started.md
+  - Manual Installation: installation.md
+  - Usage: usage.md
+  - PTP Architecture Guide: ptp-architecture-guide.md
   - Integrators' Guide: integrators-guide.md
   - Design: design.md
 markdown_extensions:
