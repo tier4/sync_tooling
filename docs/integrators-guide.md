@@ -498,7 +498,7 @@ SYNC.DIAG is started automatically as a systemd service on every ECU that has be
 To make sure it is working correctly, check the output in ROS 2 `/diagnostics`. Also check
 that none of the services crash or fail to start.
 
-## Running SYNC.DOCTOR
+### Running SYNC.DOCTOR
 
 To access the web interface SYNC.DOCTOR, the SYNC.DIAG Master has to be launched with the
 `--web-ui` option. This will start a web server on port `5000` of the ECU running the master.
