@@ -7,6 +7,17 @@ function setDrawioDarkMode(enable) {
   });
 }
 
+function setEchartsDarkMode(enable) {
+  if (chart !== undefined) {
+    chart.setTheme(enable ? 'dark' : 'default');
+  }
+}
+
+function setDarkMode(enable) {
+  setDrawioDarkMode(enable);
+  setEchartsDarkMode(enable);
+}
+
 function isPageDark() {
   return __md_get("__palette").index === 1;
 }
@@ -18,18 +29,18 @@ function reloadGraph() {
 }
 
 document$.subscribe(({ body }) => {
-  setDrawioDarkMode(isPageDark());
+  setDarkMode(isPageDark());
   reloadGraph();
 })
 
 document.getElementById("__palette_0").addEventListener("change", () => {
   console.log('Switched to light mode');
-  setDrawioDarkMode(false);
+  setDarkMode(false);
   reloadGraph();
 });
 
 document.getElementById("__palette_1").addEventListener("change", () => {
   console.log('Switched to dark mode');
-  setDrawioDarkMode(true);
+  setDarkMode(true);
   reloadGraph();
 });

@@ -1,12 +1,10 @@
 clock_tree:
-  main_ecu.sys:
-    main_ecu.ptp0:
-    main_ecu.ptp1:
-      other_ecu.sys:
-        sensor@radar/front:
-        sensor@radar/rear:
-    main_ecu.ptp2:
-      sensor@lidar/top:
+  main-ecu.sys:
+    main-ecu.ptp0:
+      other-ecu.ptp0:
+        other-ecu.sys:
+      sensor@radar/front:
+    main-ecu.ptp1:
       sensor@lidar/left:
       sensor@lidar/right:
 diagnostics:
