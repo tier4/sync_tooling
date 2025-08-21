@@ -2,6 +2,8 @@
 
 Takes the **pain** out of **p**recision time synchroniz**a**t**i**o**n**.
 
+{{ visualize_sync_doctor_echart("diag_master.examples.example_graph") | safe }}
+
 * :simple-ansible: one-click deployable with Ansible
 * :material-graph: monitors the whole vehicle architecture
 * :octicons-sync-16: integrates with your existing LinuxPTP setup
