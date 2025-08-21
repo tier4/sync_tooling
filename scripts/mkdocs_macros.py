@@ -1,3 +1,6 @@
+import importlib
+import json
+
 import jinja2
 
 from diag_master.echarts_adapter import sync_graph_to_echart_options
@@ -42,9 +45,6 @@ def define_env(env):
 
     @env.macro
     def visualize_sync_doctor_echart(generator_module_name: str):
-        import importlib
-        import json
-
         generator = importlib.import_module(generator_module_name)
         sg: SyncGraph = generator.generate_graph()
         echart_options = sync_graph_to_echart_options(sg)
