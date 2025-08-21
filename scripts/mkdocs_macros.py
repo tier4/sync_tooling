@@ -46,6 +46,11 @@ def define_env(env):
     @env.macro
     def visualize_sync_doctor_echart(generator_module_name: str):
         generator = importlib.import_module(generator_module_name)
+        if not hasattr(generator, "generate_graph"):
+            raise ValueError(
+                f"Module '{generator_module_name}' does not have a 'generate_graph' function"
+            )
+
         sg: SyncGraph = generator.generate_graph()
         echart_options = sync_graph_to_echart_options(sg)
         echart_options["title"]["show"] = False
