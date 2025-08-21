@@ -51,7 +51,7 @@ def define_env(env):
                 f"Module '{generator_module_name}' does not have a 'generate_graph' function"
             )
 
-        sg: SyncGraph = generator.generate_graph()
+        sg: SyncGraph = generator.generate_graph()  # type: ignore
         echart_options = sync_graph_to_echart_options(sg)
         echart_options["title"]["show"] = False
         echart_options["backgroundColor"] = "transparent"
