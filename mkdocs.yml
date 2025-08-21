@@ -94,6 +94,6 @@ plugins:
             signature_crossrefs: true
             summary: true
 extra_javascript:
-  - js/drawio-reload.js
+  - js/dark-mode-support.js
 extra_css:
   - css/mermaid-tweaks.css
