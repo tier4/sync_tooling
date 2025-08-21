@@ -15,6 +15,7 @@ dependencies = [
     "pyyaml>=6.0.2",
     "flask-socketio>=5.5.1",
     "pydot>=3.0.4",
+    "pygraphviz>=1.14",
 ]
 
 [project.scripts]
