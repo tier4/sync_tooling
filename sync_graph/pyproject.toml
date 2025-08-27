@@ -1,6 +1,6 @@
 [project]
 name = "sync-graph"
-version = "0.2.4"
+version = "0.2.5"
 description = "A graph representing the clocks and synchronization mechanisms of a distributed time-aware system."
 readme = "README.md"
 authors = [
