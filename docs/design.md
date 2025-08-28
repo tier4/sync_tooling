@@ -179,11 +179,11 @@ Clock alias updates establish relationships between different identifiers that r
 physical clock. This is necessary because different components may refer to the same clock using
 different naming schemes:
 
-- **PTP Clock IDs**: MAC address-based identifiers used by PTP protocol
-- **System Clock IDs**: Human-readable names like `my_host.eno1`
-- **Interface IDs**: Network interface identifiers
-- **Linux Clock Device IDs**: Device names like `/dev/ptp0`
-- **Sensor IDs**: Frame IDs used by sensors
+- **PTP Clock IDs**: MAC address-based identifiers used by PTP protocol, e.g. `123456.fffe.654321`
+- **System Clock IDs**: Human-readable names like `my_host.sys`
+- **Interface IDs**: Network interface identifiers, e.g. `my_host.eno1`
+- **Linux Clock Device IDs**: Device names like `my_host.ptp0` (`/dev/ptp0`)
+- **Sensor IDs**: Frame IDs used by sensors, e.g. `sensor@lidar/***REMOVED***`
 
 When an alias update is received, the graph combines all nodes representing the same clock and
 updates all references to use the most human-readable identifier.
@@ -268,7 +268,7 @@ and PHC2SYS synchronization) is discarded.
 ```mermaid
 graph TD
   subgraph After
-    A2["clock_id"] -- ptp_parent (domain: 0, port: 1, locked) --> B2["parent.clock_id"]
+    A2["clock_id"] -- ptp_parent (domain: 0, port: 1) --> B2["parent.clock_id"]
   end
   subgraph Before
     A1["clock_id"] ~~~ B1["parent.clock_id"]
