@@ -8,6 +8,8 @@ and has access to [Autoware ECU System Setup][autoware-ecu-system-setup] Ansible
 
 ## Pre-Requisites
 
+### Setup ECU IP Configuration and PTP
+
 The ECU, sensor and network architecture has been decided and set up. This includes things like
 Netplan configuration and IP address assignments.
 
@@ -16,6 +18,12 @@ PTP profiles.
 
 The [PTP Architecture Guide](ptp-architecture-guide.md) has been followed to set up the
 PTP architecture, including all PTP4L and PHC2SYS configuration.
+
+### Setup Diagnostics in Sensor Driver
+
+Setup `nebula>=v0.2.8` and sensor configuration to output synchronization meta data on `/sync_diag/graph_updates`.
+
+Please check the configuration example in [this PR](https://github.com/tier4/aip_launcher/pull/529)
 
 ## SYNC.DIAG
 

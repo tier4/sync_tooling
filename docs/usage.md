@@ -81,7 +81,7 @@ diagnostics:
 2. The reference graph has to be located under the `clock_tree` key.
 3. The pattern `<hostname>.ptp<n>` is used to identify a hardware clock device of an ECU.
 4. The pattern `<hostname>.sys` is used to identify the system clock of an ECU.
-5. The pattern `<tf2/frame/id>` is used to identify a sensor.
+5. The pattern `sensor@<frame_id>` is used to identify a sensor.
 6. Even entries with no children need a `:` at the end.
 7. These are customizable thresholds to diagnose reported time differences.
 8. For a PTP link, the PTP master reports the time difference to a child clock, as calculated
@@ -92,13 +92,31 @@ diagnostics:
     less accurate and more variable than the other two.
 
 !!! warning
-    Special care needs to be taken to define hardware and software time stamping correctly:
-    If PTP4L is using software time stamping `-S`, the corresponding clock is the ECU's system
-    clock.
+    ## Handling software time stamping
 
-    If hardware time stamping is used on a given `-i <interface>`, find the clock e.g.
-    using `ethtool -T <interface>`. E.g., if `ethtool -T eno1` prints 
-    `[...] PTP Hardware Clock: 0 [...]`, the clock is `ptp0`.
+    If a sub-ECU is synchronizing in PTP4l using software time stamping with `-S`,
+      the tree structure would look like
+
+    ```
+    main_ecu.ptp0:
+      sub_ecu.sys
+    ```
+
+    ## Handling hardware time stamping
+
+    The typical structure would be 
+
+    ```
+    main_ecu.ptp0:
+      sub_ecu.ptp1:
+        sub_ecu.sys:
+    ```
+
+    ## Hardware PTP clock Index
+
+    To determine what is the index `<n>` for the pattern `<hostname>.ptp<n>` in hardware PTP,
+     find the clock e.g. using `ethtool -T <interface>`. E.g., if `ethtool -T eno1` prints 
+      `[...] PTP Hardware Clock: 0 [...]`, the clock is `ptp0`.
 
 !!! tip
     Refer to the
