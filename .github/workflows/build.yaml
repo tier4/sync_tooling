@@ -51,7 +51,7 @@ jobs:
             && uv run pytest --cov --cov-report=xml --junit-xml=pytest-results.xml
       - name: SonarQube Scan
         if: success() || failure()
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       - name: Build Package
