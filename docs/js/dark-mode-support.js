@@ -8,7 +8,7 @@ function setDrawioDarkMode(enable) {
 }
 
 function setEchartsDarkMode(enable) {
-  if (chart !== undefined) {
+  if (typeof chart !== "undefined") {
     chart.setTheme(enable ? 'dark' : 'default');
   }
 }
