@@ -92,27 +92,27 @@ diagnostics:
     less accurate and more variable than the other two.
 
 !!! warning
-    ## Handling software time stamping
+    **Handling software time stamping**
 
-    If a sub-ECU is synchronizing in PTP4l using software time stamping with `-S`,
-      the tree structure would look like
+    If a client-ECU is synchronizing in PTP4l using software time stamping with `-S`,
+      the tree structure would look like:  (but check the [warning on mixing hardware-software stamping](./ptp-architecture-guide.md/#ptpv2))
 
     ```
     main_ecu.ptp0:
-      sub_ecu.sys
+      client_ecu.sys
     ```
 
-    ## Handling hardware time stamping
+    **Handling hardware time stamping**
 
     The typical structure would be 
 
     ```
     main_ecu.ptp0:
-      sub_ecu.ptp1:
-        sub_ecu.sys:
+      client_ecu.ptp1:
+        client_ecu.sys:
     ```
 
-    ## Hardware PTP clock Index
+    **Hardware PTP clock Index**
 
     To determine what is the index `<n>` for the pattern `<hostname>.ptp<n>` in hardware PTP,
      find the clock e.g. using `ethtool -T <interface>`. E.g., if `ethtool -T eno1` prints 
