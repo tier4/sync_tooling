@@ -6,10 +6,6 @@ and has access to [Autoware ECU System Setup][autoware-ecu-system-setup] Ansible
 [pilot-auto]: https://github.com/tier4/pilot-auto
 [autoware-ecu-system-setup]: https://github.com/tier4/autoware_ecu_system_setup
 
-## Overall ROS2 Architecture
-
-![image](./img/sync_diag_information_flow.svg)
-
 
 ## Pre-Requisites
 
