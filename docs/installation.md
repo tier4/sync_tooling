@@ -21,7 +21,7 @@ software components necessary:
 First, clone the repository. This is common to all installation methods below.
 
 ```shell
-git clone git@github.com:tier4/sync_tooling.git
+git clone --recursive git@github.com:tier4/sync_tooling.git
 cd sync_tooling
 
 # Downloads build tool and builds the project
