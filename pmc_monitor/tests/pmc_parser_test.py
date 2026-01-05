@@ -1,7 +1,8 @@
 from pathlib import Path
 
-from pmc_monitor import pmc_parser
 from pmc_monitor.pmc_protocol import ManagementTlv, Request, Response
+
+from pmc_monitor import pmc_parser
 
 DATA_DIR = Path(__file__).parent.absolute() / Path(__file__).stem
 
