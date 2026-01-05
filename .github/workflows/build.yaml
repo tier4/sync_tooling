@@ -11,9 +11,10 @@ on:
     branches: [ "main" ]
 
 env:
-  UV_VERSION: "0.5.10"
+  UV_VERSION: "0.9.21"
   PYTHON_VERSION: "3.10"
-  RUFF_VERSION: "0.12.12"
+  RUFF_VERSION: "0.14.10"
+  TY_VERSION: "0.0.8"
 
 jobs:
   build:
@@ -41,7 +42,7 @@ jobs:
           uvx ruff@${{ env.RUFF_VERSION }} check --output-file=ruff.json --output-format=json .
       - name: Type check with ty
         run: |
-          uvx ty check \
+          uvx ty@${{ env.TY_VERSION }} check \
             --extra-search-path /opt/ros/humble/lib/python3.10/site-packages \
             --extra-search-path /opt/ros/humble/local/lib/python3.10/dist-packages
       - name: Test with pytest
