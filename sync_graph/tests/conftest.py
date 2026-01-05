@@ -1,7 +1,6 @@
 from typing import Literal
 
 import pytest
-
 from sync_graph.sync_graph import Config, DiffThresholds
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.interface_id_pb2 import InterfaceId
@@ -13,9 +12,9 @@ from sync_tooling_msgs.system_clock_id_pb2 import SystemClockId
 
 
 @pytest.fixture
-def sample_clock_aliases() -> (
-    dict[Literal["system", "ptp", "sensor", "iface", "device"], ClockId]
-):
+def sample_clock_aliases() -> dict[
+    Literal["system", "ptp", "sensor", "iface", "device"], ClockId
+]:
     return {
         "system": ClockId(system_clock_id=SystemClockId(hostname="sample")),
         "ptp": ClockId(ptp_clock_id=PtpClockId(id="012345.fffe.6789ab")),

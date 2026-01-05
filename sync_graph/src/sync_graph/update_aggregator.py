@@ -1,4 +1,5 @@
-"""
+"""Aggregate possibly noisy or high-frequency updates.
+
 Some update types might be high-frequency, or might be noisy.
 This module provides functions to aggregate such updates, e.g. by computing the median
 of multiple measurements between the same clocks.
@@ -18,8 +19,7 @@ from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 def aggregate_clock_diff_measurements(
     updates: Iterable[GraphUpdate],
 ) -> list[GraphUpdate]:
-    """
-    Aggregate ClockDiffMeasurements by grouping them by (src, dst) pairs.
+    """Aggregate ClockDiffMeasurements by grouping them by (src, dst) pairs.
 
     For each group, compute the median diff_ns and create a single aggregated measurement.
     All measurements in the group are removed from the iterable and replaced with the single
@@ -32,6 +32,7 @@ def aggregate_clock_diff_measurements(
         The `updates` iterable with all ClockDiffMeasurements grouped by (src, dst) and replaced
         with a single aggregated measurement for each group.
         Non-measurement updates are preserved as-is.
+
     """
     # Group measurements by (src, dst) pairs
     measurement_groups = defaultdict(list)

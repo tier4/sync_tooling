@@ -1,14 +1,20 @@
+"""Abstract base class for monitor tasks."""
+
 import asyncio
 import time
 from abc import ABC, abstractmethod
 
 
 class MonitorTask(ABC):
+    """Abstract base class for periodic monitoring tasks."""
+
     @abstractmethod
     def poll(self):
+        """Poll for updates, yielding graph update events."""
         raise NotImplementedError()
 
     async def run_loop(self, period_s: float):
+        """Run the polling loop at the specified period."""
         self._running = True
         print(f"{self}: Starting {1 / period_s:.0f} Hz monitor loop")
 
@@ -21,4 +27,5 @@ class MonitorTask(ABC):
             await asyncio.sleep(max(0, d_sleep))
 
     def stop(self):
+        """Stop the monitoring loop."""
         self._running = False

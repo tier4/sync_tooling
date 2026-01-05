@@ -15,15 +15,13 @@ from .util import (
 def test_link_diagnostics(
     nic_port, sample_clock, is_faulty, expected_status, link_type, config
 ):
-    """
-    Test diagnostics for known-ok and known-faulty links.
+    """Test diagnostics for known-ok and known-faulty links.
 
     The status of the source clock shall be unaffected by any faults, while the status of the destination clock
     shall inherit the aggregated status of the link itself and the source clock's status.
 
     Here, the source ok is always okay, so the destination clock status shall be equal to the link status.
     """
-
     src_port = nic_port
     src = src_port.clock_id
     dst = sample_clock
