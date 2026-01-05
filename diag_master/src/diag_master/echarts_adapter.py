@@ -1,6 +1,9 @@
+"""Adapter for converting sync graph to ECharts visualization format."""
+
+from typing import Any
+
 import networkx as nx
 from networkx import DiGraph
-
 from sync_graph.sync_graph import SyncGraph
 from sync_tooling_msgs.clock_id import readable_clock_id, readable_clock_type
 from sync_tooling_msgs.clock_id_pb2 import ClockId
@@ -11,6 +14,7 @@ from sync_tooling_msgs.port_id_pb2 import PortId
 from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 from sync_tooling_msgs.unknown_pb2 import Unknown
 
+# Currently not optimized for dark mode
 DIAG_PALETTE = {
     "unknown": "#264653",
     "ok": "#2a9d8f",
@@ -23,12 +27,14 @@ REFERENCE_ONLY_DIAG = to_diag_tree(Unknown(msg="Reference link only"))
 
 
 def get_status_color(status: DiagStatus):
+    """Get the color for a diagnostic status."""
     if (severity := status.WhichOneof("status")) is not None:
         return DIAG_PALETTE[severity]
     return DIAG_PALETTE["unknown"]
 
 
 def _pretty_status_html(status: DiagStatus):
+    """Format a diagnostic status as colored HTML."""
     status_color = get_status_color(status)
     status_type = status.WhichOneof("status")
     if status_type is None:
@@ -39,6 +45,7 @@ def _pretty_status_html(status: DiagStatus):
 
 
 def _pretty_diag_html(diag: DiagTree):
+    """Format a diagnostic tree as nested HTML."""
     match diag.WhichOneof("tree"):
         case "status":
             return _pretty_status_html(diag.status)
@@ -57,6 +64,7 @@ def _pretty_diag_html(diag: DiagTree):
 
 
 def _clock_aliases_to_description(sg: SyncGraph, clock: ClockId):
+    """Generate HTML description of clock aliases."""
     aliases = [a for a in sg.get_sorted_aliases(clock) if a != clock]
 
     aliases_html = "Known aliases: "
@@ -74,6 +82,7 @@ def _clock_aliases_to_description(sg: SyncGraph, clock: ClockId):
 
 
 def _port_diags_to_description(sg: SyncGraph, clock: ClockId):
+    """Generate HTML description of port diagnostics."""
     ports = sorted(sg.get_ports(clock), key=lambda port: port.port_number)
 
     ports_html = "PTP ports: "
@@ -97,6 +106,7 @@ def _port_diags_to_description(sg: SyncGraph, clock: ClockId):
 def _clock_to_echart_data(
     sg: SyncGraph, clock: ClockId, position: tuple[float, float] | None = None
 ):
+    """Convert a clock node to ECharts node data."""
     extended_description = []
 
     if clock in sg._graph:
@@ -118,7 +128,7 @@ def _clock_to_echart_data(
         extended_description.append("Clock not found in graph")
         is_reference_only = True
 
-    node = {
+    node: dict[str, Any] = {
         "name": readable_clock_id(clock),
         "tooltip": {"formatter": "<br/>".join(extended_description)},
         "itemStyle": {"color": status_color},
@@ -127,10 +137,11 @@ def _clock_to_echart_data(
 
     # Add dashed border and no filling for reference-only clocks
     if is_reference_only:
-        node["itemStyle"]["borderColor"] = status_color
-        node["itemStyle"]["borderWidth"] = 2
-        node["itemStyle"]["borderType"] = "dashed"
-        node["itemStyle"]["color"] = "transparent"
+        item_style: dict[str, Any] = node["itemStyle"]
+        item_style["borderColor"] = status_color
+        item_style["borderWidth"] = 2
+        item_style["borderType"] = "dashed"
+        item_style["color"] = "transparent"
 
     if position is not None:
         node["x"] = position[0]
@@ -200,8 +211,9 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
 
 
 def _layout_circular(g: DiGraph) -> dict[ClockId, tuple[float, float]]:
-    """
-    Lay out a tree-like graph in a concentric manner. A root node in the center is surrounded by
+    """Lay out a tree-like graph in a concentric manner.
+
+    A root node in the center is surrounded by
     concentric rings roughly equivalent to the topological generations of the graph.
 
     See https://graphviz.org/docs/layouts/twopi/ for more information.
@@ -211,8 +223,8 @@ def _layout_circular(g: DiGraph) -> dict[ClockId, tuple[float, float]]:
 
     Returns:
         A dictionary mapping each node to the layout position (x, y).
-    """
 
+    """
     h = nx.convert_node_labels_to_integers(g, label_attribute="node_label")
     layout = nx.nx_pydot.pydot_layout(h, prog="twopi")
     return {h.nodes[n]["node_label"]: p for n, p in layout.items()}
@@ -220,7 +232,7 @@ def _layout_circular(g: DiGraph) -> dict[ClockId, tuple[float, float]]:
 
 def _is_node_in_cycle(g: DiGraph, n: ClockId) -> bool:
     try:
-        nx.find_cycle(g, source=n)
+        nx.find_cycle(g, source=n)  # type: ignore
         return True
     except nx.NetworkXNoCycle:
         return False
@@ -236,7 +248,7 @@ def _get_clock_positions(
     r: DiGraph = sg.reference_graph.copy()  # type: ignore
     assert nx.is_tree(r)
     mapping = {n: sg.get_canonical_clock_id(n) for n in r.nodes}
-    r = nx.relabel_nodes(r, mapping)
+    r = nx.relabel_nodes(r, mapping)  # type: ignore
     r.remove_edges_from(nx.selfloop_edges(r))
     assert nx.is_tree(r)
 
@@ -328,6 +340,7 @@ def _sync_graph_to_echart_data_and_links(
 
 
 def sync_graph_to_echart_options(sg: SyncGraph):
+    """Convert a SyncGraph to an ECharts options dict containing a graph series."""
     data, links = _sync_graph_to_echart_data_and_links(sg)
 
     option = {

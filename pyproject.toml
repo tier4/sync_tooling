@@ -47,7 +47,7 @@ members = [
     "diag_master",
     "sync_graph",
     "http_transport",
-    "sync_tooling_msgs", 
+    "sync_tooling_msgs",
     "ros2_transport",
 ]
 
@@ -71,10 +71,14 @@ packages = [
 python_files = ["test_*.py", "*_test.py", "*_examples.py"]
 addopts = ["--import-mode=importlib"]
 
+[tool.ruff.format]
+docstring-code-format = true
+
 [tool.ruff.lint]
 select = [
     "B",
     "C",
+    "D",
     "E",
     "F",
     "I",
@@ -93,4 +97,10 @@ select = [
     "NPY",
     "PLC",
 ]
-ignore = ["E501", "N817", "TC001", "W291", "W292", "W293"]
+ignore = ["D203", "D212", "E501", "N817", "TC001", "W291", "W292", "W293"]
+pydocstyle = {"convention" = "google"}
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["D"]
+"**/tests/*" = ["D"]
+"**/examples/*" = ["D"]

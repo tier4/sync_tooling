@@ -1,8 +1,8 @@
-import pytest
+from typing import TYPE_CHECKING
 
+import pytest
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
-from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 from sync_tooling_msgs.phc2sys_update_pb2 import Phc2SysUpdate
 from sync_tooling_msgs.port_id_pb2 import PortId
 from sync_tooling_msgs.port_state_pb2 import PortState
@@ -18,6 +18,9 @@ from .util import (
     make_phc2sys_link,
     make_ptp_link,
 )
+
+if TYPE_CHECKING:
+    from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 
 
 def test_clock_creation(sample_clock, config):
@@ -130,10 +133,7 @@ def test_no_self_loops(nic_clock, nic_port, link_type, config):
 def test_clocks_referenced_in_updates_created(
     sample_clock_aliases, nic_clock, nic_port, config
 ):
-    """
-    Any clock referenced in a valid graph update shall be created if not existent in the graph.
-    """
-
+    """Any clock referenced in a valid graph update shall be created if not existent in the graph."""
     src = nic_clock
     src_port = nic_port
 

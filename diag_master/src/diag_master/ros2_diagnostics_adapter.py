@@ -1,7 +1,8 @@
+"""Adapter for publishing sync graph diagnostics as ROS 2 diagnostic messages."""
+
 import networkx as nx
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from rclpy.node import Node
-
 from sync_graph.sync_graph import SyncGraph
 from sync_tooling_msgs.clock_id import readable_clock_id
 from sync_tooling_msgs.clock_id_pb2 import ClockId
@@ -12,6 +13,7 @@ from sync_tooling_msgs.ok_pb2 import Ok
 
 
 def _get_message(diag_status: DiagStatus | str) -> str:
+    """Extract the message string from a diagnostic status."""
     if isinstance(diag_status, str):
         return diag_status
 
@@ -31,6 +33,7 @@ def _get_message(diag_status: DiagStatus | str) -> str:
 
 
 def _diag_status_to_ros_diag_status(diag_tree: DiagTree):
+    """Convert a DiagTree to a ROS DiagnosticStatus message."""
     ros_status = DiagnosticStatus()
 
     default_status = DiagStatus(ok=Ok(msg="OK"))
@@ -57,15 +60,19 @@ def _diag_status_to_ros_diag_status(diag_tree: DiagTree):
 
 
 class Ros2DiagnosticsAdapter:
+    """Publishes sync graph diagnostics to ROS 2 /diagnostics topic."""
+
     HARDWARE_ID = "SYNC.DIAG"
 
     def __init__(self, node: Node) -> None:
+        """Initialize the adapter with a ROS 2 node."""
         self._node = node
         self._diag_publisher = node.create_publisher(
             DiagnosticArray, "/diagnostics", 10
         )
 
     def diagnose(self, sg: SyncGraph):
+        """Run diagnostics on the sync graph and publish results."""
         try:
             diag = self._diagnose_all(sg)
             self._diag_publisher.publish(diag)
@@ -73,6 +80,7 @@ class Ros2DiagnosticsAdapter:
             print(e)
 
     def _diagnose_all(self, sg: SyncGraph) -> DiagnosticArray:
+        """Build a complete DiagnosticArray from the sync graph."""
         arr = DiagnosticArray()
         arr.header.stamp = self._node.get_clock().now().to_msg()
 
@@ -84,6 +92,7 @@ class Ros2DiagnosticsAdapter:
         return arr
 
     def _diagnose_graph(self, sg: SyncGraph):
+        """Diagnose overall graph health."""
         diag_tree = sg.diagnose_graph()
         ros_status = _diag_status_to_ros_diag_status(diag_tree)
         ros_status.name = "Graph health"
@@ -91,6 +100,7 @@ class Ros2DiagnosticsAdapter:
         return [ros_status]
 
     def _diagnose_reference(self, sg: SyncGraph):
+        """Diagnose reference graph adherence."""
         diag_tree = sg.diagnose_reference_adherence()
         ros_status = _diag_status_to_ros_diag_status(diag_tree)
         ros_status.name = "Graph reference adherence"
@@ -98,6 +108,7 @@ class Ros2DiagnosticsAdapter:
         return [ros_status]
 
     def _diagnose_clocks(self, sg: SyncGraph) -> list[DiagnosticStatus]:
+        """Diagnose each clock in the reference graph."""
         if sg.reference_graph is None:
             return []
 
@@ -107,6 +118,7 @@ class Ros2DiagnosticsAdapter:
         return [self._diagnose_clock(sg, clock_id) for clock_id in clocks]
 
     def _diagnose_clock(self, sg: SyncGraph, clock_id: ClockId):
+        """Diagnose a single clock."""
         canonical_id = sg.get_canonical_clock_id(clock_id)
 
         if canonical_id in sg._graph:

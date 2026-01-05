@@ -1,3 +1,5 @@
+"""Abstract journal monitor interface and data types."""
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
@@ -7,7 +9,24 @@ from typing import List
 
 @dataclass
 class JournalEntry:
+    """A single (simplified) journal entry from systemd.
+
+    See https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html for
+    details.
+
+    Attributes:
+        system_timestamp: Wall clock time of the entry.
+        monotonic_timestamp_us: Monotonic timestamp in microseconds.
+        cursor: Journal cursor for resuming reads.
+        unit: The systemd unit that produced the entry.
+        message: The log message content.
+        priority: The syslog priority level.
+
+    """
+
     class Priority(Enum):
+        """Syslog priority levels."""
+
         Emergency = 0
         Alert = 1
         Critical = 2
@@ -26,22 +45,24 @@ class JournalEntry:
 
 
 class JournalMonitor(ABC):
-    """
-    Provides an interface to subscribe to systemd journal entries.
-    """
+    """Abstract interface for subscribing to systemd journal entries."""
 
     @abstractmethod
     def only_current_boot(self) -> "JournalMonitor":
+        """Filter to only entries from the current boot."""
         raise NotImplementedError()
 
     @abstractmethod
     def only_systemd_unit(self, unit_name: str) -> "JournalMonitor":
+        """Filter to only entries from the specified unit."""
         raise NotImplementedError()
 
     @abstractmethod
     def only_from_seconds_ago(self, seconds: int) -> "JournalMonitor":
+        """Filter to only entries from the last N seconds."""
         raise NotImplementedError()
 
     @abstractmethod
     def poll(self) -> List[JournalEntry]:
+        """Poll for new journal entries."""
         raise NotImplementedError()

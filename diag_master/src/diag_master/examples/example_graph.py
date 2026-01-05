@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import yaml
-
 from sync_graph.sync_graph import SyncGraph
 from sync_graph.yaml import to_sync_graph_args
 from sync_tooling_msgs.clock_diff_measurement_pb2 import ClockDiffMeasurement

@@ -1,8 +1,19 @@
+"""Utility functions for LinuxPTP monitoring."""
+
 import re
 import socket
 
 
 def get_hostname() -> str:
+    """Get the system hostname.
+
+    Raises:
+        RuntimeError: If hostname cannot be determined.
+
+    Returns:
+        The system hostname.
+
+    """
     hostname = socket.gethostname()
     if not hostname:
         raise RuntimeError("Could not determine hostname")
@@ -10,11 +21,13 @@ def get_hostname() -> str:
 
 
 def hostname_to_node_name(hostname: str) -> str:
-    """
-    Convert a hostname to a valid ROS 2 node name by replacing unsupported characters.
-    A ROS 2 node name must be of the form `^[A-z][A-z0-9_]*$`, see: https://wiki.ros.org/Names
-    """
+    """Convert a hostname to a valid ROS 2 node name.
 
+    Replaces unsupported characters. A ROS 2 node name must match `^[A-z][A-z0-9_]*$`.
+
+    See Also:
+        https://wiki.ros.org/Names
+    """
     # Replace each chain of unsupported characters with an underscore
     node_name = re.sub(r"\W+", "_", hostname)
 

@@ -1,5 +1,4 @@
-"""
-Tests for the [diagnose_reference_adherence][sync_graph.sync_graph.SyncGraph.diagnose_reference_adherence]
+"""Tests for the [diagnose_reference_adherence][sync_graph.sync_graph.SyncGraph.diagnose_reference_adherence]
 family of methods.
 """
 
@@ -7,7 +6,6 @@ from dataclasses import dataclass
 
 import networkx as nx
 import pytest
-
 from sync_graph.sync_graph import Config
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.diag_tree import prettify, to_diag_tree
@@ -56,9 +54,9 @@ def test_perfect_reference_match(graph_name, request):
     )
     for clock in g._graph.nodes:
         diag_tree = g.diagnose_single_clock_reference_adherence(clock)
-        assert (
-            aggregated_status_label(diag_tree) == "ok"
-        ), f"with tree {prettify(diag_tree)}"
+        assert aggregated_status_label(diag_tree) == "ok", (
+            f"with tree {prettify(diag_tree)}"
+        )
 
 
 def test_different_but_compliant_graph(sample_clock, nic_port, remote_clock, config):
