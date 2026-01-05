@@ -15,3 +15,13 @@ repos:
     hooks:
       - id: markdownlint
         args: [--fix]
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty check
+        pass_filenames: false
+        entry: |
+            uvx ty@0.0.8 check
+            --extra-search-path /opt/ros/humble/lib/python3.10/site-packages
+            --extra-search-path /opt/ros/humble/local/lib/python3.10/dist-packages
+        language: system

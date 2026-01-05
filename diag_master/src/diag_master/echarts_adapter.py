@@ -1,5 +1,7 @@
 """Adapter for converting sync graph to ECharts visualization format."""
 
+from typing import Any
+
 import networkx as nx
 from networkx import DiGraph
 from sync_graph.sync_graph import SyncGraph
@@ -126,7 +128,7 @@ def _clock_to_echart_data(
         extended_description.append("Clock not found in graph")
         is_reference_only = True
 
-    node = {
+    node: dict[str, Any] = {
         "name": readable_clock_id(clock),
         "tooltip": {"formatter": "<br/>".join(extended_description)},
         "itemStyle": {"color": status_color},
@@ -135,10 +137,11 @@ def _clock_to_echart_data(
 
     # Add dashed border and no filling for reference-only clocks
     if is_reference_only:
-        node["itemStyle"]["borderColor"] = status_color
-        node["itemStyle"]["borderWidth"] = 2
-        node["itemStyle"]["borderType"] = "dashed"
-        node["itemStyle"]["color"] = "transparent"
+        item_style: dict[str, Any] = node["itemStyle"]
+        item_style["borderColor"] = status_color
+        item_style["borderWidth"] = 2
+        item_style["borderType"] = "dashed"
+        item_style["color"] = "transparent"
 
     if position is not None:
         node["x"] = position[0]
@@ -229,7 +232,7 @@ def _layout_circular(g: DiGraph) -> dict[ClockId, tuple[float, float]]:
 
 def _is_node_in_cycle(g: DiGraph, n: ClockId) -> bool:
     try:
-        nx.find_cycle(g, source=n)
+        nx.find_cycle(g, source=n)  # type: ignore
         return True
     except nx.NetworkXNoCycle:
         return False
@@ -245,7 +248,7 @@ def _get_clock_positions(
     r: DiGraph = sg.reference_graph.copy()  # type: ignore
     assert nx.is_tree(r)
     mapping = {n: sg.get_canonical_clock_id(n) for n in r.nodes}
-    r = nx.relabel_nodes(r, mapping)
+    r = nx.relabel_nodes(r, mapping)  # type: ignore
     r.remove_edges_from(nx.selfloop_edges(r))
     assert nx.is_tree(r)
 

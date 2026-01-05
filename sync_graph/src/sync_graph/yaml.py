@@ -67,7 +67,7 @@ def clock_tree_to_digraph(clock_tree: dict) -> nx.DiGraph:
     edges = [(parse_clock_id(src), parse_clock_id(dst)) for src, dst in edges]
 
     digraph = nx.from_edgelist(edges, create_using=nx.DiGraph)
-    return digraph
+    return digraph  # type: ignore
 
 
 def parse_unit(unit: str) -> Literal["ns", "us", "ms"]:
@@ -84,8 +84,12 @@ def parse_unit(unit: str) -> Literal["ns", "us", "ms"]:
 
     """
     match unit:
-        case "ns" | "us" | "ms":
-            return unit
+        case "ns":
+            return "ns"
+        case "us":
+            return "us"
+        case "ms":
+            return "ms"
         case _:
             raise ValueError(f"Invalid unit: {unit}")
 
