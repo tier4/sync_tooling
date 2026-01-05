@@ -1,5 +1,4 @@
 import pytest
-
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.port_state_pb2 import PortState
 from sync_tooling_msgs.port_state_update_pb2 import PortStateUpdate

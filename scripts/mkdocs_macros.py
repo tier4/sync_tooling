@@ -3,7 +3,6 @@ import json
 from typing import TYPE_CHECKING
 
 import jinja2
-
 from diag_master.echarts_adapter import sync_graph_to_echart_options
 
 if TYPE_CHECKING:

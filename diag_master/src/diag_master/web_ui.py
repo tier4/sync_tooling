@@ -4,9 +4,9 @@ from threading import Thread
 
 from flask import Flask, render_template
 from flask_socketio import SocketIO
+from sync_graph.sync_graph import SyncGraph
 
 from diag_master.echarts_adapter import sync_graph_to_echart_options
-from sync_graph.sync_graph import SyncGraph
 
 
 class WebUi:

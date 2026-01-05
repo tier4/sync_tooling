@@ -8,9 +8,6 @@ from enum import Enum
 from typing import Dict, Literal
 
 from journal_monitor.journal_monitor import JournalEntry
-from linuxptp_monitor.ethtool_harness import get_canonicalized_clock
-from linuxptp_monitor.linuxptp_config import LinuxPtpConfig
-from linuxptp_monitor.state_machine import State
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.error_pb2 import Error
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
@@ -22,6 +19,10 @@ from sync_tooling_msgs.ptp4l_status_message_pb2 import Ptp4lStatusMessage
 from sync_tooling_msgs.servo_state_pb2 import ServoState
 from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 from sync_tooling_msgs.warning_pb2 import Warning
+
+from linuxptp_monitor.ethtool_harness import get_canonicalized_clock
+from linuxptp_monitor.linuxptp_config import LinuxPtpConfig
+from linuxptp_monitor.state_machine import State
 
 
 class NetworkTransport(Enum):

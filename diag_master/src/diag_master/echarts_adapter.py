@@ -2,7 +2,6 @@
 
 import networkx as nx
 from networkx import DiGraph
-
 from sync_graph.sync_graph import SyncGraph
 from sync_tooling_msgs.clock_id import readable_clock_id, readable_clock_type
 from sync_tooling_msgs.clock_id_pb2 import ClockId

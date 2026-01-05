@@ -5,7 +5,6 @@ from typing import Callable
 from google.protobuf.message import DecodeError
 from rclpy.node import Node
 from std_msgs.msg import UInt8MultiArray
-
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 
 

@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
 import pytest
-
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_master_update_pb2 import ClockMasterUpdate
 from sync_tooling_msgs.phc2sys_update_pb2 import Phc2SysUpdate

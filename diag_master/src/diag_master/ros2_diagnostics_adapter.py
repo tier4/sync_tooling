@@ -3,7 +3,6 @@
 import networkx as nx
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from rclpy.node import Node
-
 from sync_graph.sync_graph import SyncGraph
 from sync_tooling_msgs.clock_id import readable_clock_id
 from sync_tooling_msgs.clock_id_pb2 import ClockId

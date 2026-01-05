@@ -1,6 +1,5 @@
 import rclpy
 from rclpy.task import Future
-
 from ros2_transport.client import Ros2Client
 from ros2_transport.server import Ros2Server
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate

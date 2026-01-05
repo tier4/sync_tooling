@@ -1,5 +1,4 @@
 from networkx import DiGraph
-
 from sync_graph.sync_graph import Config, SyncGraph
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_diff_measurement_pb2 import ClockDiffMeasurement

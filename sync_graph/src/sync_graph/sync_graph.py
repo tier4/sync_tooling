@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable, Literal
 
 import networkx as nx
-
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_diff_measurement_pb2 import ClockDiffMeasurement
 from sync_tooling_msgs.clock_id import readable_clock_id
@@ -939,9 +938,9 @@ class SyncGraph:
             The result of the reference graph comparison
 
         """
-        assert (
-            clock_id in self._graph.nodes
-        ), f"Clock {clock_id} not found in current graph"
+        assert clock_id in self._graph.nodes, (
+            f"Clock {clock_id} not found in current graph"
+        )
 
         if not self.reference_graph:
             return to_diag_tree(Ok(msg="No reference graph present"))

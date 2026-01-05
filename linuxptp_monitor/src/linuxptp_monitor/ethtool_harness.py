@@ -4,10 +4,11 @@ import re
 import shutil
 import subprocess
 
-from linuxptp_monitor.util import get_hostname
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.linux_clock_device_id_pb2 import LinuxClockDeviceId
 from sync_tooling_msgs.system_clock_id_pb2 import SystemClockId
+
+from linuxptp_monitor.util import get_hostname
 
 
 def _find_ethtool():

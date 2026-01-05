@@ -8,12 +8,12 @@ from argparse import REMAINDER, ArgumentParser
 
 import rclpy
 from aiostream.stream import merge
+from linuxptp_monitor.util import hostname_to_node_name
+from ros2_transport.client import Ros2Client
 
 from diag_worker.monitor_task import MonitorTask
 from diag_worker.phc2sys_monitor_task import Phc2SysMonitorTask
 from diag_worker.ptp4l_monitor_task import Ptp4lMonitorTask
-from linuxptp_monitor.util import hostname_to_node_name
-from ros2_transport.client import Ros2Client
 
 
 class DiagWorker:

@@ -10,9 +10,6 @@ from typing import Callable
 
 import rclpy
 import yaml
-
-from diag_master.ros2_diagnostics_adapter import Ros2DiagnosticsAdapter
-from diag_master.web_ui import WebUi
 from linuxptp_monitor.util import hostname_to_node_name
 from ros2_transport.server import Ros2Server
 from sync_graph.sync_graph import SyncGraph
@@ -20,6 +17,9 @@ from sync_graph.timed_graph_update_queue import TimedGraphUpdateQueue
 from sync_graph.update_aggregator import aggregate_clock_diff_measurements
 from sync_graph.yaml import to_sync_graph_args
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
+
+from diag_master.ros2_diagnostics_adapter import Ros2DiagnosticsAdapter
+from diag_master.web_ui import WebUi
 
 Args = namedtuple(
     "Args",

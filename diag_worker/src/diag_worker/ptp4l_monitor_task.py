@@ -1,7 +1,5 @@
 """Monitor task for ptp4l systemd units."""
 
-from diag_worker.monitor_task import MonitorTask
-from diag_worker.systemd_util import does_unit_exist, get_command_line, get_unit_pid
 from journal_monitor.console_polling_journal_monitor import ConsolePollingJournalMonitor
 from linuxptp_monitor.ptp4l_instance import (
     Ptp4lConfig,
@@ -23,6 +21,9 @@ from sync_tooling_msgs.port_state import port_state_value
 from sync_tooling_msgs.port_state_update_pb2 import PortStateUpdate
 from sync_tooling_msgs.ptp_clock_id_pb2 import PtpClockId
 from sync_tooling_msgs.ptp_parent_update_pb2 import PtpParentUpdate
+
+from diag_worker.monitor_task import MonitorTask
+from diag_worker.systemd_util import does_unit_exist, get_command_line, get_unit_pid
 
 
 class Ptp4lMonitorTask(MonitorTask):

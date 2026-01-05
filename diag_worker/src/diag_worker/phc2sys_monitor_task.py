@@ -1,7 +1,5 @@
 """Monitor task for phc2sys systemd units."""
 
-from diag_worker.monitor_task import MonitorTask
-from diag_worker.systemd_util import does_unit_exist, get_command_line, get_unit_pid
 from journal_monitor.console_polling_journal_monitor import ConsolePollingJournalMonitor
 from linuxptp_monitor.phc2sys_instance import Phc2SysConfig, Phc2SysRunningState
 from linuxptp_monitor.state_machine import (
@@ -10,6 +8,9 @@ from linuxptp_monitor.state_machine import (
 )
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 from sync_tooling_msgs.phc2sys_update_pb2 import Phc2SysUpdate
+
+from diag_worker.monitor_task import MonitorTask
+from diag_worker.systemd_util import does_unit_exist, get_command_line, get_unit_pid
 
 
 class Phc2SysMonitorTask(MonitorTask):
