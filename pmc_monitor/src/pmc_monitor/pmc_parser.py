@@ -1,3 +1,5 @@
+"""Parser for PMC (PTP Management Client) text output."""
+
 import builtins
 import dataclasses
 import logging
@@ -14,21 +16,46 @@ hex_int_re = re.compile(r"[+-]?0x[\da-fA-F]+$")
 
 
 def indent(msg: str, level: int):
+    """Indent a message for debug logging."""
     return f"{'  ' * level}{msg}"
 
 
 @dataclass
 class Some:
+    """Type representing a value in an option-like pattern.
+
+    Example:
+        ```
+        result: Some | None = Some(42)
+        match result:
+            case Some(x):
+                print(f"Got value: {x}")
+            case None:
+                print("No value")
+        ```
+
+    Attributes:
+        x: The parsed value.
+    """
+
     x: Any
 
 
 @dataclass
 class ParseError:
+    """Represents a parse failure with trace information.
+
+    Attributes:
+        trace: Stack of parser contexts where the error occurred.
+        rest: Remaining unparsed text.
+    """
+
     trace: list[str]
     rest: str
 
 
 def abbreviate(text: str):
+    """Abbreviate long text for debug output."""
     lines = text.splitlines()
     if not lines:
         return text
@@ -41,6 +68,7 @@ def abbreviate(text: str):
 
 
 def parse_float(string: str):
+    """Parse a float from string, supporting hex and decimal floats."""
     if re.match(hex_float_re, string):
         return Some(float.fromhex(string)), ""
 
@@ -53,6 +81,7 @@ def parse_float(string: str):
 
 
 def parse_int(string: str):
+    """Parse an int from string, supporting hex and decimal ints."""
     if re.match(hex_int_re, string):
         return Some(int(string, 16)), ""
 
@@ -65,6 +94,7 @@ def parse_int(string: str):
 
 
 def parse_class_from_regex(typ, string: str, logger: logging.Logger, level: int):
+    """Parse a dataclass from string using its `regex` attribute."""
     m = re.match(typ.regex, string)
     if m is None:
         logger.debug(
@@ -116,6 +146,7 @@ def parse_class_from_regex(typ, string: str, logger: logging.Logger, level: int)
 def consume(
     typ, text: str, logger: logging.Logger, level=0
 ) -> tuple[Some, str] | ParseError:
+    """Consume and parse a value of the given type from text."""
     logger.debug(indent(f"consuming type {typ}, text='{abbreviate(text)}'", level))
     level += 1
     match typ:
@@ -153,7 +184,16 @@ def consume(
     return ParseError([f"consume({typ})->match"], text)
 
 
-def parse(text: str, logger: logging.Logger | None = None):
+def parse(text: str, logger: logging.Logger | None = None) -> list[Message]:
+    """Parse PMC output text into a list of messages.
+
+    Args:
+        text: Raw PMC output text to parse.
+        logger: Optional logger for debug output.
+
+    Returns:
+        List of parsed Message objects.
+    """
     if logger is None:
         logger = logging.getLogger("TLV parser")
         logger.setLevel(logging.INFO)

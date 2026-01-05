@@ -1,3 +1,10 @@
+"""PMC (PTP Management Client) protocol dataclasses for parsing PTP management messages.
+
+This module defines dataclasses that correspond to PTP management TLV (Type-Length-Value) types.
+Each dataclass uses the @regex_from_tlv decorator to automatically generate
+a regex pattern for parsing PMC output.
+"""
+
 import dataclasses
 import re
 import typing
@@ -9,6 +16,7 @@ from typing import List, TypeVar
 
 
 def multiline_regex_from_keys(keys: List[str]) -> str:
+    """Generate a multiline regex pattern from dataclass field names."""
     separator_re = r"\s*\n\s*"
     lines = [
         # Python and RegEx groups do not allow `.` in their names
@@ -25,6 +33,20 @@ T = TypeVar("T")
 
 
 def regex_from_tlv(cls: T) -> T:
+    """Decorator that adds a regex attribute to a TLV dataclass.
+
+    The dataclass must have a `tlv_type` class attribute.
+
+    Args:
+        cls: The dataclass to decorate.
+
+    Raises:
+        TypeError: If cls is not a dataclass.
+        KeyError: If cls has no tlv_type attribute.
+
+    Returns:
+        The decorated class with a regex attribute.
+    """
     if not hasattr(cls, "__name__"):
         raise TypeError(f"{type(cls)} is not a class")
 
@@ -44,6 +66,7 @@ def regex_from_tlv(cls: T) -> T:
 
 
 def regex_from_tlv_union(union: UnionType) -> str:
+    """Combine regex patterns from a union of TLV types."""
     regexes: list[re.Pattern[str]] = []
 
     types = typing.get_args(union)
@@ -59,6 +82,13 @@ def regex_from_tlv_union(union: UnionType) -> str:
 
 @dataclass
 class PortIdentity:
+    """PTP port identity consisting of clock ID and port number.
+
+    Attributes:
+        clock_id: The clock identity string (e.g., '000000.fffe.000000').
+        port_number: The port number.
+    """
+
     regex = re.compile(r"(?P<clock_id>[\da-f\.]+)-(?P<port_number>\d+)")
     clock_id: str
     port_number: int

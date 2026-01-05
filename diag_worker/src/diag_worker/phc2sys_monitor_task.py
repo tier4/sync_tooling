@@ -1,3 +1,5 @@
+"""Monitor task for phc2sys systemd units."""
+
 from diag_worker.monitor_task import MonitorTask
 from diag_worker.systemd_util import does_unit_exist, get_command_line, get_unit_pid
 from journal_monitor.console_polling_journal_monitor import ConsolePollingJournalMonitor
@@ -11,7 +13,18 @@ from sync_tooling_msgs.phc2sys_update_pb2 import Phc2SysUpdate
 
 
 class Phc2SysMonitorTask(MonitorTask):
+    """Monitor task for a phc2sys systemd unit."""
+
     def __init__(self, unit_name: str, hostname: str):
+        """Initialize the phc2sys monitor task.
+
+        Args:
+            unit_name: The systemd unit name to monitor.
+            hostname: The local hostname.
+
+        Raises:
+            FileNotFoundError: If the unit does not exist.
+        """
         if not does_unit_exist(unit_name):
             raise FileNotFoundError(f"Unit {unit_name} was not found on this system")
 
@@ -47,6 +60,7 @@ class Phc2SysMonitorTask(MonitorTask):
         return f"{self.__class__.__name__}(hostname={self.hostname_}, unit={self.unit_name_})"
 
     def phc2sys_to_graph_updates(self, state_change: SystemdUnitStateChange):
+        """Convert a phc2sys state change to graph updates."""
         Uninitialized = SystemdUnitStateMachine.Uninitialized  # noqa: N806
 
         match (state_change.old_state, state_change.new_state):
@@ -68,6 +82,7 @@ class Phc2SysMonitorTask(MonitorTask):
                 pass
 
     async def poll(self):
+        """Poll journal for updates, yielding graph updates."""
         journal_entries = self.journal_monitor.poll()
         for event in self.state_machine.consume(journal_entries):
             match event:

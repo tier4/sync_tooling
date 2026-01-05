@@ -1,9 +1,19 @@
+"""Utilities for interacting with systemd units."""
+
 import re
 import shutil
 import subprocess
 
 
 def get_command_line(pid: int) -> list[str]:
+    """Read the command line arguments for a process from /proc/[pid]/cmdline.
+
+    Args:
+        pid: The process ID.
+
+    Returns:
+        List of command line arguments.
+    """
     with open(f"/proc/{pid}/cmdline") as f:
         cmdline = f.read()
 
@@ -33,6 +43,14 @@ def get_unit_pid(unit_name: str) -> int | None:
 
 
 def _get_systemctl():
+    """
+    Find the systemctl executable.
+
+    Raises:
+        RuntimeError: If systemctl is not found.
+    Returns:
+        The path to the systemctl executable.
+    """
     systemctl = shutil.which("systemctl")
     if systemctl is None:
         raise RuntimeError("Could not find systemctl executable")

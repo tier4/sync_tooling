@@ -1,3 +1,5 @@
+"""Ethtool integration for clock device discovery."""
+
 import re
 import shutil
 import subprocess
@@ -9,6 +11,14 @@ from sync_tooling_msgs.system_clock_id_pb2 import SystemClockId
 
 
 def _find_ethtool():
+    """Find ethtool binary in PATH.
+
+    Raise:
+        RuntimeError: If ethtool is not found.
+
+    Returns:
+        str: Path to ethtool binary.
+    """
     ethtool = shutil.which("ethtool")
     if ethtool is None:
         raise RuntimeError(

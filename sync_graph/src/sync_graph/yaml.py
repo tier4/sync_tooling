@@ -1,3 +1,5 @@
+"""YAML configuration parsing for sync graph setup."""
+
 from typing import Literal
 
 import networkx as nx
@@ -8,6 +10,20 @@ from sync_tooling_msgs.clock_id import parse_clock_id
 
 
 def get_subtree(d: dict, key: str, typ: type, yaml_path: str = ""):
+    """Get a required key from a dict, raising ValueError if missing.
+
+    Args:
+        d: The dictionary to get the key from.
+        key: The required key.
+        typ: The expected type of the value.
+        yaml_path: The YAML path from the root to the current dict, for better error messages.
+
+    Raises:
+        ValueError: If the key is not present in the dict.
+
+    Returns:
+        The value at the specified key, cast to the expected type.
+    """
     if key not in d:
         prefix = f"{yaml_path}." if yaml_path else ""
         raise ValueError(f"{prefix}{key} is required")
@@ -54,6 +70,17 @@ def clock_tree_to_digraph(clock_tree: dict) -> nx.DiGraph:
 
 
 def parse_unit(unit: str) -> Literal["ns", "us", "ms"]:
+    """Parse and validate a time unit string.
+
+    Args:
+        unit: Time unit string to parse.
+
+    Raises:
+        ValueError: If unit is not 'ns', 'us', or 'ms'.
+
+    Returns:
+        The validated unit literal.
+    """
     match unit:
         case "ns" | "us" | "ms":
             return unit
@@ -62,6 +89,7 @@ def parse_unit(unit: str) -> Literal["ns", "us", "ms"]:
 
 
 def parse_diff_thresholds(diff_thresholds: dict) -> DiffThresholds:
+    """Parse a diff thresholds dictionary into a DiffThresholds object."""
     return DiffThresholds(
         unit=parse_unit(get_subtree(diff_thresholds, "unit", str)),
         warn=get_subtree(diff_thresholds, "warn", int),
@@ -70,6 +98,7 @@ def parse_diff_thresholds(diff_thresholds: dict) -> DiffThresholds:
 
 
 def to_config(thresholds: dict) -> Config:
+    """Parse a thresholds dictionary into a Config object."""
     return Config(
         master_diff_thresholds=parse_diff_thresholds(
             get_subtree(thresholds, "ptp_master", dict)
@@ -84,6 +113,14 @@ def to_config(thresholds: dict) -> Config:
 
 
 def to_sync_graph_args(yaml_config: dict) -> tuple[Config, DiGraph]:
+    """Parse a YAML config dict into SyncGraph constructor arguments.
+
+    Args:
+        yaml_config: The parsed YAML configuration dictionary.
+
+    Returns:
+        A tuple of (config, reference_graph) for SyncGraph initialization.
+    """
     diagnostics = get_subtree(yaml_config, "diagnostics", dict)
     thresholds = get_subtree(diagnostics, "diff_thresholds", dict)
     config = to_config(thresholds)

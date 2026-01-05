@@ -1,3 +1,5 @@
+"""Journal monitor implementation using journalctl subprocess."""
+
 import json
 import subprocess
 from datetime import datetime
@@ -7,6 +9,7 @@ from journal_monitor.journal_monitor import JournalEntry, JournalMonitor
 
 
 def json_to_journal_entry(json: dict):
+    """Convert a journalctl JSON object to a JournalEntry."""
     system_timestamp_us = int(json["__REALTIME_TIMESTAMP"])
     system_timestamp_us = datetime.fromtimestamp(system_timestamp_us / 1e6)
     monotonic_timestamp_us = int(json["__MONOTONIC_TIMESTAMP"])
@@ -23,7 +26,10 @@ def json_to_journal_entry(json: dict):
 
 
 class ConsolePollingJournalMonitor(JournalMonitor):
+    """Journal monitor that polls journalctl via subprocess."""
+
     def __init__(self):
+        """Initialize the journal monitor."""
         super().__init__()
         self._flags: Set[str] = {"--output=json"}
         self._startup_flags: Set[str] = set()
@@ -43,6 +49,7 @@ class ConsolePollingJournalMonitor(JournalMonitor):
         return self
 
     def poll(self):
+        """Poll journalctl for new entries since last poll."""
         args = ["journalctl"]
         args += self._flags
         if self._previous_cursor is not None:

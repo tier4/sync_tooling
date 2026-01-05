@@ -1,8 +1,18 @@
+"""Utility functions for LinuxPTP monitoring."""
+
 import re
 import socket
 
 
 def get_hostname() -> str:
+    """Get the system hostname.
+
+    Raises:
+        RuntimeError: If hostname cannot be determined.
+
+    Returns:
+        The system hostname.
+    """
     hostname = socket.gethostname()
     if not hostname:
         raise RuntimeError("Could not determine hostname")

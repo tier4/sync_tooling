@@ -1,3 +1,5 @@
+"""Core sync graph implementation for clock synchronization modeling."""
+
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Literal
@@ -35,10 +37,9 @@ from sync_tooling_msgs.warning_pb2 import Warning
 
 @dataclass
 class DiffThresholds:
-    """
-    Warning and error thresholds for a difference between two clocks.
+    """Warning and error thresholds for a difference between two clocks.
 
-    Args:
+    Attributes:
         warn: The warning threshold in the given unit.
         error: The error threshold in the given unit.
         unit: The unit of the thresholds.
@@ -51,12 +52,29 @@ class DiffThresholds:
 
 @dataclass
 class Config:
+    """Configuration for sync graph diagnostics.
+
+    Attributes:
+        master_diff_thresholds: Thresholds for PTP master offset diagnostics.
+        phc2sys_diff_thresholds: Thresholds for phc2sys offset diagnostics.
+        measurement_diff_thresholds: Thresholds for clock diff measurement diagnostics.
+    """
+
     master_diff_thresholds: DiffThresholds
     phc2sys_diff_thresholds: DiffThresholds
     measurement_diff_thresholds: DiffThresholds
 
 
 def readability_score(clock_id: ClockId):
+    """Return a readability score for clock ID type ordering.
+
+    The order of preference is:
+    * sensor_id
+    * system_clock_id
+    * interface_id
+    * linux_clock_device_id
+    * ptp_clock_id
+    """
     match clock_id.WhichOneof("id"):
         case "sensor_id":
             return 4
@@ -153,31 +171,29 @@ P_STATUS_MSG = "status_msg"
 def _get_node_attr(
     g: nx.DiGraph, n: ClockId, k: Literal["master", "status_msg", "port_ids"]
 ):
+    """Get a node attribute from the graph, or `None` if not present."""
     return g.nodes[n].get(k)
 
 
 def _set_node_attr(
     g: nx.DiGraph, n: ClockId, k: Literal["master", "status_msg", "port_ids"], v
 ):
+    """Set a node attribute in the graph."""
     g.nodes[n][k] = v
 
 
 @dataclass
 class SyncGraph:
-    """
-    A directed graph modeling clocks and their synchronization relationships.
+    """A directed graph modeling clocks and their synchronization relationships.
+
+    Attributes:
+        config: Configuration for the sync graph diagnostics.
+        reference_graph: Optional expected tree-shaped synchronization graph. Each node is a
+            clock, and each edge is a direct synchronization link (e.g. PTP or PHC2SYS).
     """
 
     config: Config
-    """
-    Configuration for the sync graph.
-    """
-
     reference_graph: nx.DiGraph | None = None
-    """
-    A known tree-shaped synchronization graph of the system. Each node is a clock, and each
-    edge is a direct synchronization link (e.g. PTP or PHC2SYS).
-    """
 
     _graph: nx.MultiDiGraph = field(default_factory=nx.MultiDiGraph)
     _known_aliases: dict[ClockId, set[ClockId]] = field(default_factory=dict)
@@ -186,12 +202,17 @@ class SyncGraph:
     )
 
     def get_canonical_clock_id(self, clock_id: ClockId) -> ClockId:
+        """Return the canonical (most readable) alias for a clock ID.
+
+        See `get_most_human_readable_alias`.
+        """
         assert clock_id is not None
         if clock_id not in self._known_aliases:
             return clock_id
         return get_most_human_readable_alias(self._known_aliases[clock_id])
 
     def get_canonical_port_id(self, port_id: PortId):
+        """Return the canonical port ID with canonical clock ID."""
         return PortId(
             clock_id=self.get_canonical_clock_id(port_id.clock_id),
             port_number=port_id.port_number,
@@ -199,6 +220,7 @@ class SyncGraph:
         )
 
     def get_or_create_clock(self, clock_id: ClockId) -> ClockId:
+        """Get or create a clock node, returning its canonical ID."""
         clock_id = self.get_canonical_clock_id(clock_id)
         if clock_id not in self._graph:
             self._graph.add_node(clock_id)
@@ -206,6 +228,7 @@ class SyncGraph:
         return clock_id
 
     def get_or_create_port(self, port_id: PortId) -> PortId:
+        """Get or create a port, ensuring its clock exists."""
         clock_id = self.get_or_create_clock(port_id.clock_id)
         port_id = self.get_canonical_port_id(port_id)
 
@@ -266,6 +289,10 @@ class SyncGraph:
         raise AssertionError(f"Unknown update type: {update.WhichOneof('update')}")
 
     def update_clock_master(self, u: ClockMasterUpdate):
+        """Update or remove a clock's master link.
+
+        If `u.master` is unset, any existing master link for `u.clock_id` is removed.
+        """
         if not u.HasField("clock_id"):
             return
 
@@ -291,6 +318,11 @@ class SyncGraph:
         )
 
     def update_clock_aliases(self, u: ClockAliasUpdate):
+        """Merge clock aliases and update all references.
+
+        The nodes of all aliases in `u.aliases` are merged into a single node with the canonical
+        alias. All links and port references are merged accordingly.
+        """
         if not u.aliases:
             return
 
@@ -352,6 +384,10 @@ class SyncGraph:
             self._ports[canonical_port_id] = metadata
 
     def create_ptp_link(self, u: PtpParentUpdate):
+        """Create or remove a PTP parent link.
+
+        If `u.parent` is unset, any existing PTP parent link for `u.clock_id` is removed.
+        """
         if not u.HasField("clock_id"):
             return
 
@@ -390,6 +426,7 @@ class SyncGraph:
         )
 
     def update_ptp_port_state(self, u: PortStateUpdate):
+        """Update the state of a PTP port."""
         # Port 0 is reserved for internal PTP instance mechanisms.
         # Keeping track of it has no particular use, so discard it
         if u.port_id.port_number == 0:
@@ -402,6 +439,10 @@ class SyncGraph:
         self._ports[canonical_id][P_PORT_STATE] = u.port_state
 
     def update_phc2sys_link_state(self, u: Phc2SysUpdate):
+        """Update or remove a phc2sys synchronization link.
+
+        If `u.src` is unset, any existing phc2sys link for `u.dst` is removed.
+        """
         if not u.HasField("dst"):
             return
 
@@ -424,6 +465,7 @@ class SyncGraph:
         self._graph.add_edge(src, dst, L_PHC2SYS, **{METADATA: u.clock_state})
 
     def update_self_reported_clock_state(self, u: SelfReportedClockStateUpdate):
+        """Update a clock's self-reported synchronization state."""
         if not u.HasField("clock_id"):
             return
 
@@ -434,18 +476,22 @@ class SyncGraph:
         self._graph.nodes[clock_id][C_SELF_REPORTED_STATE] = u.state
 
     def handle_ptp4l_port_status_message(self, m: Ptp4lPortStatusMessage):
+        """Handle a ptp4l port status message (currently unused)."""
         # Possibly not needed, ignore for now
         pass
 
     def handle_ptp4l_status_message(self, m: Ptp4lStatusMessage):
+        """Handle a ptp4l status message (currently unused)."""
         # Possibly not needed, ignore for now
         pass
 
     def handle_phc2sys_status_message(self, m: Phc2SysStatusMessage):
+        """Handle a phc2sys status message (currently unused)."""
         # Possibly not needed, ignore for now
         pass
 
     def handle_clock_diff_measurement(self, m: ClockDiffMeasurement):
+        """Add a clock difference measurement edge."""
         if not m.HasField("src") or not m.HasField("dst"):
             return
 
@@ -538,10 +584,12 @@ class SyncGraph:
         return None
 
     def get_ports(self, clock_id: ClockId) -> set[PortId]:
+        """Get all known ports for a clock."""
         clock_id = self.get_canonical_clock_id(clock_id)
         return _get_node_attr(self._graph, clock_id, C_PORT_IDS) or set()
 
     def get_sorted_aliases(self, clock_id: ClockId) -> list[ClockId]:
+        """Get all aliases for a clock, sorted by readability (most readable first)."""
         if clock_id not in self._known_aliases:
             return [clock_id]
 
@@ -549,6 +597,12 @@ class SyncGraph:
         return sorted(aliases, key=readability_score, reverse=True)
 
     def diagnose_port(self, port_id: PortId) -> DiagTree:
+        """Diagnose the state of a PTP port.
+
+        Returns:
+            - Unknown if the port has no state information
+            - The diagnosed port state otherwise. See `diagnose_port_state`.
+        """
         canonical_port_id = self.get_canonical_port_id(port_id)
         port_data = self._ports.get(canonical_port_id, None)
         unknown = to_diag_tree(Unknown(msg="Port state unknown"))
@@ -561,6 +615,11 @@ class SyncGraph:
         return diagnose_port_state(port_state)
 
     def diagnose_phc2sys_link(self, slave_state: SlaveClockState) -> DiagTree:
+        """Diagnose a phc2sys link based on slave clock state.
+
+        Returns:
+            A diagnostic tree with `servo_state` and `time_diff` diagnostics.
+        """
         phc2sys_diff_ns = slave_state.offset_ns
 
         if phc2sys_diff_ns is None:
@@ -580,6 +639,12 @@ class SyncGraph:
         )
 
     def diagnose_link(self, src: ClockId, dst: ClockId) -> DiagTree:
+        """Diagnose all direct links between two clocks.
+
+        Returns:
+            A diagnostic tree with keys `ptp_parent`, `phc2sys`, `measurement`, and `ptp_master`,
+            depending on which links exist between `src` and `dst`.
+        """
         links = self.get_links(src, dst)
         diags = {}
         for key, metadata in links:

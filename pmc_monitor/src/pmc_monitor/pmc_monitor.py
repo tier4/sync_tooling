@@ -1,3 +1,5 @@
+"""PTP Management Protocol (PMC) client for monitoring PTP instances."""
+
 import asyncio
 import logging
 import os

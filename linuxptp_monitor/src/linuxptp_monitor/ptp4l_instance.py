@@ -1,3 +1,5 @@
+"""PTP4L configuration and state parsing."""
+
 import re
 from argparse import ArgumentParser, Namespace
 from configparser import ConfigParser
@@ -23,12 +25,15 @@ from sync_tooling_msgs.warning_pb2 import Warning
 
 
 class NetworkTransport(Enum):
+    """PTP network transport type."""
+
     UDP_IPV4 = 1
     UDP_IPV6 = 2
     IEEE_802_3 = 3
 
     @classmethod
     def from_flag(cls, flag: Literal["-2", "-4", "-6"]):
+        """Create from ptp4l command-line flag."""
         match flag:
             case "-2":
                 return NetworkTransport.IEEE_802_3
@@ -39,6 +44,7 @@ class NetworkTransport(Enum):
 
     @classmethod
     def from_label(cls, label: str):
+        """Create from config file label (L2, UDPv4, UDPv6)."""
         match label:
             case "L2":
                 return NetworkTransport.IEEE_802_3
@@ -52,6 +58,7 @@ class NetworkTransport(Enum):
                 )
 
     def to_flag(self):
+        """Convert to ptp4l command-line flag."""
         match self:
             case NetworkTransport.IEEE_802_3:
                 return "-2"
@@ -63,6 +70,15 @@ class NetworkTransport(Enum):
 
 @dataclass(init=False)
 class Ptp4lConfig(LinuxPtpConfig):
+    """Configuration for a ptp4l instance.
+
+    Attributes:
+        clock: The clock used by this ptp4l instance.
+        uds_address: Unix domain socket address for PMC.
+        network_transport: The network transport type.
+        ports: List of network interface names.
+    """
+
     clock: ClockId
     uds_address: str
     network_transport: NetworkTransport
@@ -135,6 +151,14 @@ class Ptp4lConfig(LinuxPtpConfig):
 
 @dataclass
 class Ptp4lRunningState(State):
+    """Running state for ptp4l log parsing.
+
+    Attributes:
+        config: The ptp4l configuration.
+        port_states: Current state of each port by port number.
+        slave_clock_state: Current slave clock state, if available.
+    """
+
     message_re = r"\[(?P<monotonic_time_s>[0-9]+\.[0-9]+)\]\s+(?P<message>.*)\s*$"
     port_re = r"port\s+(?P<port_id>[0-9]+):\s+(?P<port_message>.*)\s*$"
     state_change_re = (

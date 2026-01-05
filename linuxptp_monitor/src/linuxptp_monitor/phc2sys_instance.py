@@ -1,3 +1,5 @@
+"""PHC2SYS configuration and state parsing."""
+
 import re
 from argparse import ArgumentParser, Namespace
 from configparser import ConfigParser
@@ -15,6 +17,14 @@ from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 
 @dataclass(init=False)
 class Phc2SysConfig(LinuxPtpConfig):
+    """Configuration for a phc2sys instance.
+
+    Attributes:
+        source_clock: The source clock being synchronized from.
+        dst_clocks: Set of destination clocks being synchronized to.
+        clock_aliases: Map of command-line clock names to canonical ClockIds.
+    """
+
     source_clock: ClockId
     dst_clocks: set[ClockId]
     clock_aliases: dict[str, ClockId]
@@ -54,6 +64,13 @@ class Phc2SysConfig(LinuxPtpConfig):
 
 @dataclass
 class Phc2SysRunningState(State):
+    """Running state for phc2sys log parsing.
+
+    Attributes:
+        config: The phc2sys configuration.
+        dst_clock_states: Current state of each destination clock.
+    """
+
     message_re = r"\[(?P<monotonic_time_s>[0-9]+\.[0-9]+)\]\s+(?P<message>.*)\s*$"
     offset_re = r"(?P<dst_clock>\w+)\s+(?P<src_clock_type>\w+)\s+offset\s+(?P<offset_ns>[+-]?\d+)\s+s(?P<servo_state>[0-3])\s+freq\s+(?P<freq_offset_ppb>[+-]?\d+)(?:\s+delay\s+(?P<delay_ns>[+-]?\d+))?"
 
@@ -61,6 +78,7 @@ class Phc2SysRunningState(State):
     dst_clock_states: dict[ClockId, SlaveClockState] = field(default_factory=dict)
 
     def _parse_offset(self, message: str):
+        """Parse an offset message, updating dst_clock_states."""
         m = re.match(Phc2SysRunningState.offset_re, message)
         if not m:
             return False
@@ -84,6 +102,7 @@ class Phc2SysRunningState(State):
         return True
 
     def parse(self, entry: JournalEntry) -> Generator[Event, None, State]:
+        """Parse a journal entry and update state."""
         if entry.message is None:
             return self
 

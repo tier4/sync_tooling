@@ -1,3 +1,5 @@
+"""Diagnostic master entry point and main class."""
+
 import signal
 import socket
 import sys
@@ -32,6 +34,9 @@ Args = namedtuple(
 
 
 class DiagMaster:
+    """Diagnostic master that subscribes to graph updates, provides a web UI, and
+    publishes ROS 2 diagnostics."""
+
     def __init__(
         self,
         topic: str,
@@ -40,6 +45,20 @@ class DiagMaster:
         enable_ros2_diagnostics: bool,
         enable_web_ui: bool,
     ) -> None:
+        """Initialize the diagnostic master.
+
+        To guarantee stable performance in the presence of network or scheduling delays, graph
+        updates are accumulated over a short time window (given by `update_expiry`), and merged
+        to build a synchronization graph. Newer updates overwrite older ones for the same entities.
+        Any updates received earlier than `update_expiry` are automatically dropped.
+
+        Args:
+            topic: ROS 2 topic to subscribe to for graph updates.
+            sync_graph_factory: Factory function to create SyncGraph instances.
+            update_expiry: How long to keep updates before expiring them.
+            enable_ros2_diagnostics: Whether to publish ROS 2 diagnostics.
+            enable_web_ui: Whether to start the web UI server.
+        """
         hostname = socket.gethostname()
 
         node_name = hostname_to_node_name(hostname)
@@ -62,9 +81,11 @@ class DiagMaster:
             self._web_ui = None
 
     def on_graph_update(self, u: GraphUpdate):
+        """Handle an incoming graph update."""
         self._update_queue.push(u)
 
     def on_diagnostic_timer(self):
+        """Periodic callback to run diagnostics, update the web UI and publish ROS 2 diagnostics."""
         sg = self.sync_graph
 
         if self._diagnostics_adapter:
@@ -74,11 +95,13 @@ class DiagMaster:
             self._web_ui.update(sg)
 
     def shutdown(self):
+        """Clean up resources and shut down the node."""
         self._diagnostic_timer.cancel()
         self._node.destroy_node()
 
     @property
     def sync_graph(self):
+        """Build and return the current sync graph from queued updates."""
         sg = self._sync_graph_factory()
         updates = self._update_queue.updates
         aggregated_updates = aggregate_clock_diff_measurements(updates)
@@ -88,6 +111,7 @@ class DiagMaster:
 
 
 def parse_args() -> Args:
+    """Parse command-line arguments."""
     parser = ArgumentParser()
     parser.add_argument("--topic", "-t", default="/sync_diag/graph_updates")
     parser.add_argument(
@@ -118,6 +142,10 @@ def parse_args() -> Args:
 
 
 def read_configs_raw(config_paths: list[str]):
+    """Read and merge multiple YAML config files.
+
+    Later files take precedence over earlier ones.
+    """
     merged_config = {}
 
     for config_path in config_paths:
@@ -132,6 +160,7 @@ def read_configs_raw(config_paths: list[str]):
 
 
 def initialize_master(args: Args):
+    """Create and configure the diagnostic master from args."""
     config_raw = read_configs_raw(args.config_files)
     if not config_raw:
         print(
@@ -158,6 +187,7 @@ def initialize_master(args: Args):
 
 
 def main():
+    """Entry point for the diagnostic master."""
     args = parse_args()
     rclpy.init(args=args.ros_args)
     diag_master = initialize_master(args)

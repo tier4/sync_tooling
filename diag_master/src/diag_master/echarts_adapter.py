@@ -1,3 +1,5 @@
+"""Adapter for converting sync graph to ECharts visualization format."""
+
 import networkx as nx
 from networkx import DiGraph
 
@@ -11,6 +13,7 @@ from sync_tooling_msgs.port_id_pb2 import PortId
 from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 from sync_tooling_msgs.unknown_pb2 import Unknown
 
+# Currently not optimized for dark mode
 DIAG_PALETTE = {
     "unknown": "#264653",
     "ok": "#2a9d8f",
@@ -23,12 +26,14 @@ REFERENCE_ONLY_DIAG = to_diag_tree(Unknown(msg="Reference link only"))
 
 
 def get_status_color(status: DiagStatus):
+    """Get the color for a diagnostic status."""
     if (severity := status.WhichOneof("status")) is not None:
         return DIAG_PALETTE[severity]
     return DIAG_PALETTE["unknown"]
 
 
 def _pretty_status_html(status: DiagStatus):
+    """Format a diagnostic status as colored HTML."""
     status_color = get_status_color(status)
     status_type = status.WhichOneof("status")
     if status_type is None:
@@ -39,6 +44,7 @@ def _pretty_status_html(status: DiagStatus):
 
 
 def _pretty_diag_html(diag: DiagTree):
+    """Format a diagnostic tree as nested HTML."""
     match diag.WhichOneof("tree"):
         case "status":
             return _pretty_status_html(diag.status)
@@ -57,6 +63,7 @@ def _pretty_diag_html(diag: DiagTree):
 
 
 def _clock_aliases_to_description(sg: SyncGraph, clock: ClockId):
+    """Generate HTML description of clock aliases."""
     aliases = [a for a in sg.get_sorted_aliases(clock) if a != clock]
 
     aliases_html = "Known aliases: "
@@ -74,6 +81,7 @@ def _clock_aliases_to_description(sg: SyncGraph, clock: ClockId):
 
 
 def _port_diags_to_description(sg: SyncGraph, clock: ClockId):
+    """Generate HTML description of port diagnostics."""
     ports = sorted(sg.get_ports(clock), key=lambda port: port.port_number)
 
     ports_html = "PTP ports: "
@@ -97,6 +105,7 @@ def _port_diags_to_description(sg: SyncGraph, clock: ClockId):
 def _clock_to_echart_data(
     sg: SyncGraph, clock: ClockId, position: tuple[float, float] | None = None
 ):
+    """Convert a clock node to ECharts node data."""
     extended_description = []
 
     if clock in sg._graph:
