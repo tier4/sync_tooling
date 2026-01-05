@@ -23,6 +23,7 @@ def get_subtree(d: dict, key: str, typ: type, yaml_path: str = ""):
 
     Returns:
         The value at the specified key, cast to the expected type.
+
     """
     if key not in d:
         prefix = f"{yaml_path}." if yaml_path else ""
@@ -31,8 +32,7 @@ def get_subtree(d: dict, key: str, typ: type, yaml_path: str = ""):
 
 
 def clock_tree_to_digraph(clock_tree: dict) -> nx.DiGraph:
-    """
-    Transform a tree-shaped dict of clock IDs to a digraph.
+    """Transform a tree-shaped dict of clock IDs to a digraph.
 
     Examples:
         >>> tree = {"main.sys": {"sub.sys": {"other.sys"}}}
@@ -44,6 +44,7 @@ def clock_tree_to_digraph(clock_tree: dict) -> nx.DiGraph:
 
     Returns:
         nx.DiGraph: The parsed, valid graph
+
     """
 
     def _tree_to_edges(
@@ -80,6 +81,7 @@ def parse_unit(unit: str) -> Literal["ns", "us", "ms"]:
 
     Returns:
         The validated unit literal.
+
     """
     match unit:
         case "ns" | "us" | "ms":
@@ -120,6 +122,7 @@ def to_sync_graph_args(yaml_config: dict) -> tuple[Config, DiGraph]:
 
     Returns:
         A tuple of (config, reference_graph) for SyncGraph initialization.
+
     """
     diagnostics = get_subtree(yaml_config, "diagnostics", dict)
     thresholds = get_subtree(diagnostics, "diff_thresholds", dict)

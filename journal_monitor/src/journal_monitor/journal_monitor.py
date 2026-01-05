@@ -21,6 +21,7 @@ class JournalEntry:
         unit: The systemd unit that produced the entry.
         message: The log message content.
         priority: The syslog priority level.
+
     """
 
     class Priority(Enum):

@@ -37,6 +37,7 @@ class Ptp4lMonitorTask(MonitorTask):
 
         Raises:
             FileNotFoundError: If the unit does not exist.
+
         """
         if not does_unit_exist(unit_name):
             raise FileNotFoundError(f"Unit {unit_name} was not found on this system")
@@ -79,6 +80,7 @@ class Ptp4lMonitorTask(MonitorTask):
         )
 
     def __str__(self) -> str:
+        """Return a string representation of the task."""
         return f"{self.__class__.__name__}(hostname={self.hostname_}, unit={self.unit_name_})"
 
     def _create_pmc_monitor(self, config: Ptp4lConfig):
@@ -195,5 +197,6 @@ class Ptp4lMonitorTask(MonitorTask):
                     yield graph_update
 
     def stop(self):
+        """Stop the monitor task and reset the PMC monitor."""
         super().stop()
         self._reset_pmc_monitor()

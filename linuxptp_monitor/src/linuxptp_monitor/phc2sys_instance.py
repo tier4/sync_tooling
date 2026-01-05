@@ -23,6 +23,7 @@ class Phc2SysConfig(LinuxPtpConfig):
         source_clock: The source clock being synchronized from.
         dst_clocks: Set of destination clocks being synchronized to.
         clock_aliases: Map of command-line clock names to canonical ClockIds.
+
     """
 
     source_clock: ClockId
@@ -30,6 +31,7 @@ class Phc2SysConfig(LinuxPtpConfig):
     clock_aliases: dict[str, ClockId]
 
     def add_args_app_specific(self, parser: ArgumentParser) -> None:
+        """Add phc2sys-specific arguments to the parser."""
         parser.add_argument("-a", action="store_true", dest="do_auto_conf")
         parser.add_argument("-d", dest="pps_source")
         parser.add_argument("--uds_address", "-z")
@@ -37,6 +39,7 @@ class Phc2SysConfig(LinuxPtpConfig):
         parser.add_argument("-c", action="append", dest="dst_clocks")
 
     def validate_args_app_specific(self, args: Namespace) -> None:
+        """Validate phc2sys-specific arguments."""
         if args.do_auto_conf:
             raise NotImplementedError("Cannot handle PHC2SYS auto config yet")
         if args.pps_source is not None:
@@ -59,6 +62,7 @@ class Phc2SysConfig(LinuxPtpConfig):
             self.dst_clocks.add(canonicalized)
 
     def override_app_specific(self, args: Namespace, config: ConfigParser) -> list[str]:
+        """Return list of args that override config file settings."""
         return ["do_auto_conf", "source_clock", "dst_clocks", "pps_source"]
 
 
@@ -69,6 +73,7 @@ class Phc2SysRunningState(State):
     Attributes:
         config: The phc2sys configuration.
         dst_clock_states: Current state of each destination clock.
+
     """
 
     message_re = r"\[(?P<monotonic_time_s>[0-9]+\.[0-9]+)\]\s+(?P<message>.*)\s*$"

@@ -34,8 +34,11 @@ Args = namedtuple(
 
 
 class DiagMaster:
-    """Diagnostic master that subscribes to graph updates, provides a web UI, and
-    publishes ROS 2 diagnostics."""
+    """Diagnostic master providing a web UI and ROS 2 diagnostics.
+
+    The master subscribes to graph updates on a given ROS 2 topic, builds a synchronization graph
+    from the received updates, and provides diagnostics via ROS 2 and a web UI.
+    """
 
     def __init__(
         self,
@@ -58,6 +61,7 @@ class DiagMaster:
             update_expiry: How long to keep updates before expiring them.
             enable_ros2_diagnostics: Whether to publish ROS 2 diagnostics.
             enable_web_ui: Whether to start the web UI server.
+
         """
         hostname = socket.gethostname()
 

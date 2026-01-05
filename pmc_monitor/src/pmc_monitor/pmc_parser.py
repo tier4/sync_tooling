@@ -36,6 +36,7 @@ class Some:
 
     Attributes:
         x: The parsed value.
+
     """
 
     x: Any
@@ -48,6 +49,7 @@ class ParseError:
     Attributes:
         trace: Stack of parser contexts where the error occurred.
         rest: Remaining unparsed text.
+
     """
 
     trace: list[str]
@@ -193,6 +195,7 @@ def parse(text: str, logger: logging.Logger | None = None) -> list[Message]:
 
     Returns:
         List of parsed Message objects.
+
     """
     if logger is None:
         logger = logging.getLogger("TLV parser")

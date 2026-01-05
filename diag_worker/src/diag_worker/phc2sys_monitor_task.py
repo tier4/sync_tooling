@@ -24,6 +24,7 @@ class Phc2SysMonitorTask(MonitorTask):
 
         Raises:
             FileNotFoundError: If the unit does not exist.
+
         """
         if not does_unit_exist(unit_name):
             raise FileNotFoundError(f"Unit {unit_name} was not found on this system")
@@ -57,6 +58,7 @@ class Phc2SysMonitorTask(MonitorTask):
         )
 
     def __str__(self) -> str:
+        """Return a string representation of the task."""
         return f"{self.__class__.__name__}(hostname={self.hostname_}, unit={self.unit_name_})"
 
     def phc2sys_to_graph_updates(self, state_change: SystemdUnitStateChange):

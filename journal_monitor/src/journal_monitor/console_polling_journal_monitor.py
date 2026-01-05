@@ -36,15 +36,18 @@ class ConsolePollingJournalMonitor(JournalMonitor):
         self._previous_cursor: str | None = None
 
     def only_current_boot(self) -> JournalMonitor:
+        """Filter to only entries from the current boot."""
         self._flags.add("--boot")
         return self
 
     def only_systemd_unit(self, unit_name: str) -> JournalMonitor:
+        """Filter to only entries from the specified unit."""
         self._flags = {f for f in self._flags if not f.startswith("--unit=")}
         self._flags.add(f"--unit={unit_name}")
         return self
 
     def only_from_seconds_ago(self, seconds: int) -> JournalMonitor:
+        """Filter to only entries from the last N seconds."""
         self._startup_flags.add(f"--since=-{seconds}s")
         return self
 

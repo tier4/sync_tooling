@@ -28,6 +28,7 @@ class SystemdUnitStateChange:
     Attributes:
         old_state: The previous state.
         new_state: The new state.
+
     """
 
     old_state: State
@@ -46,6 +47,7 @@ class SystemdUnitStateMachine:
         Attributes:
             factory: Factory function to create the initial running state. Called when the
                 unit starts. Can be called multiple times if the unit restarts.
+
         """
 
         factory: Callable[[], State | None] = field(repr=False)
@@ -59,6 +61,7 @@ class SystemdUnitStateMachine:
             return next_state
 
         def __eq__(self, value: object) -> bool:
+            """Check equality with another Uninitialized state."""
             return isinstance(value, SystemdUnitStateMachine.Uninitialized)
 
     def __init__(
@@ -73,6 +76,7 @@ class SystemdUnitStateMachine:
             inner_state_factory: Factory to create the running state.
             inner_state_on_exit: Callback when the unit stops.
             unit_name: The systemd unit name to monitor.
+
         """
         self._factory = inner_state_factory
         self._on_unit_stopped = inner_state_on_exit

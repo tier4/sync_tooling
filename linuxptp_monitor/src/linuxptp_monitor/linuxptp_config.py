@@ -16,11 +16,12 @@ class LinuxPtpConfig(ABC):
     Common config options shared between all LinuxPTP applications are handled
     here, while additional application-specific options are handled by subclasses.
 
-    See also:
+    See Also:
         https://linux.die.net/man/8/ptp4l
 
     Attributes:
         config: The parsed ConfigParser instance.
+
     """
 
     config: ConfigParser = field(repr=False)
@@ -40,6 +41,7 @@ class LinuxPtpConfig(ABC):
 
         Args:
             argv: Command-line arguments including program name.
+
         """
         self.config = self._parse(argv)
 

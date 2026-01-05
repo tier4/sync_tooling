@@ -18,6 +18,7 @@ def _find_ethtool():
 
     Returns:
         str: Path to ethtool binary.
+
     """
     ethtool = shutil.which("ethtool")
     if ethtool is None:
@@ -28,15 +29,15 @@ def _find_ethtool():
 
 
 def get_canonicalized_clock(identifier: str) -> ClockId:
-    """Get the canonical identifier of the clock specified by `identifier`
+    """Get the canonical identifier of the clock specified by `identifier`.
 
     Args:
-        identifier (str): An interface name (e.g. "eth0"), PTP clock path (e.g. "/dev/ptp0") or the string "CLOCK_REALTIME"
+        identifier: An interface name (e.g. "eth0"), PTP clock path (e.g. "/dev/ptp0") or the
+            string "CLOCK_REALTIME"
 
     Returns:
-        ClockId: The canonicalized identifier.
+        The canonicalized clock identifier.
     """
-
     hostname = get_hostname()
 
     def make_system_clock_id():

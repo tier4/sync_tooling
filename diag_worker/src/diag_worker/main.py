@@ -37,6 +37,7 @@ class DiagWorker:
         Raises:
             RuntimeError: If hostname cannot be determined.
             ValueError: If no units are specified.
+
         """
         hostname = socket.gethostname()
         if not hostname:

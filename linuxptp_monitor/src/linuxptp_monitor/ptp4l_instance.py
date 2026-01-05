@@ -77,6 +77,7 @@ class Ptp4lConfig(LinuxPtpConfig):
         uds_address: Unix domain socket address for PMC.
         network_transport: The network transport type.
         ports: List of network interface names.
+
     """
 
     clock: ClockId
@@ -85,6 +86,7 @@ class Ptp4lConfig(LinuxPtpConfig):
     ports: list[str]
 
     def add_args_app_specific(self, parser: ArgumentParser) -> None:
+        """Add ptp4l-specific arguments to the parser."""
         parser.add_argument("-i", action="append", dest="ports")
         parser.add_argument("-p", metavar="phc-device", dest="phc_device")
         parser.add_argument(
@@ -109,10 +111,12 @@ class Ptp4lConfig(LinuxPtpConfig):
         parser.add_argument("--domainNumber", type=int)
 
     def validate_args_app_specific(self, args: Namespace) -> None:
+        """Validate ptp4l-specific arguments."""
         if args.phc_device is not None:
             raise NotImplementedError("Cannot handle deprecated `-p` option")
 
     def override_app_specific(self, args: Namespace, config: ConfigParser) -> list[str]:
+        """Return list of args that override config file settings."""
         for port in args.ports:
             if port not in config.sections():
                 config.add_section(port)
@@ -120,6 +124,7 @@ class Ptp4lConfig(LinuxPtpConfig):
         return ["ports", "phc_device", "legacy_timestamping"]
 
     def validate_config_app_specific(self, config: ConfigParser) -> None:
+        """Validate ptp4l-specific configuration."""
         ports = [section for section in config.sections() if section != "global"]
 
         time_stamping = config["global"]["time_stamping"]
@@ -157,6 +162,7 @@ class Ptp4lRunningState(State):
         config: The ptp4l configuration.
         port_states: Current state of each port by port number.
         slave_clock_state: Current slave clock state, if available.
+
     """
 
     message_re = r"\[(?P<monotonic_time_s>[0-9]+\.[0-9]+)\]\s+(?P<message>.*)\s*$"
@@ -228,6 +234,7 @@ class Ptp4lRunningState(State):
         )  # type: ignore
 
     def parse(self, entry: JournalEntry):
+        """Parse a journal entry and yield graph update events."""
         if entry.message is None:
             return self
 

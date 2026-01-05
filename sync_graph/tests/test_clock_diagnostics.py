@@ -29,10 +29,7 @@ from .util import (
 def test_single_clock(
     nic_port, clock_setup, self_reported_state, expected_status, config
 ):
-    """
-    A single clock by itself shall always be `Ok`, even if it has faulty ports.
-    """
-
+    """A single clock by itself shall always be `Ok`, even if it has faulty ports."""
     clock_id = nic_port.clock_id
 
     us = []
@@ -62,10 +59,7 @@ def test_single_clock(
 
 
 def test_cycle(sample_clock, remote_clock, nic_clock, config):
-    """
-    All clocks in a cycle shall be diagnosed as `Error`, clocks not in the cycle shall be unaffected.
-    """
-
+    """All clocks in a cycle shall be diagnosed as `Error`, clocks not in the cycle shall be unaffected."""
     cycle_clock_1 = sample_clock
     cycle_clock_2 = nic_clock
     unaffected_clock = remote_clock

@@ -46,6 +46,7 @@ def regex_from_tlv(cls: T) -> T:
 
     Returns:
         The decorated class with a regex attribute.
+
     """
     if not hasattr(cls, "__name__"):
         raise TypeError(f"{type(cls)} is not a class")
@@ -87,6 +88,7 @@ class PortIdentity:
     Attributes:
         clock_id: The clock identity string (e.g., '000000.fffe.000000').
         port_number: The port number.
+
     """
 
     regex = re.compile(r"(?P<clock_id>[\da-f\.]+)-(?P<port_number>\d+)")
@@ -97,6 +99,8 @@ class PortIdentity:
 @regex_from_tlv
 @dataclass
 class ClockDescription:
+    """PTP clock description TLV."""
+
     tlv_type = "CLOCK_DESCRIPTION"
     clockType: int
     physicalLayerProtocol: str
@@ -112,6 +116,8 @@ class ClockDescription:
 @regex_from_tlv
 @dataclass
 class UserDescription:
+    """PTP user description TLV."""
+
     tlv_type = "USER_DESCRIPTION"
     userDescription: str
 
@@ -119,6 +125,8 @@ class UserDescription:
 @regex_from_tlv
 @dataclass
 class DefaultDataSet:
+    """PTP default data set TLV."""
+
     tlv_type = "DEFAULT_DATA_SET"
     twoStepFlag: int
     slaveOnly: int
@@ -135,6 +143,8 @@ class DefaultDataSet:
 @regex_from_tlv
 @dataclass
 class CurrentDataSet:
+    """PTP current data set TLV."""
+
     tlv_type = "CURRENT_DATA_SET"
     stepsRemoved: int
     offsetFromMaster: float
@@ -144,6 +154,8 @@ class CurrentDataSet:
 @regex_from_tlv
 @dataclass
 class ParentDataSet:
+    """PTP parent data set TLV."""
+
     tlv_type = "PARENT_DATA_SET"
     parentPortIdentity: PortIdentity
     parentStats: int
@@ -160,6 +172,8 @@ class ParentDataSet:
 @regex_from_tlv
 @dataclass
 class TimePropertiesDataSet:
+    """PTP time properties data set TLV."""
+
     tlv_type = "TIME_PROPERTIES_DATA_SET"
     currentUtcOffset: int
     leap61: int
@@ -174,6 +188,8 @@ class TimePropertiesDataSet:
 @regex_from_tlv
 @dataclass
 class Priority1:
+    """PTP priority1 TLV."""
+
     tlv_type = "PRIORITY1"
     priority1: int
 
@@ -181,6 +197,8 @@ class Priority1:
 @regex_from_tlv
 @dataclass
 class Priority2:
+    """PTP priority2 TLV."""
+
     tlv_type = "PRIORITY2"
     priority2: int
 
@@ -188,6 +206,8 @@ class Priority2:
 @regex_from_tlv
 @dataclass
 class Domain:
+    """PTP domain TLV."""
+
     tlv_type = "DOMAIN"
     domainNumber: int
 
@@ -195,6 +215,8 @@ class Domain:
 @regex_from_tlv
 @dataclass
 class SlaveOnly:
+    """PTP slave-only TLV."""
+
     tlv_type = "SLAVE_ONLY"
     slaveOnly: int
 
@@ -202,6 +224,8 @@ class SlaveOnly:
 @regex_from_tlv
 @dataclass
 class ClockAccuracy:
+    """PTP clock accuracy TLV."""
+
     tlv_type = "CLOCK_ACCURACY"
     clockAccuracy: int
 
@@ -209,6 +233,8 @@ class ClockAccuracy:
 @regex_from_tlv
 @dataclass
 class TraceabilityProperties:
+    """PTP traceability properties TLV."""
+
     tlv_type = "TRACEABILITY_PROPERTIES"
     timeTraceable: int
     frequencyTraceable: int
@@ -217,6 +243,8 @@ class TraceabilityProperties:
 @regex_from_tlv
 @dataclass
 class TimescaleProperties:
+    """PTP timescale properties TLV."""
+
     tlv_type = "TIMESCALE_PROPERTIES"
     ptpTimescale: int
 
@@ -224,6 +252,8 @@ class TimescaleProperties:
 @regex_from_tlv
 @dataclass
 class AlternateTimeOffsetEnable:
+    """PTP alternate time offset enable TLV."""
+
     tlv_type = "ALTERNATE_TIME_OFFSET_ENABLE"
     keyField: int
     enable: int
@@ -232,6 +262,8 @@ class AlternateTimeOffsetEnable:
 @regex_from_tlv
 @dataclass
 class AlternateTimeOffsetName:
+    """PTP alternate time offset name TLV."""
+
     tlv_type = "ALTERNATE_TIME_OFFSET_NAME"
     keyField: int
     displayName: str
@@ -240,6 +272,8 @@ class AlternateTimeOffsetName:
 @regex_from_tlv
 @dataclass
 class AlternateTimeOffsetProperties:
+    """PTP alternate time offset properties TLV."""
+
     tlv_type = "ALTERNATE_TIME_OFFSET_PROPERTIES"
     keyField: int
     currentOffset: int
@@ -250,6 +284,8 @@ class AlternateTimeOffsetProperties:
 @regex_from_tlv
 @dataclass
 class MasterOnly:
+    """PTP master-only TLV."""
+
     tlv_type = "MASTER_ONLY"
     masterOnly: int
 
@@ -257,6 +293,8 @@ class MasterOnly:
 @regex_from_tlv
 @dataclass
 class TimeStatusNp:
+    """LinuxPTP time status TLV."""
+
     tlv_type = "TIME_STATUS_NP"
     master_offset: int
     ingress_time: int
@@ -271,6 +309,8 @@ class TimeStatusNp:
 @regex_from_tlv
 @dataclass
 class GrandmasterSettingsNp:
+    """LinuxPTP grandmaster settings TLV."""
+
     tlv_type = "GRANDMASTER_SETTINGS_NP"
     clockClass: int
     clockAccuracy: int
@@ -288,6 +328,8 @@ class GrandmasterSettingsNp:
 @regex_from_tlv
 @dataclass
 class SubscribeEventsNp:
+    """LinuxPTP subscribe events TLV."""
+
     tlv_type = "SUBSCRIBE_EVENTS_NP"
     duration: int
     NOTIFY_PORT_STATE: str
@@ -299,6 +341,8 @@ class SubscribeEventsNp:
 @regex_from_tlv
 @dataclass
 class SynchronizationUncertainNp:
+    """LinuxPTP synchronization uncertain TLV."""
+
     tlv_type = "SYNCHRONIZATION_UNCERTAIN_NP"
     uncertain: int
 
@@ -306,6 +350,8 @@ class SynchronizationUncertainNp:
 @regex_from_tlv
 @dataclass
 class PortDataSet:
+    """PTP port data set TLV."""
+
     tlv_type = "PORT_DATA_SET"
     portIdentity: PortIdentity
     portState: str
@@ -322,6 +368,8 @@ class PortDataSet:
 @regex_from_tlv
 @dataclass
 class PortDataSetNp:
+    """LinuxPTP port data set TLV."""
+
     tlv_type = "PORT_DATA_SET_NP"
     neighborPropDelayThresh: int
     asCapable: int
@@ -330,6 +378,8 @@ class PortDataSetNp:
 @regex_from_tlv
 @dataclass
 class PortPropertiesNp:
+    """LinuxPTP port properties TLV."""
+
     tlv_type = "PORT_PROPERTIES_NP"
     portIdentity: PortIdentity
     portState: str
@@ -340,6 +390,8 @@ class PortPropertiesNp:
 @regex_from_tlv
 @dataclass
 class PortStatsNp:
+    """LinuxPTP port statistics TLV."""
+
     tlv_type = "PORT_STATS_NP"
     portIdentity: PortIdentity
     rx_Sync: int
@@ -367,6 +419,8 @@ class PortStatsNp:
 @regex_from_tlv
 @dataclass
 class PortServiceStatsNp:
+    """LinuxPTP port service statistics TLV."""
+
     tlv_type = "PORT_SERVICE_STATS_NP"
     portIdentity: PortIdentity
     announce_timeout: int
@@ -384,6 +438,8 @@ class PortServiceStatsNp:
 @regex_from_tlv
 @dataclass
 class PortHwclockNp:
+    """LinuxPTP port hardware clock TLV."""
+
     tlv_type = "PORT_HWCLOCK_NP"
     portIdentity: PortIdentity
     phcIndex: int
@@ -393,6 +449,8 @@ class PortHwclockNp:
 @regex_from_tlv
 @dataclass
 class PowerProfileSettingsNp:
+    """LinuxPTP power profile settings TLV."""
+
     tlv_type = "POWER_PROFILE_SETTINGS_NP"
     version: int
     grandmasterID: int
@@ -404,6 +462,8 @@ class PowerProfileSettingsNp:
 @regex_from_tlv
 @dataclass
 class CmldsInfoNp:
+    """LinuxPTP CMLDS info TLV."""
+
     tlv_type = "CMLDS_INFO_NP"
     meanLinkDelay: int
     scaledNeighborRateRatio: int
@@ -413,6 +473,8 @@ class CmldsInfoNp:
 @regex_from_tlv
 @dataclass
 class LogAnnounceInterval:
+    """PTP log announce interval TLV."""
+
     tlv_type = "LOG_ANNOUNCE_INTERVAL"
     logAnnounceInterval: int
 
@@ -420,6 +482,8 @@ class LogAnnounceInterval:
 @regex_from_tlv
 @dataclass
 class AnnounceReceiptTimeout:
+    """PTP announce receipt timeout TLV."""
+
     tlv_type = "ANNOUNCE_RECEIPT_TIMEOUT"
     announceReceiptTimeout: int
 
@@ -427,6 +491,8 @@ class AnnounceReceiptTimeout:
 @regex_from_tlv
 @dataclass
 class LogSyncInterval:
+    """PTP log sync interval TLV."""
+
     tlv_type = "LOG_SYNC_INTERVAL"
     logSyncInterval: int
 
@@ -434,6 +500,8 @@ class LogSyncInterval:
 @regex_from_tlv
 @dataclass
 class VersionNumber:
+    """PTP version number TLV."""
+
     tlv_type = "VERSION_NUMBER"
     versionNumber: int
 
@@ -441,6 +509,8 @@ class VersionNumber:
 @regex_from_tlv
 @dataclass
 class DelayMechanism:
+    """PTP delay mechanism TLV."""
+
     tlv_type = "DELAY_MECHANISM"
     delayMechanism: int
 
@@ -448,18 +518,24 @@ class DelayMechanism:
 @regex_from_tlv
 @dataclass
 class LogMinPdelayReqInterval:
+    """PTP log min pdelay request interval TLV."""
+
     tlv_type = "LOG_MIN_PDELAY_REQ_INTERVAL"
     logMinPdelayReqInterval: int
 
 
 @dataclass
 class Empty:
+    """Empty TLV placeholder."""
+
     tlv_type = "EMPTY"
     regex = re.compile(r"empty-tlv\s*(\n|$)")
 
 
 @dataclass
 class NullManagement:
+    """Null management TLV."""
+
     tlv_type = "NULL_MANAGEMENT"
     regex = re.compile(r"\s*(\n|$)")
 
@@ -507,6 +583,8 @@ ManagementTlvPayload = (
 
 @dataclass
 class ManagementTlv:
+    """PMC management TLV wrapper."""
+
     regex = re.compile(
         r"MANAGEMENT\s+(?P<payload>" + regex_from_tlv_union(ManagementTlvPayload) + ")"
     )
@@ -515,11 +593,15 @@ class ManagementTlv:
 
 @dataclass
 class ManagementErrorStatusTlv:
+    """PMC management error status TLV."""
+
     regex = re.compile(r"MANAGEMENT_ERROR_STATUS\s*(\n|$)")
 
 
 @dataclass
 class UnknownTlv:
+    """Unknown TLV placeholder."""
+
     regex = re.compile(r"unknown-tlv\s*(\n|$)")
 
 
@@ -528,6 +610,8 @@ ResponseTlvPayload = ManagementTlv | ManagementErrorStatusTlv | UnknownTlv
 
 @dataclass
 class Response:
+    """A parsed PMC response message."""
+
     regex = re.compile(
         r"\s+(?P<source_port>[\da-f\.-]+)\s+seq\s+(?P<seq>\d+)\s+(?P<action>\w+)\s*?(?P<tlv>"
         + regex_from_tlv_union(ResponseTlvPayload)
@@ -542,6 +626,8 @@ class Response:
 
 @dataclass
 class Request:
+    """A parsed PMC request message."""
+
     regex = re.compile(r"\s*sending: (?P<action>\w+)\s+(?P<tlv_type>\w+)\s*\n")
     action: str
     tlv_type: str

@@ -26,6 +26,7 @@ class Ros2Server:
 
         Args:
             msg: The received ROS 2 message.
+
         """
         u = GraphUpdate()
         try:

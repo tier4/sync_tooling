@@ -20,6 +20,7 @@ class PtpPort:
 
     Attributes:
         port_ds: The port dataset from PMC.
+
     """
 
     port_ds: PortDataSet
@@ -40,6 +41,7 @@ class PtpInstance:
         current_ds: The current dataset, if available.
         parent_ds: The parent dataset, if available.
         ports: Map of port number to PtpPort.
+
     """
 
     is_local_instance: bool

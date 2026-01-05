@@ -1,10 +1,13 @@
 import importlib
 import json
+from typing import TYPE_CHECKING
 
 import jinja2
 
 from diag_master.echarts_adapter import sync_graph_to_echart_options
-from sync_graph.sync_graph import SyncGraph
+
+if TYPE_CHECKING:
+    from sync_graph.sync_graph import SyncGraph
 
 ECHART_TEMPLATE = """
 <script src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
@@ -19,9 +22,7 @@ ECHART_TEMPLATE = """
 def define_env(env):
     @env.macro
     def label(label: str):
-        """
-        Creates an anchor rendering as the given `label` and referenceable through the same label.
-
+        """Creates an anchor rendering as the given `label` and referenceable through the same label.
 
         Args:
             label: The text that serves as both the anchor ID and the rendered text. Has to be a
@@ -29,17 +30,18 @@ def define_env(env):
 
         Returns:
             The rendered markdown.
+
         """
         return f"[{label}](#{label}){{ #{label} }}"
 
     @env.macro
     def ref(label: str):
-        """
-        Creates a reference to the anchor with the given `label`. The reference is rendered as
+        """Creates a reference to the anchor with the given `label`. The reference is rendered as
         a link with the given `label` as link text.
 
         Args:
             label: The label to reference.
+
         """
         return f"[{label}][{label}]"
 
@@ -55,6 +57,7 @@ def define_env(env):
         echart_options = sync_graph_to_echart_options(sg)
         echart_options["title"]["show"] = False
         echart_options["backgroundColor"] = "transparent"
+        echart_options["series"][0]["roam"] = False
         echart_options_json = json.dumps(echart_options)
 
         template = jinja2.Template(ECHART_TEMPLATE)

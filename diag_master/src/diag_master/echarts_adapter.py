@@ -209,8 +209,9 @@ def _link_to_echart_link(sg: SyncGraph, src: ClockId, dst: ClockId):
 
 
 def _layout_circular(g: DiGraph) -> dict[ClockId, tuple[float, float]]:
-    """
-    Lay out a tree-like graph in a concentric manner. A root node in the center is surrounded by
+    """Lay out a tree-like graph in a concentric manner.
+
+    A root node in the center is surrounded by
     concentric rings roughly equivalent to the topological generations of the graph.
 
     See https://graphviz.org/docs/layouts/twopi/ for more information.
@@ -220,8 +221,8 @@ def _layout_circular(g: DiGraph) -> dict[ClockId, tuple[float, float]]:
 
     Returns:
         A dictionary mapping each node to the layout position (x, y).
-    """
 
+    """
     h = nx.convert_node_labels_to_integers(g, label_attribute="node_label")
     layout = nx.nx_pydot.pydot_layout(h, prog="twopi")
     return {h.nodes[n]["node_label"]: p for n, p in layout.items()}
@@ -337,6 +338,7 @@ def _sync_graph_to_echart_data_and_links(
 
 
 def sync_graph_to_echart_options(sg: SyncGraph):
+    """Convert a SyncGraph to an ECharts options dict containing a graph series."""
     data, links = _sync_graph_to_echart_data_and_links(sg)
 
     option = {
