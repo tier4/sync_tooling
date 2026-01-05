@@ -1,15 +1,15 @@
 """YAML configuration parsing for sync graph setup."""
 
-from typing import Literal
+from typing import Any, Literal
 
 import networkx as nx
 from networkx import DiGraph
-
-from sync_graph.sync_graph import Config, DiffThresholds
 from sync_tooling_msgs.clock_id import parse_clock_id
 
+from sync_graph.sync_graph import Config, DiffThresholds
 
-def get_subtree(d: dict, key: str, typ: type, yaml_path: str = ""):
+
+def get_subtree(d: dict, key: str, typ: type, yaml_path: str = "") -> Any:
     """Get a required key from a dict, raising ValueError if missing.
 
     Args:
