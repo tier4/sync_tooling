@@ -13,6 +13,7 @@ The tools currently handle monitoring
 - local and remote PTP instances by implementing a PTP Management Client
 
 Documentation is available at [**sync-tooling.pages.dev**](https://sync-tooling.pages.dev/) :book:
+(log in with your `@tier4.jp` email address).
 
 ## Ansible (Recommended)
 

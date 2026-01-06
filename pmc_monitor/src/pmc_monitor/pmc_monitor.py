@@ -1,3 +1,19 @@
+# Copyright 2025 TIER IV, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""PTP Management Protocol (PMC) client for monitoring PTP instances."""
+
 import asyncio
 import logging
 import os
@@ -25,9 +41,7 @@ from pmc_monitor.ptp_instance import PtpInstance, PtpPort
 
 
 def _safe_read(pipe: IO[bytes] | None) -> str | None:
-    """
-    Read from a pipe, returning None if the pipe is closed.
-    """
+    """Read from a pipe, returning None if the pipe is closed."""
     if pipe is None:
         raise RuntimeError("Broken pipe")
     encoded: bytes | None = pipe.read()
@@ -37,9 +51,7 @@ def _safe_read(pipe: IO[bytes] | None) -> str | None:
 
 
 class PmcMonitor:
-    """
-    Monitor PTP instances for their current state through the PTP Management Protocol (PMC).
-    """
+    """Monitor PTP instances for their current state through the PTP Management Protocol (PMC)."""
 
     # The set of PMC datasets that will be polled
     monitored_datasets = (
@@ -52,8 +64,7 @@ class PmcMonitor:
     def __init__(
         self, pmc_args: List[str], logger: Logger | None = None, max_wait_s: float = 0.1
     ):
-        """
-        Construct a new PmcMonitor.
+        """Construct a new PmcMonitor.
 
         Args:
             pmc_args: The arguments to pass to the `pmc` command. See `man pmc` for more information.
@@ -62,6 +73,7 @@ class PmcMonitor:
 
         Raises:
             RuntimeError: If `pmc` is not found in `PATH`.
+
         """
         pmc = shutil.which("pmc")
         if pmc is None:
@@ -89,18 +101,16 @@ class PmcMonitor:
         self._logger.setLevel(logging.INFO)
 
     def stop(self):
-        """
-        Stop the PMC process.
-        """
+        """Stop the PMC process."""
         self._pmc.send_signal(SIGINT)
         self._pmc.wait()
 
     async def query_dataset(self, dataset: str):
-        """
-        Send a PMC GET command for the given dataset. Receiving has to be handled by the caller.
+        """Send a PMC GET command for the given dataset. Receiving has to be handled by the caller.
 
         Args:
             dataset: The dataset to query, e.g. "DEFAULT_DATA_SET".
+
         """
         if (return_code := self._pmc.poll()) is not None:
             raise RuntimeError(
@@ -119,13 +129,13 @@ class PmcMonitor:
         source_port: PortIdentity,
         ptp_instances: dict[str, PtpInstance],
     ):
-        """
-        Update `ptp_instances` with the given management TLV.
+        """Update `ptp_instances` with the given management TLV.
 
         Args:
             mgmt_tlv: The received management TLV. Only basic data sets are supported.
             source_port: The port that sent the TLV.
             ptp_instances: The collection of PTP instances to update.
+
         """
         ptp_instance = ptp_instances.get(source_port.clock_id)
 
@@ -150,9 +160,9 @@ class PmcMonitor:
                 )
 
     def _handle_response(self, resp: Response, ptp_instances: dict[str, PtpInstance]):
-        """
-        Handle a PMC response. Does not raise on error but instead logs a warning. The given
-        `ptp_instances` will be updated with the received TLVs.
+        """Handle a PMC response and update `ptp_instances` state.
+
+        Does not raise on error but instead logs a warning.
 
         Args:
             resp: The received response.
@@ -180,12 +190,12 @@ class PmcMonitor:
                 )
 
     def _handle_message(self, message: Message, ptp_instances: dict[str, PtpInstance]):
-        """
-        Handle a PMC message. If a response is received, its contents will be added to `ptp_instances`.
+        """Handle a PMC message. If a response is received, its contents will be added to `ptp_instances`.
 
         Args:
             message: The received message.
             ptp_instances: The collection of PTP instances to update.
+
         """
         match message:
             case Request() as req:
@@ -198,14 +208,14 @@ class PmcMonitor:
                 )
 
     async def poll(self):
-        """
-        Poll PTP instances for their current state through the PTP Management Protocol (PMC).
+        """Poll PTP instances for their current state through the PTP Management Protocol (PMC).
 
         Raises:
             RuntimeError: When the PMC process exits unexpectedly.
 
         Yields(PtpInstance):
             The current state of a PTP instance.
+
         """
         ptp_instances: dict[str, PtpInstance] = {}
 

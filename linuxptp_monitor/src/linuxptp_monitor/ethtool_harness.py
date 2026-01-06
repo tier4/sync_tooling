@@ -1,14 +1,40 @@
+# Copyright 2025 TIER IV, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Ethtool integration for clock device discovery."""
+
 import re
 import shutil
 import subprocess
 
-from linuxptp_monitor.util import get_hostname
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.linux_clock_device_id_pb2 import LinuxClockDeviceId
 from sync_tooling_msgs.system_clock_id_pb2 import SystemClockId
 
+from linuxptp_monitor.util import get_hostname
+
 
 def _find_ethtool():
+    """Find ethtool binary in PATH.
+
+    Raise:
+        RuntimeError: If ethtool is not found.
+
+    Returns:
+        str: Path to ethtool binary.
+
+    """
     ethtool = shutil.which("ethtool")
     if ethtool is None:
         raise RuntimeError(
@@ -18,15 +44,15 @@ def _find_ethtool():
 
 
 def get_canonicalized_clock(identifier: str) -> ClockId:
-    """Get the canonical identifier of the clock specified by `identifier`
+    """Get the canonical identifier of the clock specified by `identifier`.
 
     Args:
-        identifier (str): An interface name (e.g. "eth0"), PTP clock path (e.g. "/dev/ptp0") or the string "CLOCK_REALTIME"
+        identifier: An interface name (e.g. "eth0"), PTP clock path (e.g. "/dev/ptp0") or the
+            string "CLOCK_REALTIME"
 
     Returns:
-        ClockId: The canonicalized identifier.
+        The canonicalized clock identifier.
     """
-
     hostname = get_hostname()
 
     def make_system_clock_id():

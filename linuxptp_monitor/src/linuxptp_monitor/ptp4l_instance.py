@@ -1,3 +1,19 @@
+# Copyright 2025 TIER IV, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""PTP4L configuration and state parsing."""
+
 import re
 from argparse import ArgumentParser, Namespace
 from configparser import ConfigParser
@@ -6,9 +22,6 @@ from enum import Enum
 from typing import Dict, Literal
 
 from journal_monitor.journal_monitor import JournalEntry
-from linuxptp_monitor.ethtool_harness import get_canonicalized_clock
-from linuxptp_monitor.linuxptp_config import LinuxPtpConfig
-from linuxptp_monitor.state_machine import State
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.error_pb2 import Error
 from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
@@ -21,14 +34,21 @@ from sync_tooling_msgs.servo_state_pb2 import ServoState
 from sync_tooling_msgs.slave_clock_state_pb2 import SlaveClockState
 from sync_tooling_msgs.warning_pb2 import Warning
 
+from linuxptp_monitor.ethtool_harness import get_canonicalized_clock
+from linuxptp_monitor.linuxptp_config import LinuxPtpConfig
+from linuxptp_monitor.state_machine import State
+
 
 class NetworkTransport(Enum):
+    """PTP network transport type."""
+
     UDP_IPV4 = 1
     UDP_IPV6 = 2
     IEEE_802_3 = 3
 
     @classmethod
     def from_flag(cls, flag: Literal["-2", "-4", "-6"]):
+        """Create from ptp4l command-line flag."""
         match flag:
             case "-2":
                 return NetworkTransport.IEEE_802_3
@@ -39,6 +59,7 @@ class NetworkTransport(Enum):
 
     @classmethod
     def from_label(cls, label: str):
+        """Create from config file label (L2, UDPv4, UDPv6)."""
         match label:
             case "L2":
                 return NetworkTransport.IEEE_802_3
@@ -52,6 +73,7 @@ class NetworkTransport(Enum):
                 )
 
     def to_flag(self):
+        """Convert to ptp4l command-line flag."""
         match self:
             case NetworkTransport.IEEE_802_3:
                 return "-2"
@@ -63,12 +85,23 @@ class NetworkTransport(Enum):
 
 @dataclass(init=False)
 class Ptp4lConfig(LinuxPtpConfig):
+    """Configuration for a ptp4l instance.
+
+    Attributes:
+        clock: The clock used by this ptp4l instance.
+        uds_address: Unix domain socket address for PMC.
+        network_transport: The network transport type.
+        ports: List of network interface names.
+
+    """
+
     clock: ClockId
     uds_address: str
     network_transport: NetworkTransport
     ports: list[str]
 
     def add_args_app_specific(self, parser: ArgumentParser) -> None:
+        """Add ptp4l-specific arguments to the parser."""
         parser.add_argument("-i", action="append", dest="ports")
         parser.add_argument("-p", metavar="phc-device", dest="phc_device")
         parser.add_argument(
@@ -93,10 +126,12 @@ class Ptp4lConfig(LinuxPtpConfig):
         parser.add_argument("--domainNumber", type=int)
 
     def validate_args_app_specific(self, args: Namespace) -> None:
+        """Validate ptp4l-specific arguments."""
         if args.phc_device is not None:
             raise NotImplementedError("Cannot handle deprecated `-p` option")
 
     def override_app_specific(self, args: Namespace, config: ConfigParser) -> list[str]:
+        """Return list of args that override config file settings."""
         for port in args.ports:
             if port not in config.sections():
                 config.add_section(port)
@@ -104,6 +139,7 @@ class Ptp4lConfig(LinuxPtpConfig):
         return ["ports", "phc_device", "legacy_timestamping"]
 
     def validate_config_app_specific(self, config: ConfigParser) -> None:
+        """Validate ptp4l-specific configuration."""
         ports = [section for section in config.sections() if section != "global"]
 
         time_stamping = config["global"]["time_stamping"]
@@ -135,6 +171,15 @@ class Ptp4lConfig(LinuxPtpConfig):
 
 @dataclass
 class Ptp4lRunningState(State):
+    """Running state for ptp4l log parsing.
+
+    Attributes:
+        config: The ptp4l configuration.
+        port_states: Current state of each port by port number.
+        slave_clock_state: Current slave clock state, if available.
+
+    """
+
     message_re = r"\[(?P<monotonic_time_s>[0-9]+\.[0-9]+)\]\s+(?P<message>.*)\s*$"
     port_re = r"port\s+(?P<port_id>[0-9]+):\s+(?P<port_message>.*)\s*$"
     state_change_re = (
@@ -204,6 +249,7 @@ class Ptp4lRunningState(State):
         )  # type: ignore
 
     def parse(self, entry: JournalEntry):
+        """Parse a journal entry and yield graph update events."""
         if entry.message is None:
             return self
 

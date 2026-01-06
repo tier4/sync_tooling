@@ -1,5 +1,19 @@
-from diag_worker.monitor_task import MonitorTask
-from diag_worker.systemd_util import does_unit_exist, get_command_line, get_unit_pid
+# Copyright 2025 TIER IV, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Monitor task for ptp4l systemd units."""
+
 from journal_monitor.console_polling_journal_monitor import ConsolePollingJournalMonitor
 from linuxptp_monitor.ptp4l_instance import (
     Ptp4lConfig,
@@ -22,9 +36,24 @@ from sync_tooling_msgs.port_state_update_pb2 import PortStateUpdate
 from sync_tooling_msgs.ptp_clock_id_pb2 import PtpClockId
 from sync_tooling_msgs.ptp_parent_update_pb2 import PtpParentUpdate
 
+from diag_worker.monitor_task import MonitorTask
+from diag_worker.systemd_util import does_unit_exist, get_command_line, get_unit_pid
+
 
 class Ptp4lMonitorTask(MonitorTask):
+    """Monitor task for a ptp4l systemd unit."""
+
     def __init__(self, unit_name: str, hostname: str):
+        """Initialize the ptp4l monitor task.
+
+        Args:
+            unit_name: The systemd unit name to monitor.
+            hostname: The local hostname.
+
+        Raises:
+            FileNotFoundError: If the unit does not exist.
+
+        """
         if not does_unit_exist(unit_name):
             raise FileNotFoundError(f"Unit {unit_name} was not found on this system")
 
@@ -66,9 +95,11 @@ class Ptp4lMonitorTask(MonitorTask):
         )
 
     def __str__(self) -> str:
+        """Return a string representation of the task."""
         return f"{self.__class__.__name__}(hostname={self.hostname_}, unit={self.unit_name_})"
 
     def _create_pmc_monitor(self, config: Ptp4lConfig):
+        """Create a PMC monitor for the ptp4l instance."""
         self._reset_pmc_monitor()
         print(
             f"Starting PMC monitor with server={config.uds_address}, transport={hex(config.transport_specific)}, domain={config.config['global']['domainNumber']}"
@@ -89,6 +120,7 @@ class Ptp4lMonitorTask(MonitorTask):
         )
 
     def _reset_pmc_monitor(self):
+        """Stop and clear the PMC monitor."""
         if self.pmc_monitor is not None:
             print("Stopping PMC monitor")
             self.pmc_monitor.stop()
@@ -96,6 +128,7 @@ class Ptp4lMonitorTask(MonitorTask):
         self.domain_id = None
 
     def pmc_to_graph_updates(self, inst: PtpInstance):
+        """Convert a PTP instance state to graph updates."""
         if self.domain_id is None:
             raise AssertionError()
 
@@ -155,10 +188,12 @@ class Ptp4lMonitorTask(MonitorTask):
             )
 
     def ptp4l_to_graph_updates(self, state_change: SystemdUnitStateChange):
+        """Convert a ptp4l state change to graph updates (currently unused)."""
         return
         yield None
 
     async def poll(self):
+        """Poll journal and PMC for updates, yielding graph updates."""
         journal_entries = self.journal_monitor.poll()
         for event in self.state_machine.consume(journal_entries):
             match event:
@@ -177,5 +212,6 @@ class Ptp4lMonitorTask(MonitorTask):
                     yield graph_update
 
     def stop(self):
+        """Stop the monitor task and reset the PMC monitor."""
         super().stop()
         self._reset_pmc_monitor()

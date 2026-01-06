@@ -1,3 +1,17 @@
+# Copyright 2025 TIER IV, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import pytest
 
 from .util import (
@@ -15,15 +29,13 @@ from .util import (
 def test_link_diagnostics(
     nic_port, sample_clock, is_faulty, expected_status, link_type, config
 ):
-    """
-    Test diagnostics for known-ok and known-faulty links.
+    """Test diagnostics for known-ok and known-faulty links.
 
     The status of the source clock shall be unaffected by any faults, while the status of the destination clock
     shall inherit the aggregated status of the link itself and the source clock's status.
 
     Here, the source ok is always okay, so the destination clock status shall be equal to the link status.
     """
-
     src_port = nic_port
     src = src_port.clock_id
     dst = sample_clock

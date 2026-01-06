@@ -10,7 +10,12 @@ Takes the **pain** out of **p**recision time synchroniz**a**t**i**o**n**.
 * :simple-ros: plug-and-play compatible with ROS 2 `/diagnostics`
 * :octicons-browser-16: confirm system state live in the browser
 
-Set up SYNC.TOOLING for your system: [Getting Started](getting-started.md).
+## :fontawesome-solid-signs-post: First Steps
+
+* [PTP Architecture Guide](ptp-architecture-guide.md) - Set up PTP in a distributed system
+* [Integrators' Guide](integrators-guide.md) - Set up SYNC.TOOLING for a Pilot.Auto based system
+* [Installation Guide](installation.md) - Install SYNC.TOOLING manually
+* [Usage Guide](usage.md) - Configure SYNC.TOOLING for your system
 
 ## :material-tools: SYNC.SETUP
 

@@ -11,8 +11,10 @@ on:
     branches: [ "main" ]
 
 env:
-  UV_VERSION: "0.5.10"
+  UV_VERSION: "0.9.21"
   PYTHON_VERSION: "3.10"
+  RUFF_VERSION: "0.14.10"
+  TY_VERSION: "0.0.8"
 
 jobs:
   build:
@@ -36,11 +38,11 @@ jobs:
           . /opt/ros/humble/setup.sh && uv sync --all-extras --dev --all-packages
       - name: Lint with Ruff
         run: |
-          uvx ruff check --output-format=github .;
-          uvx ruff check --output-file=ruff.json --output-format=json .
+          uvx ruff@${{ env.RUFF_VERSION }} check --output-format=github .;
+          uvx ruff@${{ env.RUFF_VERSION }} check --output-file=ruff.json --output-format=json .
       - name: Type check with ty
         run: |
-          uvx ty check \
+          uvx ty@${{ env.TY_VERSION }} check \
             --extra-search-path /opt/ros/humble/lib/python3.10/site-packages \
             --extra-search-path /opt/ros/humble/local/lib/python3.10/dist-packages
       - name: Test with pytest
@@ -50,7 +52,7 @@ jobs:
             && uv run pytest --cov --cov-report=xml --junit-xml=pytest-results.xml
       - name: SonarQube Scan
         if: success() || failure()
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       - name: Build Package

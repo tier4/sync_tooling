@@ -1,9 +1,24 @@
+# Copyright 2025 TIER IV, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Core sync graph implementation for clock synchronization modeling."""
+
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Literal
 
 import networkx as nx
-
 from sync_tooling_msgs.clock_alias_update_pb2 import ClockAliasUpdate
 from sync_tooling_msgs.clock_diff_measurement_pb2 import ClockDiffMeasurement
 from sync_tooling_msgs.clock_id import readable_clock_id
@@ -35,13 +50,13 @@ from sync_tooling_msgs.warning_pb2 import Warning
 
 @dataclass
 class DiffThresholds:
-    """
-    Warning and error thresholds for a difference between two clocks.
+    """Warning and error thresholds for a difference between two clocks.
 
-    Args:
+    Attributes:
         warn: The warning threshold in the given unit.
         error: The error threshold in the given unit.
         unit: The unit of the thresholds.
+
     """
 
     warn: int
@@ -51,12 +66,30 @@ class DiffThresholds:
 
 @dataclass
 class Config:
+    """Configuration for sync graph diagnostics.
+
+    Attributes:
+        master_diff_thresholds: Thresholds for PTP master offset diagnostics.
+        phc2sys_diff_thresholds: Thresholds for phc2sys offset diagnostics.
+        measurement_diff_thresholds: Thresholds for clock diff measurement diagnostics.
+
+    """
+
     master_diff_thresholds: DiffThresholds
     phc2sys_diff_thresholds: DiffThresholds
     measurement_diff_thresholds: DiffThresholds
 
 
 def readability_score(clock_id: ClockId):
+    """Return a readability score for clock ID type ordering.
+
+    The order of preference is:
+    * sensor_id
+    * system_clock_id
+    * interface_id
+    * linux_clock_device_id
+    * ptp_clock_id
+    """
     match clock_id.WhichOneof("id"):
         case "sensor_id":
             return 4
@@ -72,8 +105,7 @@ def readability_score(clock_id: ClockId):
 
 
 def get_most_human_readable_alias(aliases: Iterable[ClockId]) -> ClockId:
-    """
-    Returns the most human-readable of a list of clock aliases.
+    """Returns the most human-readable of a list of clock aliases.
 
     The order of preference is:
     * sensor_id
@@ -87,14 +119,15 @@ def get_most_human_readable_alias(aliases: Iterable[ClockId]) -> ClockId:
 
     Returns:
         The most human-readable clock alias.
+
     """
     return max(aliases, key=readability_score)
 
 
 def diagnose_diff(diff_ns: int, thresholds: DiffThresholds) -> DiagTree:
-    """
-    Diagnose a difference between two clocks. Depending on the absolute value, this may be
-    an error or warning.
+    """Diagnose a difference between two clocks.
+
+    Depending on the absolute value, this may be an error or warning.
 
     Args:
         diff_ns: The difference in nanoseconds.
@@ -102,8 +135,8 @@ def diagnose_diff(diff_ns: int, thresholds: DiffThresholds) -> DiagTree:
 
     Returns:
         A diagnostic tree.
-    """
 
+    """
     match thresholds.unit:
         case "ms":
             unit_multiplier = 1_000_000
@@ -153,31 +186,30 @@ P_STATUS_MSG = "status_msg"
 def _get_node_attr(
     g: nx.DiGraph, n: ClockId, k: Literal["master", "status_msg", "port_ids"]
 ):
+    """Get a node attribute from the graph, or `None` if not present."""
     return g.nodes[n].get(k)
 
 
 def _set_node_attr(
     g: nx.DiGraph, n: ClockId, k: Literal["master", "status_msg", "port_ids"], v
 ):
+    """Set a node attribute in the graph."""
     g.nodes[n][k] = v
 
 
 @dataclass
 class SyncGraph:
-    """
-    A directed graph modeling clocks and their synchronization relationships.
+    """A directed graph modeling clocks and their synchronization relationships.
+
+    Attributes:
+        config: Configuration for the sync graph diagnostics.
+        reference_graph: Optional expected tree-shaped synchronization graph. Each node is a
+            clock, and each edge is a direct synchronization link (e.g. PTP or PHC2SYS).
+
     """
 
     config: Config
-    """
-    Configuration for the sync graph.
-    """
-
     reference_graph: nx.DiGraph | None = None
-    """
-    A known tree-shaped synchronization graph of the system. Each node is a clock, and each
-    edge is a direct synchronization link (e.g. PTP or PHC2SYS).
-    """
 
     _graph: nx.MultiDiGraph = field(default_factory=nx.MultiDiGraph)
     _known_aliases: dict[ClockId, set[ClockId]] = field(default_factory=dict)
@@ -186,12 +218,17 @@ class SyncGraph:
     )
 
     def get_canonical_clock_id(self, clock_id: ClockId) -> ClockId:
+        """Return the canonical (most readable) alias for a clock ID.
+
+        See `get_most_human_readable_alias`.
+        """
         assert clock_id is not None
         if clock_id not in self._known_aliases:
             return clock_id
         return get_most_human_readable_alias(self._known_aliases[clock_id])
 
     def get_canonical_port_id(self, port_id: PortId):
+        """Return the canonical port ID with canonical clock ID."""
         return PortId(
             clock_id=self.get_canonical_clock_id(port_id.clock_id),
             port_number=port_id.port_number,
@@ -199,6 +236,7 @@ class SyncGraph:
         )
 
     def get_or_create_clock(self, clock_id: ClockId) -> ClockId:
+        """Get or create a clock node, returning its canonical ID."""
         clock_id = self.get_canonical_clock_id(clock_id)
         if clock_id not in self._graph:
             self._graph.add_node(clock_id)
@@ -206,6 +244,7 @@ class SyncGraph:
         return clock_id
 
     def get_or_create_port(self, port_id: PortId) -> PortId:
+        """Get or create a port, ensuring its clock exists."""
         clock_id = self.get_or_create_clock(port_id.clock_id)
         port_id = self.get_canonical_port_id(port_id)
 
@@ -219,8 +258,7 @@ class SyncGraph:
         return port_id
 
     def update(self, update: GraphUpdate):  # noqa: C901
-        """
-        Apply `update` to the sync graph.
+        """Apply `update` to the sync graph.
 
         Graph consistency is ensured:
 
@@ -233,6 +271,7 @@ class SyncGraph:
 
         Raises:
             ValueError: If the `update` field is unset or set to an unsupported update type.
+
         """
         match update.WhichOneof("update"):
             case "clock_alias_update":
@@ -266,6 +305,10 @@ class SyncGraph:
         raise AssertionError(f"Unknown update type: {update.WhichOneof('update')}")
 
     def update_clock_master(self, u: ClockMasterUpdate):
+        """Update or remove a clock's master link.
+
+        If `u.master` is unset, any existing master link for `u.clock_id` is removed.
+        """
         if not u.HasField("clock_id"):
             return
 
@@ -291,6 +334,11 @@ class SyncGraph:
         )
 
     def update_clock_aliases(self, u: ClockAliasUpdate):
+        """Merge clock aliases and update all references.
+
+        The nodes of all aliases in `u.aliases` are merged into a single node with the canonical
+        alias. All links and port references are merged accordingly.
+        """
         if not u.aliases:
             return
 
@@ -352,6 +400,10 @@ class SyncGraph:
             self._ports[canonical_port_id] = metadata
 
     def create_ptp_link(self, u: PtpParentUpdate):
+        """Create or remove a PTP parent link.
+
+        If `u.parent` is unset, any existing PTP parent link for `u.clock_id` is removed.
+        """
         if not u.HasField("clock_id"):
             return
 
@@ -390,6 +442,7 @@ class SyncGraph:
         )
 
     def update_ptp_port_state(self, u: PortStateUpdate):
+        """Update the state of a PTP port."""
         # Port 0 is reserved for internal PTP instance mechanisms.
         # Keeping track of it has no particular use, so discard it
         if u.port_id.port_number == 0:
@@ -402,6 +455,10 @@ class SyncGraph:
         self._ports[canonical_id][P_PORT_STATE] = u.port_state
 
     def update_phc2sys_link_state(self, u: Phc2SysUpdate):
+        """Update or remove a phc2sys synchronization link.
+
+        If `u.src` is unset, any existing phc2sys link for `u.dst` is removed.
+        """
         if not u.HasField("dst"):
             return
 
@@ -424,6 +481,7 @@ class SyncGraph:
         self._graph.add_edge(src, dst, L_PHC2SYS, **{METADATA: u.clock_state})
 
     def update_self_reported_clock_state(self, u: SelfReportedClockStateUpdate):
+        """Update a clock's self-reported synchronization state."""
         if not u.HasField("clock_id"):
             return
 
@@ -434,18 +492,22 @@ class SyncGraph:
         self._graph.nodes[clock_id][C_SELF_REPORTED_STATE] = u.state
 
     def handle_ptp4l_port_status_message(self, m: Ptp4lPortStatusMessage):
+        """Handle a ptp4l port status message (currently unused)."""
         # Possibly not needed, ignore for now
         pass
 
     def handle_ptp4l_status_message(self, m: Ptp4lStatusMessage):
+        """Handle a ptp4l status message (currently unused)."""
         # Possibly not needed, ignore for now
         pass
 
     def handle_phc2sys_status_message(self, m: Phc2SysStatusMessage):
+        """Handle a phc2sys status message (currently unused)."""
         # Possibly not needed, ignore for now
         pass
 
     def handle_clock_diff_measurement(self, m: ClockDiffMeasurement):
+        """Add a clock difference measurement edge."""
         if not m.HasField("src") or not m.HasField("dst"):
             return
 
@@ -466,8 +528,7 @@ class SyncGraph:
         | tuple[Literal["ptp_parent"], PortId]
         | tuple[Literal["phc2sys"], SlaveClockState]
     ]:
-        """
-        Get all links between `src` and `dst`.
+        """Get all links between `src` and `dst`.
 
         There are multiple link types, and up to one of each can exist at the same time:
 
@@ -482,6 +543,7 @@ class SyncGraph:
 
         Returns:
             Up to four links, at most one of each kind.
+
         """
         src = self.get_canonical_clock_id(src)
         dst = self.get_canonical_clock_id(dst)
@@ -494,12 +556,12 @@ class SyncGraph:
         return all_edges
 
     def get_grandmaster(self) -> ClockId | None:
-        """
-        Retrieve the grandmaster of the reference graph, if any.
+        """Retrieve the grandmaster of the reference graph, if any.
 
         Returns:
             The canonical grandmaster clock ID if the reference graph exists and is not empty,
             otherwise `None`.
+
         """
         if not self.reference_graph or not self.reference_graph.nodes:
             return None
@@ -519,16 +581,15 @@ class SyncGraph:
         return self.get_canonical_clock_id(root_clock)
 
     def get_master(self, clock_id: ClockId) -> ClockId | None:
-        """
-        Retrieve the master of `clock_id`, if any.
+        """Retrieve the master of `clock_id`, if any.
 
         Args:
             clock_id: The clock ID to get the master for. Has to be a valid clock ID.
 
         Returns:
             The master clock ID if a master link was in the graph, otherwise `None`.
-        """
 
+        """
         clock_id = self.get_canonical_clock_id(clock_id)
         all_in_edges = self._graph.in_edges(clock_id, keys=True)
         for src, _, key in all_in_edges:
@@ -538,10 +599,12 @@ class SyncGraph:
         return None
 
     def get_ports(self, clock_id: ClockId) -> set[PortId]:
+        """Get all known ports for a clock."""
         clock_id = self.get_canonical_clock_id(clock_id)
         return _get_node_attr(self._graph, clock_id, C_PORT_IDS) or set()
 
     def get_sorted_aliases(self, clock_id: ClockId) -> list[ClockId]:
+        """Get all aliases for a clock, sorted by readability (most readable first)."""
         if clock_id not in self._known_aliases:
             return [clock_id]
 
@@ -549,6 +612,13 @@ class SyncGraph:
         return sorted(aliases, key=readability_score, reverse=True)
 
     def diagnose_port(self, port_id: PortId) -> DiagTree:
+        """Diagnose the state of a PTP port.
+
+        Returns:
+            - Unknown if the port has no state information
+            - The diagnosed port state otherwise. See `diagnose_port_state`.
+
+        """
         canonical_port_id = self.get_canonical_port_id(port_id)
         port_data = self._ports.get(canonical_port_id, None)
         unknown = to_diag_tree(Unknown(msg="Port state unknown"))
@@ -561,6 +631,12 @@ class SyncGraph:
         return diagnose_port_state(port_state)
 
     def diagnose_phc2sys_link(self, slave_state: SlaveClockState) -> DiagTree:
+        """Diagnose a phc2sys link based on slave clock state.
+
+        Returns:
+            A diagnostic tree with `servo_state` and `time_diff` diagnostics.
+
+        """
         phc2sys_diff_ns = slave_state.offset_ns
 
         if phc2sys_diff_ns is None:
@@ -580,6 +656,13 @@ class SyncGraph:
         )
 
     def diagnose_link(self, src: ClockId, dst: ClockId) -> DiagTree:
+        """Diagnose all direct links between two clocks.
+
+        Returns:
+            A diagnostic tree with keys `ptp_parent`, `phc2sys`, `measurement`, and `ptp_master`,
+            depending on which links exist between `src` and `dst`.
+
+        """
         links = self.get_links(src, dst)
         diags = {}
         for key, metadata in links:
@@ -606,8 +689,7 @@ class SyncGraph:
         return to_diag_tree(diags)
 
     def diagnose_clock(self, clock: ClockId) -> DiagTree:
-        """
-        Diagnose whether a clock has no self-reported or upstream synchronization problems.
+        """Diagnose whether a clock has no self-reported or upstream synchronization problems.
 
         Upstream is defined here as all links in the tree of ancestors of the clock. If the clock is
         part of a cycle, this is diagnosed as an error.
@@ -620,8 +702,8 @@ class SyncGraph:
 
         Returns:
             The aggregated diagnostics of any self-reported clock state and upstream links.
-        """
 
+        """
         try:
             cycle = nx.find_cycle(self._graph, clock)
             cycle_clocks: list[ClockId] = [src for src, *_ in cycle]
@@ -665,14 +747,14 @@ class SyncGraph:
         return to_diag_tree(diag_map)
 
     def diagnose_reachability(self) -> DiagStatus:
-        """
-        Diagnose whether the graph is weakly connected.
+        """Diagnose whether the graph is weakly connected.
 
         A graph is weakly connected when ignoring edge direction, all nodes are reachable from each other.
         This is a necessary but not sufficient condition for a well-formed sync graph.
 
         Returns:
             `Ok` if the graph is weakly connected, `Error` otherwise.
+
         """
         if self._graph.number_of_nodes() == 0:
             return DiagStatus(ok=Ok(msg="No clocks present"))
@@ -685,30 +767,29 @@ class SyncGraph:
         )
 
     def diagnose_cycles(self) -> DiagStatus:
-        """
-        Diagnose whether the graph is free of directed cycles.
+        """Diagnose whether the graph is free of directed cycles.
 
         A directed graph without cycles is commonly called a directed acyclic graph, or DAG.
         Acyclicity is a necessary but not sufficient condition for a well-formed sync graph.
 
         Returns:
             `Ok` if the graph is a DAG, `Error` otherwise.
+
         """
         if nx.is_directed_acyclic_graph(self._graph):
             return DiagStatus(ok=Ok(msg="The are no cycles in the graph"))
         return DiagStatus(error=Error(msg="There are cycles in the graph"))
 
     def diagnose_grandmaster(self) -> DiagStatus:
-        """
-        Diagnoses whether there is exactly one clock acting as grandmaster.
+        """Diagnoses whether there is exactly one clock acting as grandmaster.
 
         A grandmaster is a clock with no incoming links from which all other clocks are reachable.
         The existence of exactly one grandmaster is necessary but not sufficient for a well-formed sync graph.
 
         Returns:
             `Ok` if there is exactly one valid grandmaster, `Error` otherwise.
-        """
 
+        """
         grandmaster_candiates: list[ClockId] = [
             n for n, in_degree in self._graph.in_degree() if in_degree == 0
         ]
@@ -751,8 +832,7 @@ class SyncGraph:
         )
 
     def diagnose_clock_reference_adherence(self) -> DiagTree:
-        """
-        Compare the current graph to its reference graph (if any).
+        """Compare the current graph to its reference graph (if any).
 
         Resulting (aggregated) status:
 
@@ -768,8 +848,8 @@ class SyncGraph:
                 - `missing_clocks`: If any reference clocks are not present in the current graph
                 - `rogue_clocks`: If any clocks are present in the current graph that are not in
                 the reference graph
-        """
 
+        """
         if not self.reference_graph:
             return to_diag_tree(Ok(msg="No reference graph present"))
 
@@ -801,8 +881,8 @@ class SyncGraph:
     def _is_path_adherent_to_reference(
         self, path: list[ClockId], reference_path: list[ClockId]
     ) -> bool:
-        """
-        Check if the given path is adherent to the reference path.
+        """Check if the given path is adherent to the reference path.
+
         A path is adherent to the reference path if al of the following hold:
 
         - none of the two paths are empty
@@ -819,8 +899,8 @@ class SyncGraph:
 
         Returns:
             `True` if the path is adherent to the reference path, `False` otherwise
-        """
 
+        """
         # None of the paths are empty (considered a precondition)
         assert len(path) > 0
         assert len(reference_path) > 0
@@ -840,7 +920,8 @@ class SyncGraph:
         return filtered_path == filtered_reference_path
 
     def diagnose_single_clock_reference_adherence(self, clock_id: ClockId) -> DiagTree:
-        """
+        """Diagnose if a clock is syncing to the reference grandmaster in an expected way.
+
         Check if the given clock (if in the reference graph) is syncing to the reference
         grandmaster in a way that is compliant with the reference graph.
 
@@ -869,11 +950,11 @@ class SyncGraph:
 
         Returns:
             The result of the reference graph comparison
-        """
 
-        assert (
-            clock_id in self._graph.nodes
-        ), f"Clock {clock_id} not found in current graph"
+        """
+        assert clock_id in self._graph.nodes, (
+            f"Clock {clock_id} not found in current graph"
+        )
 
         if not self.reference_graph:
             return to_diag_tree(Ok(msg="No reference graph present"))
@@ -927,8 +1008,7 @@ class SyncGraph:
         )
 
     def diagnose_graph(self) -> DiagTree:
-        """
-        Diagnose whether the structure of the sync graph is valid.
+        """Diagnose whether the structure of the sync graph is valid.
 
         This diagnosis checks whether:
 
@@ -947,6 +1027,7 @@ class SyncGraph:
                 - `"reachability":` [diagnose_reachability][sync_graph.sync_graph.SyncGraph.diagnose_reachability]
                 - `"acyclicity":` [diagnose_cycles][sync_graph.sync_graph.SyncGraph.diagnose_cycles]
                 - `"grandmaster":` [diagnose_grandmaster][sync_graph.sync_graph.SyncGraph.diagnose_grandmaster]
+
         """
         diagnostics = {
             "reachability": self.diagnose_reachability(),
@@ -957,13 +1038,13 @@ class SyncGraph:
         return to_diag_tree(diagnostics)
 
     def diagnose_reference_adherence(self) -> DiagTree:
-        """
-        Diagnose whether the current graph adheres to its reference graph, if any.
+        """Diagnose whether the current graph adheres to its reference graph, if any.
 
         Returns:
             A diagnostics map consisting of:
 
                 - `"clocks":` [diagnose_clock_reference_adherence][sync_graph.sync_graph.SyncGraph.diagnose_clock_reference_adherence]
+
         """
         diagnostics = {
             "clocks": self.diagnose_clock_reference_adherence(),

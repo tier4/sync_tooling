@@ -1,4 +1,19 @@
-"""
+# Copyright 2025 TIER IV, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Aggregate possibly noisy or high-frequency updates.
+
 Some update types might be high-frequency, or might be noisy.
 This module provides functions to aggregate such updates, e.g. by computing the median
 of multiple measurements between the same clocks.
@@ -18,8 +33,7 @@ from sync_tooling_msgs.graph_update_pb2 import GraphUpdate
 def aggregate_clock_diff_measurements(
     updates: Iterable[GraphUpdate],
 ) -> list[GraphUpdate]:
-    """
-    Aggregate ClockDiffMeasurements by grouping them by (src, dst) pairs.
+    """Aggregate ClockDiffMeasurements by grouping them by (src, dst) pairs.
 
     For each group, compute the median diff_ns and create a single aggregated measurement.
     All measurements in the group are removed from the iterable and replaced with the single
@@ -32,6 +46,7 @@ def aggregate_clock_diff_measurements(
         The `updates` iterable with all ClockDiffMeasurements grouped by (src, dst) and replaced
         with a single aggregated measurement for each group.
         Non-measurement updates are preserved as-is.
+
     """
     # Group measurements by (src, dst) pairs
     measurement_groups = defaultdict(list)
