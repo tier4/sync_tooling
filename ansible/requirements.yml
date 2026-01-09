@@ -1,4 +1,0 @@
-collections:
-  - name: ansible.utils
-    version: ">=2.11.0"
-    source: https://galaxy.ansible.com
