@@ -28,6 +28,9 @@ dev = [
 diag-master = "diag_master.main:main"
 diag-worker = "diag_worker.main:main"
 
+[tool.uv]
+python-preference = "only-system"
+
 [tool.uv.sources]
 journal_monitor = { workspace = true }
 linuxptp_monitor = { workspace = true }
