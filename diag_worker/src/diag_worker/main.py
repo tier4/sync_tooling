@@ -61,10 +61,9 @@ class DiagWorker:
         self._node = rclpy.create_node(node_name, namespace="/sync_diag/workers")  # type: ignore
         self._client = Ros2Client(topic, node=self._node)
 
-        if not ptp4l_units and not phc2sys_units:
-            raise ValueError(
-                "No PTP4L or PHC2SYS units given. At least one is required."
-            )
+        assert len(ptp4l_units) + len(phc2sys_units) > 0, (
+            "At least one unit is required"
+        )
 
         self.monitors_: list[MonitorTask] = []
 
@@ -99,6 +98,11 @@ def main():
         help="Arguments passed along to ROS 2. See https://docs.ros.org/en/rolling/How-To-Guides/Node-arguments.html for details.",
     )
     args = parser.parse_args()
+
+    if not args.ptp4l_units and not args.phc2sys_units:
+        parser.error(
+            "No PTP4L or PHC2SYS units given. At least one in total is required."
+        )
 
     rclpy.init(args=args.ros_args)
 
