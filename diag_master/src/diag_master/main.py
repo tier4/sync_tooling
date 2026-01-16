@@ -144,6 +144,7 @@ def parse_args() -> Args:
         "--config-files",
         "-f",
         nargs="+",
+        required=True,
         help="Configuration such as reference graph and measurement thresholds in YAML format. "
         "If multiple files are given, they are merged. For keys that appear in multiple files, "
         "the last file takes precedence.",
