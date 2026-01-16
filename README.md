@@ -15,9 +15,21 @@ The tools currently handle monitoring
 Documentation is available at [**sync-tooling.pages.dev**](https://sync-tooling.pages.dev/) :book:
 (log in with your `@tier4.jp` email address).
 
+<!-- --8<-- [start:installation] -->
+## System Requirements
+
+- Ubuntu >= 22.04
+- ROS 2 >= Humble
+- Python >= 3.10
+
+For diag-worker, the following additional requirements apply:
+
+- Ethtool (`sudo apt install ethtool`)
+- PTP4L and PHC2SYS (`sudo apt install linuxptp`)
+
 ## Installation
 
-This has to be done for every machine that sync tooling should run on.
+SYNC.TOOLING has to be installed on every machine that will run a diag-master or a diag-worker.
 
 ### Prerequisites
 
@@ -28,14 +40,39 @@ You can install it via
 pip install uv
 ```
 
-### Building
+### Development Build
+
+This method builds the project locally for development purposes.
 
 ```shell
-git clone git@github.com:tier4/sync_tooling
+git clone --recursive https://github.com/tier4/sync_tooling.git
 cd sync_tooling
+
 uv sync --all-packages
+
+# Replace `humble` with your ROS 2 distro name, e.g. jazzy.
+source /opt/ros/humble/setup.bash
 uv run pytest
 ```
+
+### Production Build
+
+This method builds Python packages (wheel files) that can be installed using `uv` or `pip`.
+
+```shell
+git clone --recursive https://github.com/tier4/sync_tooling.git
+cd sync_tooling
+
+uv build --all-packages
+```
+
+This will generate a `dist` directory with the built packages, and the `dist/*.whl` files can be
+installed using `pip`:
+
+```shell
+pip install dist/*.whl
+```
+<!-- --8<-- [end:installation] -->
 
 ## Usage
 
