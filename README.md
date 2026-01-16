@@ -15,31 +15,7 @@ The tools currently handle monitoring
 Documentation is available at [**sync-tooling.pages.dev**](https://sync-tooling.pages.dev/) :book:
 (log in with your `@tier4.jp` email address).
 
-## Ansible (Recommended)
-
-This tool can be installed on remote machines using Ansible.
-First, create an inventory file akin to `ansible/x2gen2.yml` for your network architecture.
-
-To set up dependencies on the host machine, run
-
-```shell
-./setup
-```
-
-Then, to satisfy dependencies and install worker executables on the worker machines, run
-
-```shell
-./distribute path/to/inventory.yml
-```
-
-> **Note:** If you have not set up SSH key-based authentication from the host to the inventory
-> machines, this script will generate and install SSH keys to all the inventory machines.
->
-> **:warning: Caution:** **Never use password-less SSH keys in any production system!**
-
-Done :tada:!
-
-## Manual Installation
+## Installation
 
 This has to be done for every machine that sync tooling should run on.
 
