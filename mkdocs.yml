@@ -103,3 +103,16 @@ extra_javascript:
   - js/dark-mode-support.js
 extra_css:
   - css/mermaid-tweaks.css
+
+watch:
+  - sync_tooling_msgs/src
+  - diag_master/src
+  - diag_worker/src
+  - sync_graph/src
+  - pmc_monitor/src
+  - linuxptp_monitor/src
+  - journal_monitor/src
+  - ros2_transport/src
+  - README.md
+  - docs
+  - mkdocs.yml
