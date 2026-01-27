@@ -6,10 +6,9 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
-
+    branches: ["main"]
 env:
   UV_VERSION: "0.9.21"
   PYTHON_VERSION: "3.10"
@@ -59,12 +58,12 @@ jobs:
         if: success()
         run: |
           uv build
-      
+
       - name: Export requirements.txt
         run: |
           uv export --frozen --no-hashes --no-emit-workspace --no-dev --all-packages \
             | tee dist/requirements.txt
-      
+
       - name: Copy APT requirements to dist
         run: |
           cp apt-requirements.txt dist/
@@ -75,4 +74,3 @@ jobs:
         with:
           name: package
           path: dist/*
-      
