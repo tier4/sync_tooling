@@ -1,6 +1,0 @@
-/**:
-  ros__parameters:
-    watch:
-      ptp4l:
-        systemd_units:
-          - ptp4l@lo
