@@ -136,6 +136,14 @@ This functionality is only fully enabled if a `--reference` graph has been provi
 The `diag-master` provides a web interface named SYNC.DOCTOR.
 This interface allows for live or offline viewing of the synchronization state of the system.
 
+SYNC.DOCTOR is only available if the `diag-master` was launched with the `--web-ui` option.
+
+!!! tip
+    In production systems, users may want to disable the web interface for security reasons.
+    When troubleshooting, users can temporarily launch an additional `diag-master` instance
+    with the `--web-ui` option. This even works on a different machine, as long as the
+    `/sync_diag/graph_updates` topic is accessible.
+
 ## Offline Analysis
 
 To record synchronization state for later analysis, run:
