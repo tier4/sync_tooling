@@ -1,0 +1,26 @@
+# Tasks for phc2sys role
+---
+- name: Install linuxptp package (includes phc2sys)
+  ansible.builtin.apt:
+    name: linuxptp
+    state: present
+    update_cache: true
+  become: true
+
+- name: Generate phc2sys systemd unit file
+  ansible.builtin.template:
+    src: phc2sys@.service.j2
+    dest: "/etc/systemd/system/phc2sys@{{ phc2sys_instance_name }}.service"
+    mode: "0644"
+  become: true
+  notify:
+    - Reload systemd
+    - Restart phc2sys instance
+
+- name: Enable and start phc2sys service
+  ansible.builtin.systemd:
+    name: "phc2sys@{{ phc2sys_instance_name }}.service"
+    enabled: true
+    state: started
+    daemon_reload: true
+  become: true

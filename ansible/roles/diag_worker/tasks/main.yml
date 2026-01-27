@@ -1,0 +1,32 @@
+# Tasks for diag_worker role
+---
+- name: Install ethtool package
+  ansible.builtin.apt:
+    name: ethtool
+    state: present
+    update_cache: true
+  become: true
+
+- name: Validate that at least one unit is specified
+  ansible.builtin.assert:
+    that:
+      - (diag_worker_ptp4l_units | length > 0) or (diag_worker_phc2sys_units | length > 0)
+    fail_msg: "At least one ptp4l or phc2sys unit must be specified"
+
+- name: Generate diag-worker systemd unit file
+  ansible.builtin.template:
+    src: diag-worker.service.j2
+    dest: /etc/systemd/system/diag-worker.service
+    mode: "0644"
+  become: true
+  notify:
+    - Reload systemd
+    - Restart diag-worker
+
+- name: Enable and start diag-worker service
+  ansible.builtin.systemd:
+    name: diag-worker.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  become: true

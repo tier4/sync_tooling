@@ -1,0 +1,63 @@
+# Tasks for sync_tooling role
+---
+- name: Install required system packages
+  ansible.builtin.apt:
+    name:
+      - python3
+      - python3-venv
+      - python3-pip
+    state: present
+    update_cache: true
+  become: true
+
+- name: Create installation directory
+  ansible.builtin.file:
+    path: "{{ sync_tooling_install_dir }}"
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Create wheels download directory
+  ansible.builtin.file:
+    path: "{{ sync_tooling_install_dir }}/wheels"
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Download sync_tooling wheel from GitHub releases
+  ansible.builtin.get_url:
+    url: "{{ sync_tooling_release_url }}/sync_tooling-{{ sync_tooling_version }}-py3-none-any.whl"
+    dest: "{{ sync_tooling_install_dir }}/wheels/sync_tooling-{{ sync_tooling_version }}-py3-none-any.whl"
+    mode: "0644"
+  become: true
+
+- name: Create Python virtual environment
+  ansible.builtin.command:
+    cmd: "{{ sync_tooling_python }} -m venv {{ sync_tooling_venv_path }}"
+    creates: "{{ sync_tooling_venv_path }}/bin/activate"
+  become: true
+
+- name: Upgrade pip in virtual environment
+  ansible.builtin.pip:
+    name: pip
+    state: latest
+    virtualenv: "{{ sync_tooling_venv_path }}"
+  become: true
+
+- name: Install sync_tooling wheel into virtual environment
+  ansible.builtin.pip:
+    name: "{{ sync_tooling_install_dir }}/wheels/sync_tooling-{{ sync_tooling_version }}-py3-none-any.whl"
+    virtualenv: "{{ sync_tooling_venv_path }}"
+  become: true
+
+- name: Verify diag-master is installed
+  ansible.builtin.command:
+    cmd: "{{ sync_tooling_venv_path }}/bin/diag-master --help"
+  changed_when: false
+  become: true
+
+- name: Verify diag-worker is installed
+  ansible.builtin.command:
+    cmd: "{{ sync_tooling_venv_path }}/bin/diag-worker --help"
+  changed_when: false
+  become: true

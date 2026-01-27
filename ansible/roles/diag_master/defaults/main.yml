@@ -1,0 +1,26 @@
+# Default variables for diag_master role
+---
+# Path to ROS 2 environment setup script
+# This script will be sourced before starting the diag-master
+diag_master_ros_setup_script: /opt/ros/humble/setup.bash
+
+# Path to the configuration file
+diag_master_config_file: /etc/sync_tooling/diag_master.yml
+
+# Configuration content (clock_tree and diagnostics)
+# This will be written to diag_master_config_file
+diag_master_config: {}
+# Enable web UI (SYNC.DOCTOR) on port 5000
+diag_master_enable_web_ui: false
+
+# ROS 2 topic for receiving graph updates
+diag_master_topic: /sync_diag/graph_updates
+
+# Update expiry time in seconds
+diag_master_update_expiry_s: 2
+
+# Additional ROS 2 arguments (optional)
+diag_master_ros_args: []
+# Virtual environment path (from sync_tooling role)
+# This should match sync_tooling_venv_path if using default values
+diag_master_venv_path: /opt/sync_tooling/venv

@@ -1,0 +1,32 @@
+# Tasks for ptp4l role
+---
+- name: Install linuxptp package
+  ansible.builtin.apt:
+    name: linuxptp
+    state: present
+    update_cache: true
+  become: true
+
+- name: Verify config file exists
+  ansible.builtin.stat:
+    path: "{{ ptp4l_config_file }}"
+  register: ptp4l_config_file_stat
+  failed_when: not ptp4l_config_file_stat.stat.exists
+
+- name: Generate ptp4l systemd unit file
+  ansible.builtin.template:
+    src: ptp4l@.service.j2
+    dest: "/etc/systemd/system/ptp4l@{{ ptp4l_instance_name }}.service"
+    mode: "0644"
+  become: true
+  notify:
+    - Reload systemd
+    - Restart ptp4l instance
+
+- name: Enable and start ptp4l service
+  ansible.builtin.systemd:
+    name: "ptp4l@{{ ptp4l_instance_name }}.service"
+    enabled: true
+    state: started
+    daemon_reload: true
+  become: true

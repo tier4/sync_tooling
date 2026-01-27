@@ -1,0 +1,12 @@
+# Default variables for ptp4l role
+---
+# Name of the ptp4l instance (used for systemd unit name)
+ptp4l_instance_name: ptp4l
+# Configuration file path for this instance
+ptp4l_config_file: /usr/share/doc/linuxptp/configs/default.cfg
+# List of interfaces to monitor
+ptp4l_interfaces: []
+# Operating mode: 'client' or 'server'
+ptp4l_mode: client
+# Unix domain socket directory
+ptp4l_uds_dir: /var/run

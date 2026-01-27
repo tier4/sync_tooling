@@ -1,0 +1,144 @@
+# Minimal Two-ECU Synchronization Example
+#
+# This playbook demonstrates a complete PTP synchronization setup:
+#
+# main_ecu (Grandmaster):
+#   - System clock (UTC) is the time source
+#   - phc2sys syncs CLOCK_REALTIME -> eth0 PHC (PTP Hardware Clock), converting
+#     UTC to TAI
+#   - PTPv2 server (hardware timestamping) on eth0 (for automotive sensors)
+#   - Runs diag-master to aggregate diagnostics
+#   - Runs diag-worker to monitor local clocks
+#
+# sensing_ecu (Sensor Host):
+#   - PTPv2 client (software timestamping) on eno1 (syncs from main_ecu)
+#   - phc2sys syncs CLOCK_REALTIME -> eno2 PHC, staying in UTC
+#   - gPTP (hardware timestamping) server on eno2 for connected sensors
+#   - Runs diag-worker to monitor local clocks
+
+---
+# =============================================================================
+# MAIN ECU - Grandmaster
+# =============================================================================
+- hosts: main_ecu
+  roles:
+    # -------------------------------------------------------------------------
+    # PTPv2 server (hardware timestamping) on eth0
+    # -------------------------------------------------------------------------
+    - role: ptp4l
+      vars:
+        ptp4l_instance_name: eth0
+        ptp4l_interfaces: ["eth0"]
+        ptp4l_mode: server
+        ptp4l_config_file: /usr/share/doc/linuxptp/configs/default.cfg
+
+    # -------------------------------------------------------------------------
+    # Sync system clock (UTC) to eth0's PHC, converting to TAI
+    # -------------------------------------------------------------------------
+    - role: phc2sys
+      vars:
+        phc2sys_instance_name: sys_to_eth0
+        phc2sys_source: CLOCK_REALTIME
+        phc2sys_destinations: ["/dev/ptp0"] # eth0's PHC
+        phc2sys_utc_offset: 37 # Convert UTC -> TAI
+
+    # -------------------------------------------------------------------------
+    # Diagnostic worker - monitors local PTP services
+    # -------------------------------------------------------------------------
+    - role: diag_worker
+      vars:
+        diag_worker_ros_setup_script: /opt/ros/humble/setup.bash
+        diag_worker_ptp4l_units:
+          # A ptp4l role with `name` produces a systemd unit `ptp4l@<name>`
+          - ptp4l@eth0
+        diag_worker_phc2sys_units:
+          # A phc2sys role with `name` produces a systemd unit `phc2sys@<name>`
+          - phc2sys@sys_to_eth0
+
+    # -------------------------------------------------------------------------
+    # Diagnostic master - aggregates status from all workers
+    # -------------------------------------------------------------------------
+    - role: diag_master
+      vars:
+        diag_master_ros_setup_script: /opt/ros/humble/setup.bash
+        diag_master_enable_web_ui: true
+        diag_master_config:
+          clock_tree:
+            # main_ecu.sys is the grandmaster (UTC system clock)
+            main_ecu.sys:
+              # eth0's PHC is synced from system clock via phc2sys
+              main_ecu.ptp0:
+                # sensing_ecu's system clock syncs from main_ecu via software PTP
+                # on eno1
+                sensing_ecu.sys:
+                  # eno2's PHC is synced from system clock via phc2sys
+                  sensing_ecu.ptp1:
+                    # The LiDAR sensor syncs from sensing_ecu.eno2's PHC
+                    sensor@lidar/top:
+          diagnostics:
+            diff_thresholds:
+              ptp_master:
+                warn: 100
+                error: 1000
+                unit: us
+              phc2sys:
+                warn: 100
+                error: 1000
+                unit: us
+              measurement:
+                warn: 1
+                error: 20
+                unit: ms
+
+# =============================================================================
+# SENSING ECU - Sensor Host
+# =============================================================================
+- hosts: sensing_ecu
+  roles:
+    # -------------------------------------------------------------------------
+    # Software PTP client on eno1 (syncs from main_ecu)
+    # Uses software timestamping - the clock is the system clock itself
+    # -------------------------------------------------------------------------
+    - role: ptp4l
+      vars:
+        # Software PTP client - receives time from main_ecu's gPTP server
+        ptp4l_instance_name: eno1
+        ptp4l_interfaces: ["eno1"]
+        ptp4l_mode: client
+        # Use default.cfg with software timestamping (-S flag added by linuxptp)
+        # Note: TAI->UTC conversion happens automatically when using software 
+        # timestamping
+        ptp4l_config_file: /usr/share/doc/linuxptp/configs/default.cfg
+
+    # -------------------------------------------------------------------------
+    # Hardware gPTP server on eno2 (for connected sensors)
+    # -------------------------------------------------------------------------
+    - role: ptp4l
+      vars:
+        ptp4l_instance_name: eno2
+        ptp4l_interfaces: ["eno2"]
+        ptp4l_mode: server
+        ptp4l_config_file: /usr/share/doc/linuxptp/configs/gPTP.cfg
+
+    # -------------------------------------------------------------------------
+    # Sync system clock to eno2's PHC, staying in UTC (no offset conversion)
+    # The system clock is already in UTC (synced via software PTP on eno1)
+    # -------------------------------------------------------------------------
+    - role: phc2sys
+      vars:
+        phc2sys_instance_name: sys_to_eno2
+        phc2sys_source: CLOCK_REALTIME
+        phc2sys_destinations: ["/dev/ptp1"] # eno2's PHC
+        phc2sys_utc_offset: 0 # Stay in UTC - no TAI conversion
+
+    # -------------------------------------------------------------------------
+    # Diagnostic worker - monitors local PTP services
+    # -------------------------------------------------------------------------
+    - role: diag_worker
+      vars:
+        diag_worker_ros_setup_script: /opt/ros/humble/setup.bash
+        diag_worker_ptp4l_units:
+          - ptp4l@eno1
+          - ptp4l@eno2
+        diag_worker_phc2sys_units:
+          - phc2sys@sys_to_eno2
