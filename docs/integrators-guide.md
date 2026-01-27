@@ -21,6 +21,10 @@ PTP architecture, including all PTP4L and PHC2SYS configuration.
 
 Setup `nebula>=v0.2.8` and sensor configuration to output synchronization meta data on `/sync_diag/graph_updates`.
 
+!!! note "For other sensor drivers"
+    For more information on how to integrate external sensor drivers,
+    see the [Sensor Driver Integration Guide](sensor-driver-integration.md).
+
 Please check the configuration example in [this PR](https://github.com/tier4/aip_launcher/pull/529)
 
 ## SYNC.DIAG
