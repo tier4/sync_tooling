@@ -1,0 +1,12 @@
+# Handlers for diag_master role
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: Restart diag-master
+  ansible.builtin.systemd:
+    name: diag-master.service
+    state: restarted
+  become: true

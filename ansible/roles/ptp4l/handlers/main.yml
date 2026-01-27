@@ -1,0 +1,12 @@
+# Handlers for ptp4l role
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: Restart ptp4l instance
+  ansible.builtin.systemd:
+    name: "ptp4l@{{ ptp4l_instance_name }}.service"
+    state: restarted
+  become: true

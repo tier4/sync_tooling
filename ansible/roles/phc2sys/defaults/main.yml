@@ -1,0 +1,14 @@
+# Default variables for phc2sys role
+---
+# Name of the phc2sys instance (used for systemd unit name)
+phc2sys_instance_name: phc2sys
+# Source clock (e.g., CLOCK_REALTIME or /dev/ptp0)
+phc2sys_source: CLOCK_REALTIME
+# List of destination clocks (e.g., [/dev/ptp0, /dev/ptp1])
+phc2sys_destinations: ["/dev/ptp0"]
+# UTC to TAI offset (0 if both are UTC or TAI)
+phc2sys_utc_offset: 0
+# Wait for ptp4l to stabilize before starting sync
+phc2sys_wait_for_ptp: false
+# Unix domain socket of the ptp4l instance to monitor (optional)
+phc2sys_ptp4l_uds: ""

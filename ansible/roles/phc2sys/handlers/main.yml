@@ -1,0 +1,12 @@
+# Handlers for phc2sys role
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: Restart phc2sys instance
+  ansible.builtin.systemd:
+    name: "phc2sys@{{ phc2sys_instance_name }}.service"
+    state: restarted
+  become: true

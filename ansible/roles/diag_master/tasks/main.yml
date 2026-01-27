@@ -1,0 +1,34 @@
+# Tasks for diag_master role
+---
+- name: Create configuration directory
+  ansible.builtin.file:
+    path: "{{ diag_master_config_file | dirname }}"
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Generate diag-master configuration file
+  ansible.builtin.template:
+    src: diag_master.yml.j2
+    dest: "{{ diag_master_config_file }}"
+    mode: "0644"
+  become: true
+  notify: Restart diag-master
+
+- name: Generate diag-master systemd unit file
+  ansible.builtin.template:
+    src: diag-master.service.j2
+    dest: /etc/systemd/system/diag-master.service
+    mode: "0644"
+  become: true
+  notify:
+    - Reload systemd
+    - Restart diag-master
+
+- name: Enable and start diag-master service
+  ansible.builtin.systemd:
+    name: diag-master.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  become: true
