@@ -1,0 +1,20 @@
+# Default variables for diag_worker role
+---
+# Path to ROS 2 environment setup script
+# This script will be sourced before starting the diag-worker
+diag_worker_ros_setup_script: /opt/ros/humble/setup.bash
+
+# List of ptp4l systemd unit names to monitor
+# These units must be configured and running (e.g., via the ptp4l role)
+diag_worker_ptp4l_units: []
+# List of phc2sys systemd unit names to monitor
+# These units must be configured and running (e.g., via the phc2sys role)
+diag_worker_phc2sys_units: []
+# ROS 2 topic for publishing graph updates
+diag_worker_topic: /sync_diag/graph_updates
+
+# Additional ROS 2 arguments (optional)
+diag_worker_ros_args: []
+# Virtual environment path (from sync_tooling role)
+# This should match sync_tooling_venv_path if using default values
+diag_worker_venv_path: /opt/sync_tooling/venv

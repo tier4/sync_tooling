@@ -13,13 +13,10 @@
     "/opt/ros/humble/lib/python3.10/site-packages",
   ],
   "python.analysis.typeCheckingMode": "standard",
-  "ansible.python.interpreterPath": "${workspaceFolder}/.venv/bin/python",
-  "ros.distro": "humble",
   "sonarlint.connectedMode.project": {
     "connectionId": "tier4",
     "projectKey": "tier4_sync_tooling"
   },
-  "ansible.ansible.path": "${workspaceFolder}/.venv/bin/ansible",
   "yaml.customTags": [
     "tag:yaml.org,2002:python/name:material.extensions.emoji.twemoji",
     "tag:yaml.org,2002:python/name:material.extensions.emoji.to_svg",

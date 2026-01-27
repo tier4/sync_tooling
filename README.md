@@ -15,33 +15,21 @@ The tools currently handle monitoring
 Documentation is available at [**sync-tooling.pages.dev**](https://sync-tooling.pages.dev/) :book:
 (log in with your `@tier4.jp` email address).
 
-## Ansible (Recommended)
+<!-- --8<-- [start:installation] -->
+## System Requirements
 
-This tool can be installed on remote machines using Ansible.
-First, create an inventory file akin to `ansible/***REMOVED***.yml` for your network architecture.
+- Ubuntu >= 22.04
+- ROS 2 >= Humble
+- Python >= 3.10
 
-To set up dependencies on the host machine, run
+For diag-worker, the following additional requirements apply:
 
-```shell
-./setup
-```
+- Ethtool (`sudo apt install ethtool`)
+- PTP4L and PHC2SYS (`sudo apt install linuxptp`)
 
-Then, to satisfy dependencies and install worker executables on the worker machines, run
+## Installation
 
-```shell
-./distribute path/to/inventory.yml
-```
-
-> **Note:** If you have not set up SSH key-based authentication from the host to the inventory
-> machines, this script will generate and install SSH keys to all the inventory machines.
->
-> **:warning: Caution:** **Never use password-less SSH keys in any production system!**
-
-Done :tada:!
-
-## Manual Installation
-
-This has to be done for every machine that sync tooling should run on.
+SYNC.TOOLING has to be installed on every machine that will run a diag-master or a diag-worker.
 
 ### Prerequisites
 
@@ -52,14 +40,39 @@ You can install it via
 pip install uv
 ```
 
-### Building
+### Development Build
+
+This method builds the project locally for development purposes.
 
 ```shell
-git clone git@github.com:tier4/sync_tooling
+git clone --recursive https://github.com/tier4/sync_tooling.git
 cd sync_tooling
+
 uv sync --all-packages
+
+# Replace `humble` with your ROS 2 distro name, e.g. jazzy.
+source /opt/ros/humble/setup.bash
 uv run pytest
 ```
+
+### Production Build
+
+This method builds Python packages (wheel files) that can be installed using `uv` or `pip`.
+
+```shell
+git clone --recursive https://github.com/tier4/sync_tooling.git
+cd sync_tooling
+
+uv build --all-packages
+```
+
+This will generate a `dist` directory with the built packages, and the `dist/*.whl` files can be
+installed using `pip`:
+
+```shell
+pip install dist/*.whl
+```
+<!-- --8<-- [end:installation] -->
 
 ## Usage
 

@@ -8,7 +8,7 @@ Takes the **pain** out of **p**recision time synchroniz**a**t**i**o**n**.
 * :material-graph: monitors the whole vehicle architecture
 * :octicons-sync-16: integrates with your existing LinuxPTP setup
 * :simple-ros: plug-and-play compatible with ROS 2 `/diagnostics`
-* :octicons-browser-16: confirm system state live in the browser
+* :octicons-browser-16: confirm system state live or after the fact in the browser
 
 ## :fontawesome-solid-signs-post: First Steps
 
@@ -16,15 +16,6 @@ Takes the **pain** out of **p**recision time synchroniz**a**t**i**o**n**.
 * [Integrators' Guide](integrators-guide.md) - Set up SYNC.TOOLING for a ***REMOVED*** based system
 * [Installation Guide](installation.md) - Install SYNC.TOOLING manually
 * [Usage Guide](usage.md) - Configure SYNC.TOOLING for your system
-
-## :material-tools: SYNC.SETUP
-
-Try before you buy: validate your architecture from day one.
-
-Define your architecture as a simple YAML file, and let SYNC.SETUP generate PTP4L, PHC2SYS
-and sensor configurations. Any issues or incompatibilities are flagged right away.
-
-* [ ] This feature is not yet available.
 
 ## :material-stethoscope: SYNC.DOCTOR
 

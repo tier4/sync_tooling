@@ -51,7 +51,7 @@ markdown_extensions:
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
 
-plugins: 
+plugins:
   - search
   - macros:
       module_name: scripts/mkdocs_macros
@@ -68,7 +68,7 @@ plugins:
         - journal_monitor/src/journal_monitor
         - ros2_transport/src/ros2_transport
       nav_section_title: "API Reference"
-      api_root_uri: "reference" 
+      api_root_uri: "reference"
       nav_item_prefix: "<code class='doc-symbol doc-symbol-nav doc-symbol-module'></code>"
       exclude_private: true
   - section-index
@@ -105,3 +105,16 @@ extra_javascript:
   - js/dark-mode-support.js
 extra_css:
   - css/mermaid-tweaks.css
+
+watch:
+  - sync_tooling_msgs/src
+  - diag_master/src
+  - diag_worker/src
+  - sync_graph/src
+  - pmc_monitor/src
+  - linuxptp_monitor/src
+  - journal_monitor/src
+  - ros2_transport/src
+  - README.md
+  - docs
+  - mkdocs.yml

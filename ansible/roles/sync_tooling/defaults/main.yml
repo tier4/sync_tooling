@@ -1,0 +1,19 @@
+# Default variables for sync_tooling role
+---
+# Version of SYNC.TOOLING to install (GitHub release tag without 'v' prefix)
+sync_tooling_version: "0.2.5"
+
+# Installation directory
+sync_tooling_install_dir: /opt/sync_tooling
+
+# Virtual environment path
+sync_tooling_venv_path: "{{ sync_tooling_install_dir }}/venv"
+
+# GitHub repository for downloading releases
+sync_tooling_github_repo: tier4/sync_tooling
+
+# Base URL for downloading wheels
+sync_tooling_release_url: "https://github.com/{{ sync_tooling_github_repo }}/releases/download/v{{ sync_tooling_version }}"
+
+# Python interpreter to use for creating venv
+sync_tooling_python: python3
