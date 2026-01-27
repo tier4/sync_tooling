@@ -1,11 +1,11 @@
 This guide provides an overview of time synchronization in automotive systems, and gives
 pointers on how to set up and configure PTP (Precision Time Protocol).
 
-It is assumed that the vehicle is using [Pilot Auto][pilot-auto], is set up using Ansible,
-and has access to [Autoware ECU System Setup][autoware-ecu-system-setup] Ansible roles.
+It is assumed that all machines already have ROS 2 installed.
 
-[pilot-auto]: https://github.com/tier4/pilot-auto
-[autoware-ecu-system-setup]: https://github.com/tier4/autoware_ecu_system_setup
+This repository provides Ansible roles
+for PTP configuration in the [`ansible/`](https://github.com/tier4/sync_tooling/tree/main/ansible)
+directory for easy installation.
 
 ## Overall Goal
 
@@ -128,11 +128,22 @@ on the network (slave mode) or let other devices synchronize to it (master mode)
 `phc2sys` is used to synchronize multiple clocks on the same ECU, e.g. the system clock and
 a network interface's hardware clock.
 
-Install and configure PTP4L and PHC2SYS via the [autoware_ecu_system_setup.ptp4l][role-ptp4l]
-role, or via custom roles. For other setups, see the excellent [RedHat guide][redhat-ptp4l].
+Install and configure PTP4L and PHC2SYS via the Ansible roles provided in this repository:
+
+* [`ptp4l`][ptp4l-role] - PTP daemon configuration
+* [`phc2sys`][phc2sys-role] - Hardware clock synchronization
+
+[ptp4l-role]: https://github.com/tier4/sync_tooling/tree/main/ansible/roles/ptp4l
+[phc2sys-role]: https://github.com/tier4/sync_tooling/tree/main/ansible/roles/phc2sys
+
+For manual setups, see the excellent [RedHat guide][redhat-ptp4l].
 
 [redhat-ptp4l]: https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/system_administrators_guide/ch-configuring_ptp_using_ptp4l
-[role-ptp4l]: https://github.com/tier4/autoware_ecu_system_setup/tree/590fabea4f21811a0a69e26793e4fff4f9b60bd1/roles/ptp4l
+
+!!! info "Named Unix Domain Sockets"
+    All `ptp4l` instances configured via the Ansible roles use named Unix domain sockets at
+    `/var/run/ptp4l@<instance_name>`. This is **mandatory** for SYNC.TOOLING and `phc2sys`to
+    communicate with `ptp4l` instances and for multiple instances to coexist on the same machine.
 
 ### Time Stamping Modes
 
@@ -308,23 +319,23 @@ The simplest architecture is to use software time stamping:
 === "Ansible (Master)"
 
     ```yaml
-    - role: autoware.ecu_system_setup.ptp4l_master
+    - role: ptp4l
       vars:
-        ptp4l_masters:
-          - name: eno1
-            port_name: eno1
-            config_name: tier4_normal_software_ptp.cfg
-            use_phc2sys: false
+        ptp4l_instance_name: eno1
+        ptp4l_interfaces: ["eno1"]
+        ptp4l_mode: server
+        ptp4l_config_file: /usr/share/doc/linuxptp/configs/default.cfg
     ```
 
 === "Ansible (Slave)"
 
     ```yaml
-    - role: autoware.ecu_system_setup.ptp4l
+    - role: ptp4l
       vars:
-        ptp4l_network_port: eno1
-        ptp4l_use_software_stamp: true
-        ptp4l_synchronize_system_clock: false
+        ptp4l_instance_name: eno1
+        ptp4l_interfaces: ["eno1"]
+        ptp4l_mode: client
+        ptp4l_config_file: /usr/share/doc/linuxptp/configs/default.cfg
     ```
 
 <figure markdown="span">
@@ -350,24 +361,39 @@ With hardware time stamping, PHC2SYS is required to synchronize the system and h
 === "Ansible (Master)"
 
     ```yaml
-    - role: autoware.ecu_system_setup.ptp4l_master
+    - role: ptp4l
       vars:
-        ptp4l_masters:
-          - name: eno1
-            port_name: eno1
-            config_name: tier4_normal_hardware_ptp.cfg
-            use_phc2sys: true
+        ptp4l_instance_name: eno1
+        ptp4l_interfaces: ["eno1"]
+        ptp4l_mode: server
+        ptp4l_config_file: /usr/share/doc/linuxptp/configs/default.cfg
+
+    - role: phc2sys
+      vars:
+        phc2sys_instance_name: eno1
+        phc2sys_source: CLOCK_REALTIME
+        phc2sys_destinations: ["/dev/ptp0"]
+        phc2sys_utc_offset: 0
     ```
 
 === "Ansible (Slave)"
 
     ```yaml
-    - role: autoware.ecu_system_setup.ptp4l
+    - role: ptp4l
       vars:
-        ptp4l_network_port: eno1
-        ptp4l_use_software_stamp: false
-        ptp4l_synchronize_system_clock: true
-        ptp4l_phc2sys_wait_for_ptp: true
+        ptp4l_instance_name: eno1
+        ptp4l_interfaces: ["eno1"]
+        ptp4l_mode: client
+        ptp4l_config_file: /usr/share/doc/linuxptp/configs/default.cfg
+
+    - role: phc2sys
+      vars:
+        phc2sys_instance_name: eno1
+        phc2sys_source: /dev/ptp0
+        phc2sys_destination: CLOCK_REALTIME
+        phc2sys_utc_offset: 0
+        phc2sys_wait_for_ptp: true
+        phc2sys_ptp4l_uds: /var/run/ptp4l@eno1
     ```
 
 <figure markdown="span">
@@ -394,10 +420,21 @@ needed:
 
 === "Ansible (Master)"
 
-    !!! warning
-        The current Ansible role (`autoware.ecu_system_setup.ptp4l_master`) does not support
-        multiple interfaces in one `ptp4l` instance. With hardware time stamping, only one
-        `ptp4l` instance can use a given hardware clock. A custom role is required.
+    ```yaml
+    - role: ptp4l
+      vars:
+        ptp4l_instance_name: enp0
+        ptp4l_interfaces: ["enp0s0f0", "enp0s0f1"]
+        ptp4l_mode: server
+        ptp4l_config_file: /usr/share/doc/linuxptp/configs/default.cfg
+
+    - role: phc2sys
+      vars:
+        phc2sys_instance_name: enp0
+        phc2sys_source: CLOCK_REALTIME
+        phc2sys_destinations: ["/dev/ptp0"]
+        phc2sys_utc_offset: 0
+    ```
 
 <figure markdown="span">
     ![HW PTP: One Instance](img/ptp_architectures.drawio)
@@ -416,10 +453,28 @@ instances are needed.
 
 === "Ansible (Master)"
 
-     !!! info
-        The current Ansible role (`autoware.ecu_system_setup.ptp4l_master`) will create one
-        `phc2sys` instance per `ptp4l` instance, so this scenario is not supported. Instead,
-        see the scenario with multiple `phc2sys` instances below.
+    ```yaml
+    - role: ptp4l
+      vars:
+        ptp4l_instance_name: enp0s0f0
+        ptp4l_interfaces: ["enp0s0f0"]
+        ptp4l_mode: server
+        ptp4l_config_file: /usr/share/doc/linuxptp/configs/default.cfg
+
+    - role: ptp4l
+      vars:
+        ptp4l_instance_name: enp1s0f0
+        ptp4l_interfaces: ["enp1s0f0"]
+        ptp4l_mode: server
+        ptp4l_config_file: /usr/share/doc/linuxptp/configs/default.cfg
+
+    - role: phc2sys
+      vars:
+        phc2sys_instance_name: sys_to_ptp
+        phc2sys_source: CLOCK_REALTIME
+        phc2sys_destinations: ["/dev/ptp0", "/dev/ptp1"]
+        phc2sys_utc_offset: 0
+    ```
 
 <figure markdown="span">
     ![HW PTP: Multi Instance](img/ptp_architectures.drawio)
@@ -440,23 +495,37 @@ settings for different clocks, multiple `phc2sys` instances can be used:
 === "Ansible (Master)"
 
     ```yaml
-    - role: autoware.ecu_system_setup.ptp4l_master
+    - role: ptp4l
       vars:
-        ptp4l_masters:
-          - name: enp0s0f0
-            port_name: enp0s0f0
-            config_name: tier4_normal_hardware_ptp.cfg
-            use_phc2sys: true
-          - name: enp1s0f0
-            port_name: enp1s0f0
-            config_name: tier4_normal_hardware_ptp.cfg
-            use_phc2sys: true
+        ptp4l_instance_name: enp0s0f0
+        ptp4l_interfaces: ["enp0s0f0"]
+        ptp4l_mode: server
+        ptp4l_config_file: /usr/share/doc/linuxptp/configs/default.cfg
+
+    - role: ptp4l
+      vars:
+        ptp4l_instance_name: enp1s0f0
+        ptp4l_interfaces: ["enp1s0f0"]
+        ptp4l_mode: server
+        ptp4l_config_file: /usr/share/doc/linuxptp/configs/default.cfg
+
+    - role: phc2sys
+      vars:
+        phc2sys_instance_name: ptp0
+        phc2sys_source: CLOCK_REALTIME
+        phc2sys_destinations: ["/dev/ptp0"]
+        phc2sys_utc_offset: 0
+
+    - role: phc2sys
+      vars:
+        phc2sys_instance_name: ptp1
+        phc2sys_source: CLOCK_REALTIME
+        phc2sys_destinations: ["/dev/ptp1"]
+        phc2sys_utc_offset: 0
     ```
 
-    !!! warning
-        The current Ansible role (`autoware.ecu_system_setup.ptp4l_master`) does not set
-        different UDS addresses for the `ptp4l` instances, so this role needs to be modified
-        to support this scenario.
+    Each `ptp4l` instance automatically gets a unique Unix domain socket at
+    `/var/run/ptp4l@<name>`, ensuring SYNC.TOOLING and PHC2SYS can communicate with them.
 
 <figure markdown="span">
     ![HW PTP: Multi PHC2SYS](img/ptp_architectures.drawio)

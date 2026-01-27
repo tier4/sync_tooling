@@ -1,11 +1,8 @@
 This manual is for teams that want to integrate SYNC.DIAG into their vehicle architecture.
 
-It is assumed that the vehicle is using [Pilot Auto][pilot-auto], is set up using Ansible,
-and has access to [Autoware ECU System Setup][autoware-ecu-system-setup] Ansible roles.
-
-[pilot-auto]: https://github.com/tier4/pilot-auto
-[autoware-ecu-system-setup]: https://github.com/tier4/autoware_ecu_system_setup
-
+It is assumed that the vehicle is set up using Ansible. This repository provides Ansible roles
+for PTP and SYNC.TOOLING configuration in the [`ansible/`](https://github.com/tier4/sync_tooling/tree/main/ansible)
+directory.
 
 ## Pre-Requisites
 
@@ -33,8 +30,13 @@ status and publish it to ROS 2.
 
 ### Setup
 
-Install and configure SYNC.DIAG via the [autoware_ecu_system_setup.sync_tooling][role-sync-tooling]
-role on every ECU that participates in PTP synchronization.
+Install and configure SYNC.DIAG using the Ansible roles provided in this repository:
+
+- [`diag_worker`][diag-worker-role] - Run on every ECU with PTP
+- [`diag_master`][diag-master-role] - Run once per vehicle
+
+[diag-worker-role]: https://github.com/tier4/sync_tooling/tree/main/ansible/roles/diag_worker
+[diag-master-role]: https://github.com/tier4/sync_tooling/tree/main/ansible/roles/diag_master
 
 The SYNC.DIAG Master is only required once, and should be run on an ECU that publishes or
 processes ROS 2 `/diagnostics`. Usually, the main Autoware ECU is a good choice.
@@ -43,10 +45,10 @@ SYNC.DIAG Workers are required on every ECU that participates in PTP synchroniza
 the one running the SYNC.DIAG Master. Each worker has to be configured with a list of
 `ptp4l` and `phc2sys` instances to monitor.
 
-!!! bug
-    Again, make sure that, if there are multiple `ptp4l` instances, they have different
-    UDS addresses set via `--uds_address`. Otherwise, SYNC.TOOLING will not be able to
-    communicate with them.
+!!! info "Named Unix Domain Sockets"
+    When using the `ptp4l` Ansible role from this repository, each instance automatically gets
+    a unique Unix domain socket at `/var/run/ptp4l@<name>`. This is required for SYNC.TOOLING
+    to communicate with `ptp4l` instances.
 
 All ECUs running a SYNC.DIAG Worker and/or Master must be able to communicate over ROS 2, as
 the `/sync_diag/graph_updates` topic is used to send status updates to the master.
@@ -55,7 +57,11 @@ More information on requirements can be found in the [Manual Installation Guide]
 
 More information on the required configuration file can be found in the [Usage Guide](usage.md).
 
-[role-sync-tooling]: https://github.com/tier4/autoware_ecu_system_setup/tree/590fabea4f21811a0a69e26793e4fff4f9b60bd1/roles/sync_tooling
+### Example Playbook
+
+```yaml
+--8<-- "ansible/examples/playbook.yml"
+```
 
 ### Running SYNC.DIAG
 
