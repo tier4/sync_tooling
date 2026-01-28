@@ -1,4 +1,4 @@
-# Synchronization Tool Suite
+# SYNC.TOOLING
 
 [![CI](https://github.com/tier4/sync_tooling/actions/workflows/build.yaml/badge.svg)](https://github.com/tier4/sync_tooling/actions/workflows/build.yaml)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=tier4_sync_tooling&metric=coverage&token=784a45ca7dc24a6bbde7badd4774612ccd458e82)](https://sonarcloud.io/summary/new_code?id=tier4_sync_tooling)
@@ -8,8 +8,8 @@ Tools for monitoring and diagnosing time synchronization in a distributed system
 
 The tools currently handle monitoring
 
-- PTP4L logs (port states, clock state)
-- PHC2SYS logs (servo state, offset)
+- PTP4L (port states, clock state)
+- PHC2SYS (servo state, offset)
 - local and remote PTP instances by implementing a PTP Management Client
 
 Documentation is available at [**sync-tooling.pages.dev**](https://sync-tooling.pages.dev/) :book:
