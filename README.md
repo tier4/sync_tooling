@@ -83,7 +83,7 @@ uv run diag-master --reference diag_master/config/sample.yml
 # The diag-worker needs to run privileged so that it can communicate with local Unix domain 
 # sockets and read the journal of services running with elevated privileges
 # See notes below.
-sudo uv run diag-worker --ptp4l-units ptp4l@eno1 ptp4l@***REMOVED***
+sudo uv run diag-worker --ptp4l-units ptp4l@eno1 ptp4l@enp2s0
 ```
 
 > **Note:** To run `uv` privileged, it needs to be installed system-wide. If `sudo uv` does not

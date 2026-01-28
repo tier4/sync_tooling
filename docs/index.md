@@ -13,7 +13,7 @@ Takes the **pain** out of **p**recision time synchroniz**a**t**i**o**n**.
 ## :fontawesome-solid-signs-post: First Steps
 
 * [PTP Architecture Guide](ptp-architecture-guide.md) - Set up PTP in a distributed system
-* [Integrators' Guide](integrators-guide.md) - Set up SYNC.TOOLING for a ***REMOVED*** based system
+* [Integrators' Guide](integrators-guide.md) - Set up SYNC.TOOLING in a vehicle
 * [Installation Guide](installation.md) - Install SYNC.TOOLING manually
 * [Usage Guide](usage.md) - Configure SYNC.TOOLING for your system
 

@@ -183,7 +183,7 @@ different naming schemes:
 - **System Clock IDs**: Human-readable names like `my_host.sys`
 - **Interface IDs**: Network interface identifiers, e.g. `my_host.eno1`
 - **Linux Clock Device IDs**: Device names like `my_host.ptp0` (`/dev/ptp0`)
-- **Sensor IDs**: Frame IDs used by sensors, e.g. `sensor@lidar/***REMOVED***`
+- **Sensor IDs**: Frame IDs used by sensors, e.g. `sensor@lidar/top`
 
 When an alias update is received, the graph combines all nodes representing the same clock and
 updates all references to use the most human-readable identifier.

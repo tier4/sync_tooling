@@ -153,7 +153,8 @@ ros2 bag record /sync_diag/graph_updates
 ```
 
 The expected data rate is about `1 kB/s` per `ptp4l`, `phc2sys` or sensor instance.
-For an architecture like ***REMOVED*** gen2, this results in a data rate of about `14 kB/s`.
+Even for large architectures with many ECUs and sensors, the data rate stays in the low
+10s of `kB/s` range.
 
 The bag can be replayed at a later time on any machine with only a `diag-master` running:
 
