@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     container: ros:humble-ros-base-jammy
     steps:
+      - run: git config --global --add safe.directory $GITHUB_WORKSPACE
       - uses: actions/checkout@v4
         with:
           submodules: true
