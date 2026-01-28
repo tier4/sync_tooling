@@ -1,0 +1,40 @@
+# This workflow will build the docs and deploy them to GitHub Pages.
+name: Docs
+
+on:
+  push:
+    branches: ["main"]
+env:
+  UV_VERSION: "0.9.21"
+  PYTHON_VERSION: "3.10"
+  RUFF_VERSION: "0.14.10"
+  TY_VERSION: "0.0.8"
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    container: ros:humble-ros-base-jammy
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+      - name: Configure Git Credentials
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install basic tools
+        run: |
+          apt-get update && apt-get install -qq unzip curl
+      - name: Install dependencies
+        run: |
+          . /opt/ros/humble/setup.sh && \
+          uv sync --all-extras --dev --all-packages && \
+          uv build --all-packages
+      - run: |
+          . /opt/ros/humble/setup.sh && uv run mkdocs gh-deploy --strict --force
