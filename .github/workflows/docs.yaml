@@ -16,7 +16,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     container: ros:humble-ros-base-jammy
     steps:
       - uses: actions/checkout@v4
