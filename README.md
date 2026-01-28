@@ -1,6 +1,7 @@
 # SYNC.TOOLING
 
 [![CI](https://github.com/tier4/sync_tooling/actions/workflows/build.yaml/badge.svg)](https://github.com/tier4/sync_tooling/actions/workflows/build.yaml)
+[![Docs](https://github.com/tier4/sync_tooling/actions/workflows/docs.yaml/badge.svg)](https://tier4.github.io/sync_tooling/)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=tier4_sync_tooling&metric=coverage&token=784a45ca7dc24a6bbde7badd4774612ccd458e82)](https://sonarcloud.io/summary/new_code?id=tier4_sync_tooling)
 ![Python Version](https://img.shields.io/badge/python->=3.10-blue)
 
@@ -12,8 +13,8 @@ The tools currently handle monitoring
 - PHC2SYS (servo state, offset)
 - local and remote PTP instances by implementing a PTP Management Client
 
-Documentation is available at [**sync-tooling.pages.dev**](https://sync-tooling.pages.dev/) :book:
-(log in with your `@tier4.jp` email address).
+Documentation is available at [**tier4.github.io/sync_tooling**](https://tier4.github.io/sync_tooling/)
+:book:
 
 <!-- --8<-- [start:installation] -->
 ## System Requirements
