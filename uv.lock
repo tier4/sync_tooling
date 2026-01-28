@@ -3066,17 +3066,21 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "hatch-protobuf" },
+    { name = "pytest" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "bidict", specifier = ">=0.23.1" },
     { name = "mypy-protobuf", specifier = ">=3.6.0" },
-    { name = "protobuf", specifier = ">=5.29.3" },
+    { name = "protobuf", specifier = ">=6.31.0" },
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "hatch-protobuf", specifier = ">=0.2.0.post1" }]
+dev = [
+    { name = "hatch-protobuf", specifier = ">=0.2.0.post1" },
+    { name = "pytest", specifier = ">=8.0.0" },
+]
 
 [[package]]
 name = "tabulate"
