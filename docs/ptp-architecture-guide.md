@@ -272,11 +272,8 @@ located in `/usr/share/doc/linuxptp/configs/`.
 
 !!! bug
     Do not run gPTP or Automotive PTP on network links with more than two participants,
-    as this will lead to synchronization faults.
-
-As a case study, ***REMOVED*** gen2 is using a switch that does not support gPTP, so it was necessary
-to configure the switch to forward PTP traffic in a way that simulates many 1-to-1 links.
-See [***REMOVED*** gen2 PTP troubleshooting](https://tier4.atlassian.net/wiki/x/jIAvwg) for details.
+    as this will lead to synchronization faults. If e.g. you want to sync four sensors with
+    gPTP from one ECU, the ECU needs four separate network interfaces, each supporting gPTP.
 
 ### ECU PTP Architecture
 
