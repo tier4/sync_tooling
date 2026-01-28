@@ -1,3 +1,4 @@
 [submodule "sync_tooling_msgs"]
 	path = sync_tooling_msgs
 	url = https://github.com/tier4/sync_tooling_msgs.git
+	branch = main
