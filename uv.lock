@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -25,6 +25,12 @@ members = [
     "sync-graph",
     "sync-tooling",
     "sync-tooling-msgs",
+]
+build-constraints = [
+    { name = "hatch-protobuf", specifier = "==0.5.0" },
+    { name = "mypy-protobuf", specifier = "==5.0.0" },
+    { name = "protobuf", specifier = "==6.33.4" },
+    { name = "types-protobuf", specifier = "==6.32.1.20251210" },
 ]
 
 [[package]]
