@@ -37,3 +37,5 @@ if ! grep -q '^types-protobuf==' "$tmp"; then
 fi
 
 sort -u "$tmp" >"$out"
+
+# Keep [tool.uv] build-constraint-dependencies in pyproject.toml aligned with this output.

@@ -71,6 +71,12 @@ uv build --all-packages -b /tmp/build-constraints.txt
 `export_build_constraints.sh` writes pinned protobuf codegen dependency versions from
 `uv.lock` so isolated `uv build` does not re-resolve newer Hatch hook dependencies.
 
+During development, `uv sync` also runs protobuf codegen for `sync-tooling-msgs` (Hatch hook).
+Workspace `[tool.uv] build-constraint-dependencies` in `pyproject.toml` keeps that codegen aligned
+with the locked runtime `protobuf` version. When bumping `protobuf` or related packages in
+`uv.lock`, update `build-constraint-dependencies` to the same pins (or run
+`scripts/export_build_constraints.sh` and copy the versions).
+
 This will generate a `dist` directory with the built packages, and the `dist/*.whl` files can be
 installed using `pip`:
 
