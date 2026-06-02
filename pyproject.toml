@@ -30,6 +30,13 @@ diag-worker = "diag_worker.main:main"
 
 [tool.uv]
 python-preference = "only-system"
+# Pin codegen deps during `uv sync` workspace builds (see scripts/export_build_constraints.sh).
+build-constraint-dependencies = [
+  "protobuf==6.33.4",
+  "mypy-protobuf==5.0.0",
+  "hatch-protobuf==0.5.0",
+  "types-protobuf==6.32.1.20251210",
+]
 
 [tool.uv.sources]
 journal_monitor = { workspace = true }
