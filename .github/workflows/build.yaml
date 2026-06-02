@@ -57,7 +57,7 @@ jobs:
       - name: Build Package
         if: success()
         run: |
-          uv build
+          uv build --no-build-isolation
 
       - name: Export requirements.txt
         run: |

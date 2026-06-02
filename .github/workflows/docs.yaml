@@ -39,6 +39,6 @@ jobs:
         run: |
           . /opt/ros/humble/setup.sh && \
           uv sync --all-extras --dev --all-packages && \
-          uv build --all-packages
+          uv build --all-packages --no-build-isolation
       - run: |
           . /opt/ros/humble/setup.sh && uv run mkdocs gh-deploy --strict --force

@@ -64,7 +64,8 @@ This method builds Python packages (wheel files) that can be installed using `uv
 git clone --recursive https://github.com/tier4/sync_tooling.git
 cd sync_tooling
 
-uv build --all-packages
+uv sync --all-packages
+uv build --all-packages --no-build-isolation
 ```
 
 This will generate a `dist` directory with the built packages, and the `dist/*.whl` files can be

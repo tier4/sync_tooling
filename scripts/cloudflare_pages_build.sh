@@ -23,5 +23,5 @@ dpkg --fsys-tarfile libgvc6*.deb |  tar -xf - -C graphviz/
 graphviz_dir="$(realpath graphviz)"
 export PATH="$PATH:$graphviz_dir/usr/bin"
 uv sync --all-packages --all-extras
-uv build --all-packages
+uv build --all-packages --no-build-isolation
 uv run mkdocs build --strict
