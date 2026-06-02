@@ -57,7 +57,8 @@ jobs:
       - name: Build Package
         if: success()
         run: |
-          uv build
+          scripts/export_build_constraints.sh /tmp/build-constraints.txt
+          uv build -b /tmp/build-constraints.txt
 
       - name: Export requirements.txt
         run: |

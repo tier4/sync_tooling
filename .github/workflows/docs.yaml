@@ -39,6 +39,7 @@ jobs:
         run: |
           . /opt/ros/humble/setup.sh && \
           uv sync --all-extras --dev --all-packages && \
-          uv build --all-packages
+          scripts/export_build_constraints.sh /tmp/build-constraints.txt && \
+          uv build --all-packages -b /tmp/build-constraints.txt
       - run: |
           . /opt/ros/humble/setup.sh && uv run mkdocs gh-deploy --strict --force

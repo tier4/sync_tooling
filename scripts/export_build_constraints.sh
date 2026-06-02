@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 # Copyright 2025 TIER IV, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,15 +13,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
+set -euo pipefail
 
-apt download graphviz libgvc6
-mkdir graphviz
-dpkg --fsys-tarfile graphviz*.deb |  tar -xf - -C graphviz/
-dpkg --fsys-tarfile libgvc6*.deb |  tar -xf - -C graphviz/
-graphviz_dir="$(realpath graphviz)"
-export PATH="$PATH:$graphviz_dir/usr/bin"
-uv sync --all-packages --all-extras
-scripts/export_build_constraints.sh /tmp/build-constraints.txt
-uv build --all-packages -b /tmp/build-constraints.txt
-uv run mkdocs build --strict
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 <output-path>" >&2
+  exit 1
+fi
+
+out="$1"
+pattern='^(protobuf|mypy-protobuf|hatch-protobuf|types-protobuf)=='
+
+strip_constraints() {
+  grep -E "$pattern" | sed -E 's/\s*\\?\s*$//' | awk '{print $1}'
+}
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+
+uv export --frozen --package sync-tooling-msgs --only-group dev 2>/dev/null | strip_constraints >"$tmp"
+
+if ! grep -q '^types-protobuf==' "$tmp"; then
+  uv export --frozen --package sync-tooling-msgs 2>/dev/null | strip_constraints >>"$tmp"
+fi
+
+sort -u "$tmp" >"$out"

@@ -64,8 +64,12 @@ This method builds Python packages (wheel files) that can be installed using `uv
 git clone --recursive https://github.com/tier4/sync_tooling.git
 cd sync_tooling
 
-uv build --all-packages
+scripts/export_build_constraints.sh /tmp/build-constraints.txt
+uv build --all-packages -b /tmp/build-constraints.txt
 ```
+
+`export_build_constraints.sh` writes pinned protobuf codegen dependency versions from
+`uv.lock` so isolated `uv build` does not re-resolve newer Hatch hook dependencies.
 
 This will generate a `dist` directory with the built packages, and the `dist/*.whl` files can be
 installed using `pip`:
