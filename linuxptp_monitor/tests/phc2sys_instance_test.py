@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from journal_monitor.journal_monitor import JournalEntry
-from linuxptp_monitor.phc2sys_instance import Phc2SysRunningState
+from linuxptp_monitor.phc2sys_instance import Phc2SysConfig, Phc2SysRunningState
 from sync_tooling_msgs.clock_id_pb2 import ClockId
 from sync_tooling_msgs.linux_clock_device_id_pb2 import LinuxClockDeviceId
 from sync_tooling_msgs.servo_state_pb2 import ServoState
@@ -24,8 +24,10 @@ from sync_tooling_msgs.servo_state_pb2 import ServoState
 DATA_DIR = Path(__file__).parent.absolute() / Path(__file__).stem
 
 
-class _Config:
-    def __init__(self, clock_aliases):
+class _Config(Phc2SysConfig):
+    """Minimal phc2sys config that skips argv/config-file parsing."""
+
+    def __init__(self, clock_aliases: dict[str, ClockId]):
         self.clock_aliases = clock_aliases
 
 
