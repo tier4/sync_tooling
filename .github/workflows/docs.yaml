@@ -20,7 +20,7 @@ jobs:
     container: ros:humble-ros-base-jammy
     steps:
       - run: git config --global --add safe.directory $GITHUB_WORKSPACE
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.4.0
         with:
           submodules: true
       - name: Configure Git Credentials
@@ -28,7 +28,7 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v4.2.0
         with:
           version: ${{ env.UV_VERSION }}
           python-version: ${{ env.PYTHON_VERSION }}
